@@ -1,0 +1,73 @@
+{
+  "expo": {
+    "name": "ParlAndo",
+    "slug": "parlando-app",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "scheme": "parlando",
+    "userInterfaceStyle": "automatic",
+    "newArchEnabled": true,
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#003040"
+    },
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.parlando.app",
+      "infoPlist": {
+        "NSLocationWhenInUseUsageDescription": "ParlAndo necesita tu ubicación para buscar viajes cercanos.",
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "ParlAndo necesita tu ubicación en segundo plano para compartir tu viaje en tiempo real.",
+        "NSCameraUsageDescription": "ParlAndo necesita acceso a la cámara para verificar tu identidad.",
+        "NSFaceIDUsageDescription": "ParlAndo usa Face ID para autenticación rápida."
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#003040"
+      },
+      "package": "com.parlando.app",
+      "permissions": [
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION",
+        "ACCESS_BACKGROUND_LOCATION",
+        "CAMERA"
+      ]
+    },
+    "plugins": [
+      "expo-router",
+      "expo-secure-store",
+      "expo-font",
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "ParlAndo necesita tu ubicación para compartir tu viaje en tiempo real con tus contactos de emergencia."
+        }
+      ],
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "ParlAndo necesita acceso a tu cámara para verificar tu identidad."
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/notification-icon.png",
+          "color": "#007380"
+        }
+      ],
+      [
+        "expo-local-authentication",
+        {
+          "faceIDPermission": "Permite que ParlAndo use Face ID para inicio de sesión rápido."
+        }
+      ]
+    ],
+    "experiments": {
+      "typedRoutes": true
+    }
+  }
+}
