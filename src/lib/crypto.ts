@@ -103,3 +103,21 @@ export async function encryptFields<T extends object>(
   }
   return result;
 }
+
+/**
+ * Decrypts specified fields of an object.
+ * Non-string or non-prefixed fields are left unchanged.
+ */
+export async function decryptFields<T extends object>(
+  obj: T,
+  fields: (keyof T)[],
+): Promise<T> {
+  const result = { ...obj };
+  for (const field of fields) {
+    const value = result[field];
+    if (typeof value === 'string' && value.startsWith(PREFIX)) {
+      (result as Record<string, unknown>)[field as string] = await decrypt(value);
+    }
+  }
+  return result;
+}
