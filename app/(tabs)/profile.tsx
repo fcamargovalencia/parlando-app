@@ -36,9 +36,8 @@ function MenuItem({ icon, title, subtitle, onPress, badge, danger }: MenuItemPro
       activeOpacity={0.6}
     >
       <View
-        className={`w-10 h-10 rounded-xl items-center justify-center mr-3 ${
-          danger ? 'bg-red-50' : 'bg-neutral-50'
-        }`}
+        className={`w-10 h-10 rounded-xl items-center justify-center mr-3 ${danger ? 'bg-red-50' : 'bg-neutral-50'
+          }`}
       >
         {icon}
       </View>
@@ -148,6 +147,18 @@ export default function ProfileScreen() {
         </Card>
 
         {/* Menu Sections */}
+        {user?.phoneVerified === false && (
+          <Card className="mb-4">
+            <MenuItem
+              icon={<Phone size={20} color={Colors.semantic.warning} />}
+              title="Verificar teléfono"
+              subtitle="Verifica tu número para mayor seguridad"
+              onPress={() => router.push('/(auth)/verify-phone?from=profile')}
+              badge={<Badge label="Pendiente" variant="warning" />}
+            />
+          </Card>
+        )}
+
         <Card className="mb-4">
           <MenuItem
             icon={<Car size={20} color={Colors.primary[600]} />}

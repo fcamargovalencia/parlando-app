@@ -108,6 +108,7 @@ export interface UserResponse {
   trustScore: number;
   role: Role;
   status: UserStatus;
+  phoneVerified: boolean;
 }
 
 export interface UpdateProfileRequest {

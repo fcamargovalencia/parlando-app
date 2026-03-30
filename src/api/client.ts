@@ -23,7 +23,7 @@ let refreshPromise: Promise<string> | null = null;
 api.interceptors.response.use(
   (response) => response,
   async (error) => {
-    const original = error.config as InternalAxiosRequestConfig & { _retry?: boolean };
+    const original = error.config as InternalAxiosRequestConfig & { _retry?: boolean; };
 
     if (error.response?.status !== 401 || original._retry) {
       return Promise.reject(error);
@@ -40,7 +40,7 @@ api.interceptors.response.use(
     try {
       if (!refreshPromise) {
         refreshPromise = axios
-          .post<{ data: { accessToken: string; refreshToken: string } }>(
+          .post<{ data: { accessToken: string; refreshToken: string; }; }>(
             `${Config.API_URL}/v1/auth/refresh`,
             { refreshToken },
           )

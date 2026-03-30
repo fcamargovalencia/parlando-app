@@ -1,24 +1,49 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { View, Text, TextInput, TouchableOpacity } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Screen, Button } from '@/components/ui';
 import { useAuth } from '@/hooks/useAuth';
 import { useAuthStore } from '@/stores/auth-store';
 import { Colors } from '@/constants/colors';
 
 const OTP_LENGTH = 6;
+const RESEND_COOLDOWN = 60;
 
 export default function VerifyPhoneScreen() {
   const router = useRouter();
-  const { loading, error, verifyPhone, clearError } = useAuth();
+  const { from } = useLocalSearchParams<{ from?: string }>();
+  const { loading, error, sendOtp, verifyPhone, clearError } = useAuth();
   const phone = useAuthStore((s) => s.user?.phone ?? '');
 
   const [code, setCode] = useState<string[]>(Array(OTP_LENGTH).fill(''));
+  const [cooldown, setCooldown] = useState(RESEND_COOLDOWN);
+  const [sending, setSending] = useState(false);
   const inputRefs = useRef<(TextInput | null)[]>([]);
+
+  // Send OTP on mount
+  useEffect(() => {
+    sendOtp();
+  }, [sendOtp]);
+
+  // Cooldown timer
+  useEffect(() => {
+    if (cooldown <= 0) return;
+    const timer = setInterval(() => setCooldown((c) => c - 1), 1000);
+    return () => clearInterval(timer);
+  }, [cooldown]);
+
+  const handleResend = useCallback(async () => {
+    if (cooldown > 0 || sending) return;
+    setSending(true);
+    await sendOtp();
+    setSending(false);
+    setCooldown(RESEND_COOLDOWN);
+    setCode(Array(OTP_LENGTH).fill(''));
+    inputRefs.current[0]?.focus();
+  }, [cooldown, sending, sendOtp]);
 
   const handleChange = (text: string, index: number) => {
     if (text.length > 1) {
-      // Pasted code
       const chars = text.replace(/\D/g, '').slice(0, OTP_LENGTH).split('');
       const newCode = [...code];
       chars.forEach((c, i) => {
@@ -36,6 +61,8 @@ export default function VerifyPhoneScreen() {
 
     if (text && index < OTP_LENGTH - 1) {
       inputRefs.current[index + 1]?.focus();
+    } else if (text && index === OTP_LENGTH - 1) {
+      inputRefs.current[index]?.blur();
     }
   };
 
@@ -52,12 +79,20 @@ export default function VerifyPhoneScreen() {
     if (!isComplete) return;
     const success = await verifyPhone(otpValue);
     if (success) {
-      router.replace('/(tabs)/home');
+      if (from === 'profile') {
+        router.back();
+      } else {
+        router.replace('/(tabs)/home');
+      }
     }
   };
 
   const handleSkip = () => {
-    router.replace('/(tabs)/home');
+    if (from === 'profile') {
+      router.back();
+    } else {
+      router.replace('/(tabs)/home');
+    }
   };
 
   return (
@@ -110,11 +145,17 @@ export default function VerifyPhoneScreen() {
           {/* Resend */}
           <View className="flex-row items-center justify-center mt-8">
             <Text className="text-sm text-neutral-500">¿No recibiste el código? </Text>
-            <TouchableOpacity>
-              <Text className="text-sm font-semibold text-primary-600">
-                Reenviar
+            {cooldown > 0 ? (
+              <Text className="text-sm font-semibold text-neutral-400">
+                Reenviar en {cooldown}s
               </Text>
-            </TouchableOpacity>
+            ) : (
+              <TouchableOpacity onPress={handleResend} disabled={sending}>
+                <Text className="text-sm font-semibold text-primary-600">
+                  {sending ? 'Enviando...' : 'Reenviar'}
+                </Text>
+              </TouchableOpacity>
+            )}
           </View>
         </View>
 
@@ -135,7 +176,7 @@ export default function VerifyPhoneScreen() {
             size="md"
             className="w-full mt-3"
           >
-            Verificar después
+            {from === 'profile' ? 'Cancelar' : 'Verificar después'}
           </Button>
         </View>
       </View>

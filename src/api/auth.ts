@@ -47,6 +47,9 @@ export const authApi = {
   logout: (data: LogoutRequest) =>
     api.post<ApiResponse<null>>('/v1/auth/logout', data),
 
+  sendOtp: () =>
+    api.post<ApiResponse<null>>('/v1/auth/send-otp'),
+
   verifyPhone: (data: VerifyPhoneRequest) =>
     api.post<ApiResponse<unknown>>('/v1/auth/verify-phone', data),
 };

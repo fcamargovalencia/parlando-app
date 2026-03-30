@@ -12,9 +12,9 @@ interface AuthState {
 }
 
 type AuthAction =
-  | { type: 'LOADING' }
-  | { type: 'ERROR'; payload: string }
-  | { type: 'RESET' };
+  | { type: 'LOADING'; }
+  | { type: 'ERROR'; payload: string; }
+  | { type: 'RESET'; };
 
 function authReducer(state: AuthState, action: AuthAction): AuthState {
   switch (action.type) {
@@ -95,6 +95,15 @@ export function useAuth() {
     }
   }, [storeLogout]);
 
+  const sendOtp = useCallback(async () => {
+    try {
+      await authApi.sendOtp();
+      return true;
+    } catch {
+      return false;
+    }
+  }, []);
+
   const verifyPhone = useCallback(async (otp: string) => {
     dispatch({ type: 'LOADING' });
     try {
@@ -121,6 +130,7 @@ export function useAuth() {
     login,
     register,
     logout,
+    sendOtp,
     verifyPhone,
     clearError,
   };
