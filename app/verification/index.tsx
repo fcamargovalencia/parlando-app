@@ -15,13 +15,17 @@ export default function VerificationsScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const user = useAuthStore((s) => s.user);
-  const { verifications, loading, fetchVerifications } = useVerifications();
+  const { verifications, initialized, loading, refreshing, fetchVerifications } = useVerifications();
 
   useFocusEffect(
     useCallback(() => {
-      fetchVerifications();
-    }, [fetchVerifications]),
+      void fetchVerifications({ silent: initialized });
+    }, [fetchVerifications, initialized]),
   );
+
+  const handleRefresh = useCallback(() => {
+    void fetchVerifications();
+  }, [fetchVerifications]);
 
   const renderItem = ({ item }: { item: IdentityVerificationResponse; }) => (
     <View className="px-6 mb-3">
@@ -46,7 +50,7 @@ export default function VerificationsScreen() {
         </View>
       </View>
 
-      {loading && verifications.length === 0 ? (
+      {loading && !initialized ? (
         <Spinner fullScreen message="Cargando verificaciones..." />
       ) : (
         <FlatList
@@ -57,8 +61,8 @@ export default function VerificationsScreen() {
           showsVerticalScrollIndicator={false}
           refreshControl={
             <RefreshControl
-              refreshing={loading}
-              onRefresh={fetchVerifications}
+              refreshing={refreshing}
+              onRefresh={handleRefresh}
               tintColor={Colors.primary[600]}
             />
           }

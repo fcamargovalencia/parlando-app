@@ -1,27 +1,37 @@
-import { useReducer, useCallback, useEffect } from 'react';
+import { useReducer, useCallback, useEffect, useRef } from 'react';
 import { verificationsApi } from '@/api/verifications';
+import { usersApi } from '@/api/users';
+import { useAuthStore } from '@/stores/auth-store';
 import type {
   IdentityVerificationResponse,
   SubmitVerificationRequest,
 } from '@/types/api';
 
+const POLL_INTERVAL = 30_000; // 30 seconds
+
+// Survives component unmounts so the full-screen spinner never shows again
+// after verifications have been loaded at least once.
+let _moduleInitialized = false;
+
 // ── State & Actions ──
 
 interface VerificationsState {
   verifications: IdentityVerificationResponse[];
+  initialized: boolean;
   loading: boolean;
+  refreshing: boolean;
   submitting: boolean;
   error: string | null;
 }
 
 type VerificationsAction =
-  | { type: 'FETCH_START' }
-  | { type: 'FETCH_SUCCESS'; payload: IdentityVerificationResponse[] }
-  | { type: 'FETCH_ERROR'; payload: string }
-  | { type: 'SUBMIT_START' }
-  | { type: 'SUBMIT_SUCCESS'; payload: IdentityVerificationResponse }
-  | { type: 'SUBMIT_ERROR'; payload: string }
-  | { type: 'CLEAR_ERROR' };
+  | { type: 'FETCH_START'; silent?: boolean; }
+  | { type: 'FETCH_SUCCESS'; payload: IdentityVerificationResponse[]; }
+  | { type: 'FETCH_ERROR'; payload: string; }
+  | { type: 'SUBMIT_START'; }
+  | { type: 'SUBMIT_SUCCESS'; payload: IdentityVerificationResponse; }
+  | { type: 'SUBMIT_ERROR'; payload: string; }
+  | { type: 'CLEAR_ERROR'; };
 
 function verificationsReducer(
   state: VerificationsState,
@@ -29,11 +39,23 @@ function verificationsReducer(
 ): VerificationsState {
   switch (action.type) {
     case 'FETCH_START':
-      return { ...state, loading: true, error: null };
+      return {
+        ...state,
+        loading: action.silent ? state.loading : true,
+        refreshing: action.silent ? state.refreshing : state.initialized,
+        error: null,
+      };
     case 'FETCH_SUCCESS':
-      return { ...state, loading: false, verifications: action.payload, error: null };
+      return {
+        ...state,
+        loading: false,
+        refreshing: false,
+        initialized: true,
+        verifications: action.payload,
+        error: null,
+      };
     case 'FETCH_ERROR':
-      return { ...state, loading: false, error: action.payload };
+      return { ...state, loading: false, refreshing: false, error: action.payload };
     case 'SUBMIT_START':
       return { ...state, submitting: true, error: null };
     case 'SUBMIT_SUCCESS':
@@ -50,26 +72,59 @@ function verificationsReducer(
   }
 }
 
+interface FetchVerificationsOptions {
+  silent?: boolean;
+}
+
 export function useVerifications() {
+  const setStoreUser = useAuthStore((s) => s.setUser);
+  const prevStatusesRef = useRef<Record<string, string>>({});
+
   const [state, dispatch] = useReducer(verificationsReducer, {
     verifications: [],
+    initialized: _moduleInitialized,
     loading: false,
+    refreshing: false,
     submitting: false,
     error: null,
   });
 
-  const fetchVerifications = useCallback(async () => {
-    dispatch({ type: 'FETCH_START' });
+  const fetchVerifications = useCallback(async (options?: FetchVerificationsOptions) => {
+    dispatch({ type: 'FETCH_START', silent: options?.silent });
+
     try {
       const { data: res } = await verificationsApi.getMine();
-      dispatch({ type: 'FETCH_SUCCESS', payload: res.data ?? [] });
+      const newVerifications = res.data ?? [];
+      _moduleInitialized = true;
+      dispatch({ type: 'FETCH_SUCCESS', payload: newVerifications });
+
+      // Detect status changes from previous fetch
+      const prev = prevStatusesRef.current;
+      const hasStatusChanged = newVerifications.some(
+        (v) => prev[v.id] !== undefined && prev[v.id] !== v.status,
+      );
+
+      // Update snapshot
+      prevStatusesRef.current = Object.fromEntries(
+        newVerifications.map((v) => [v.id, v.status]),
+      );
+
+      // Sync profile when a verification status changed so verificationLevel reflects the update
+      if (hasStatusChanged) {
+        try {
+          const { data: userRes } = await usersApi.getMe();
+          if (userRes.data) setStoreUser(userRes.data);
+        } catch {
+          // ignore profile refresh errors silently
+        }
+      }
     } catch (err: any) {
       dispatch({
         type: 'FETCH_ERROR',
         payload: err?.response?.data?.message ?? 'Error al cargar verificaciones',
       });
     }
-  }, []);
+  }, [setStoreUser]);
 
   const submitVerification = useCallback(async (data: SubmitVerificationRequest) => {
     dispatch({ type: 'SUBMIT_START' });
@@ -89,9 +144,17 @@ export function useVerifications() {
 
   const clearError = useCallback(() => dispatch({ type: 'CLEAR_ERROR' }), []);
 
+  // Poll while there are PENDING verifications so status + verificationLevel updates are detected
   useEffect(() => {
-    fetchVerifications();
-  }, [fetchVerifications]);
+    const hasPending = state.verifications.some((v) => v.status === 'PENDING');
+    if (!hasPending) return;
+
+    const id = setInterval(() => {
+      void fetchVerifications({ silent: true });
+    }, POLL_INTERVAL);
+
+    return () => clearInterval(id);
+  }, [state.verifications, fetchVerifications]);
 
   return {
     ...state,

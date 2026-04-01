@@ -188,6 +188,7 @@ export interface IdentityVerificationResponse {
   documentBackUrl: string;
   selfieUrl: string | null;
   faceMatchScore: number | null;
+  faceMatchConfirmed?: boolean | null;
   status: VerificationStatus;
   verifiedAt: string | null;
   rejectionReason: string | null;

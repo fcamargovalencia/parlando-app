@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, TouchableOpacity } from 'react-native';
-import { FileCheck, Clock, XCircle, AlertCircle } from 'lucide-react-native';
+import { FileCheck, Clock, XCircle, AlertCircle, ScanFace } from 'lucide-react-native';
 import { Card } from '@/components/ui/Card';
 import { Badge } from '@/components/ui/Badge';
 import { Colors } from '@/constants/colors';
@@ -15,7 +15,7 @@ interface VerificationCardProps {
 function getStatusInfo(status: string) {
   const map: Record<
     string,
-    { label: string; variant: 'success' | 'warning' | 'error' | 'neutral'; icon: React.ReactNode }
+    { label: string; variant: 'success' | 'warning' | 'error' | 'neutral'; icon: React.ReactNode; }
   > = {
     PENDING: {
       label: 'Pendiente',
@@ -58,6 +58,28 @@ export function VerificationCard({ verification, onPress }: VerificationCardProp
             <Text className="text-sm text-neutral-500 mt-0.5">
               Enviado: {formatDate(verification.createdAt)}
             </Text>
+            {verification.faceMatchConfirmed != null && verification.selfieUrl && (
+              <View className="flex-row items-center mt-1 gap-1">
+                <ScanFace
+                  size={13}
+                  color={
+                    verification.faceMatchConfirmed
+                      ? Colors.semantic.success
+                      : Colors.semantic.error
+                  }
+                />
+                <Text
+                  className="text-xs font-medium"
+                  style={{
+                    color: verification.faceMatchConfirmed
+                      ? Colors.semantic.success
+                      : Colors.semantic.error,
+                  }}
+                >
+                  {verification.faceMatchConfirmed ? 'Rostro coincide' : 'Rostro no coincide'}
+                </Text>
+              </View>
+            )}
             {verification.rejectionReason && (
               <Text className="text-xs text-red-500 mt-1">
                 {verification.rejectionReason}
