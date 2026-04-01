@@ -1,6 +1,6 @@
-import React from 'react';
+import React, { useCallback } from 'react';
 import { View, Text, FlatList, RefreshControl, TouchableOpacity } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ShieldCheck, Plus } from 'lucide-react-native';
 import { Screen, EmptyState, Spinner } from '@/components/ui';
@@ -17,7 +17,13 @@ export default function VerificationsScreen() {
   const user = useAuthStore((s) => s.user);
   const { verifications, loading, fetchVerifications } = useVerifications();
 
-  const renderItem = ({ item }: { item: IdentityVerificationResponse }) => (
+  useFocusEffect(
+    useCallback(() => {
+      fetchVerifications();
+    }, [fetchVerifications]),
+  );
+
+  const renderItem = ({ item }: { item: IdentityVerificationResponse; }) => (
     <View className="px-6 mb-3">
       <VerificationCard verification={item} />
     </View>
