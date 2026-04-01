@@ -22,23 +22,26 @@ export interface CapturedPhoto {
   height?: number;
 }
 
+export interface CapturePhotoConfig {
+  title: string;
+  description: string;
+  hint: string;
+  frameAspectRatio: number;
+  useFrontCamera: boolean;
+  frameRadius: number;
+}
+
 interface CapturePhotoModalProps {
   visible: boolean;
   target: CaptureTarget | null;
   onClose: () => void;
   onCapture: (photo: CapturedPhoto) => void;
+  customConfig?: Partial<CapturePhotoConfig>;
 }
 
 const captureConfig: Record<
   CaptureTarget,
-  {
-    title: string;
-    description: string;
-    hint: string;
-    frameAspectRatio: number;
-    useFrontCamera: boolean;
-    frameRadius: number;
-  }
+  CapturePhotoConfig
 > = {
   documentFront: {
     title: 'Frente del documento',
@@ -86,7 +89,13 @@ function buildCenteredCrop(
   return { originX: 0, originY, width: cropWidth, height: cropHeight };
 }
 
-export function CapturePhotoModal({ visible, target, onClose, onCapture }: CapturePhotoModalProps) {
+export function CapturePhotoModal({
+  visible,
+  target,
+  onClose,
+  onCapture,
+  customConfig,
+}: CapturePhotoModalProps) {
   const insets = useSafeAreaInsets();
   const [permission, requestPermission] = useCameraPermissions();
   const [capturing, setCapturing] = useState(false);
@@ -96,7 +105,10 @@ export function CapturePhotoModal({ visible, target, onClose, onCapture }: Captu
     return null;
   }
 
-  const config = captureConfig[target];
+  const config: CapturePhotoConfig = {
+    ...captureConfig[target],
+    ...customConfig,
+  };
 
   const handleRequestPermission = async () => {
     const result = await requestPermission();

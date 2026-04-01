@@ -5,6 +5,12 @@ interface UploadOptions {
   publicId?: string;
 }
 
+export interface UploadFileInput {
+  uri: string;
+  name?: string;
+  type?: string;
+}
+
 interface CloudinaryUploadResponse {
   secure_url: string;
 }
@@ -23,13 +29,17 @@ function getFileName(uri: string): string {
   return `capture-${Date.now()}.jpg`;
 }
 
+function ensureCloudinaryConfig() {
+  if (!Config.CLOUDINARY_CLOUD_NAME || !Config.CLOUDINARY_UPLOAD_PRESET) {
+    throw new Error('Cloudinary no está configurado. Define EXPO_PUBLIC_CLOUDINARY_CLOUD_NAME y EXPO_PUBLIC_CLOUDINARY_UPLOAD_PRESET.');
+  }
+}
+
 export async function uploadImageToCloudinary(
   uri: string,
   options: UploadOptions = {},
 ): Promise<string> {
-  if (!Config.CLOUDINARY_CLOUD_NAME || !Config.CLOUDINARY_UPLOAD_PRESET) {
-    throw new Error('Cloudinary no está configurado. Define EXPO_PUBLIC_CLOUDINARY_CLOUD_NAME y EXPO_PUBLIC_CLOUDINARY_UPLOAD_PRESET.');
-  }
+  ensureCloudinaryConfig();
 
   const formData = new FormData();
   formData.append('upload_preset', Config.CLOUDINARY_UPLOAD_PRESET);
@@ -59,6 +69,46 @@ export async function uploadImageToCloudinary(
   if (!response.ok) {
     const message = await response.text();
     throw new Error(message || 'No se pudo subir la imagen a Cloudinary');
+  }
+
+  const data = (await response.json()) as CloudinaryUploadResponse;
+  return data.secure_url;
+}
+
+export async function uploadFileToCloudinary(
+  file: UploadFileInput,
+  options: UploadOptions = {},
+): Promise<string> {
+  ensureCloudinaryConfig();
+
+  const formData = new FormData();
+  formData.append('upload_preset', Config.CLOUDINARY_UPLOAD_PRESET);
+
+  if (options.folder) {
+    formData.append('folder', options.folder);
+  }
+
+  if (options.publicId) {
+    formData.append('public_id', options.publicId);
+  }
+
+  formData.append('file', {
+    uri: file.uri,
+    name: file.name ?? getFileName(file.uri),
+    type: file.type ?? 'application/octet-stream',
+  } as any);
+
+  const response = await fetch(
+    `https://api.cloudinary.com/v1_1/${Config.CLOUDINARY_CLOUD_NAME}/auto/upload`,
+    {
+      method: 'POST',
+      body: formData,
+    },
+  );
+
+  if (!response.ok) {
+    const message = await response.text();
+    throw new Error(message || 'No se pudo subir el archivo a Cloudinary');
   }
 
   const data = (await response.json()) as CloudinaryUploadResponse;
