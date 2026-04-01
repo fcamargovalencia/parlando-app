@@ -1,5 +1,6 @@
 import '../global.css';
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
+import { loadFonts } from '../src/fonts';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import * as SplashScreen from 'expo-splash-screen';
@@ -8,10 +9,19 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 SplashScreen.preventAutoHideAsync();
 
+
 export default function RootLayout() {
+  const [fontsLoaded, setFontsLoaded] = useState(false);
+
   useEffect(() => {
-    SplashScreen.hideAsync();
+    (async () => {
+      await loadFonts();
+      setFontsLoaded(true);
+      SplashScreen.hideAsync();
+    })();
   }, []);
+
+  if (!fontsLoaded) return null;
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
