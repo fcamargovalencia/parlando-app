@@ -24,8 +24,8 @@ interface ProfileFormState {
 }
 
 type ProfileFormAction =
-  | { type: 'SET'; field: keyof ProfileFormState; value: string }
-  | { type: 'INIT'; payload: ProfileFormState };
+  | { type: 'SET'; field: keyof ProfileFormState; value: string; }
+  | { type: 'INIT'; payload: ProfileFormState; };
 
 function formReducer(state: ProfileFormState, action: ProfileFormAction): ProfileFormState {
   switch (action.type) {
@@ -39,7 +39,7 @@ function formReducer(state: ProfileFormState, action: ProfileFormAction): Profil
 export default function EditProfileScreen() {
   const router = useRouter();
   const user = useAuthStore((s) => s.user);
-  const { updateProfile, loading, error } = useProfile();
+  const { updateProfile, updating, error } = useProfile();
 
   const [form, dispatch] = useReducer(formReducer, {
     firstName: '',
@@ -78,13 +78,13 @@ export default function EditProfileScreen() {
       return;
     }
 
-    await updateProfile({
+    const success = await updateProfile({
       firstName: form.firstName.trim(),
       lastName: form.lastName.trim(),
       profilePhotoUrl: form.profilePhotoUrl || undefined,
     });
 
-    if (!error) {
+    if (success) {
       Toast.show({
         type: 'success',
         text1: 'Perfil actualizado',
@@ -183,7 +183,7 @@ export default function EditProfileScreen() {
           {/* Save */}
           <Button
             onPress={handleSave}
-            loading={loading}
+            loading={updating}
             disabled={!hasChanges}
             size="lg"
             className="w-full"

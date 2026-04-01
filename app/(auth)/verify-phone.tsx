@@ -11,7 +11,7 @@ const RESEND_COOLDOWN = 60;
 
 export default function VerifyPhoneScreen() {
   const router = useRouter();
-  const { from } = useLocalSearchParams<{ from?: string }>();
+  const { from } = useLocalSearchParams<{ from?: string; }>();
   const { loading, error, sendOtp, verifyPhone, clearError } = useAuth();
   const phone = useAuthStore((s) => s.user?.phone ?? '');
 
@@ -51,7 +51,11 @@ export default function VerifyPhoneScreen() {
       });
       setCode(newCode);
       const targetIdx = Math.min(index + chars.length, OTP_LENGTH - 1);
-      inputRefs.current[targetIdx]?.focus();
+      if (targetIdx === OTP_LENGTH - 1 && newCode[OTP_LENGTH - 1]) {
+        inputRefs.current[targetIdx]?.blur();
+      } else {
+        inputRefs.current[targetIdx]?.focus();
+      }
       return;
     }
 
@@ -66,7 +70,7 @@ export default function VerifyPhoneScreen() {
     }
   };
 
-  const handleKeyPress = (e: { nativeEvent: { key: string } }, index: number) => {
+  const handleKeyPress = (e: { nativeEvent: { key: string; }; }, index: number) => {
     if (e.nativeEvent.key === 'Backspace' && !code[index] && index > 0) {
       inputRefs.current[index - 1]?.focus();
     }
@@ -126,11 +130,10 @@ export default function VerifyPhoneScreen() {
               <TextInput
                 key={index}
                 ref={(ref) => { inputRefs.current[index] = ref; }}
-                className={`w-12 h-14 border-2 rounded-2xl text-center text-xl font-bold ${
-                  digit
+                className={`w-12 h-14 border-2 rounded-2xl text-center text-xl font-bold ${digit
                     ? 'border-primary-500 bg-primary-50'
                     : 'border-neutral-200 bg-white'
-                }`}
+                  }`}
                 style={{ color: Colors.dark.DEFAULT }}
                 keyboardType="number-pad"
                 maxLength={index === 0 ? OTP_LENGTH : 1}

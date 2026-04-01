@@ -1,18 +1,20 @@
 import React, { useState } from 'react';
 import { View, Text, FlatList, TouchableOpacity } from 'react-native';
+import { useRouter } from 'expo-router';
 import { Route, Clock, CheckCircle2, XCircle } from 'lucide-react-native';
 import { Screen, EmptyState, Badge } from '@/components/ui';
 import { Colors } from '@/constants/colors';
 
 type TripFilter = 'upcoming' | 'completed' | 'cancelled';
 
-const filterItems: { key: TripFilter; label: string }[] = [
+const filterItems: { key: TripFilter; label: string; }[] = [
   { key: 'upcoming', label: 'Próximos' },
   { key: 'completed', label: 'Completados' },
   { key: 'cancelled', label: 'Cancelados' },
 ];
 
 export default function MyTripsScreen() {
+  const router = useRouter();
   const [activeFilter, setActiveFilter] = useState<TripFilter>('upcoming');
 
   return (
@@ -30,16 +32,14 @@ export default function MyTripsScreen() {
           <TouchableOpacity
             key={item.key}
             onPress={() => setActiveFilter(item.key)}
-            className={`mr-2 px-4 py-2 rounded-full ${
-              activeFilter === item.key
+            className={`mr-2 px-4 py-2 rounded-full ${activeFilter === item.key
                 ? 'bg-primary-500'
                 : 'bg-neutral-100'
-            }`}
+              }`}
           >
             <Text
-              className={`text-sm font-medium ${
-                activeFilter === item.key ? 'text-white' : 'text-neutral-600'
-              }`}
+              className={`text-sm font-medium ${activeFilter === item.key ? 'text-white' : 'text-neutral-600'
+                }`}
             >
               {item.label}
             </Text>
@@ -53,6 +53,7 @@ export default function MyTripsScreen() {
         title="Sin viajes aún"
         description="Cuando busques o publiques un viaje aparecerá aquí. ¡Empieza explorando rutas disponibles!"
         actionLabel="Buscar viajes"
+        onAction={() => router.push('/(tabs)/home')}
       />
     </Screen>
   );

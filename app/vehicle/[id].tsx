@@ -25,7 +25,7 @@ import type { VehicleStatus } from '@/types/api';
 import Toast from 'react-native-toast-message';
 
 export default function VehicleDetailScreen() {
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const { id } = useLocalSearchParams<{ id: string; }>();
   const router = useRouter();
   const { selected: vehicle, loading, error, fetchVehicle, deleteVehicle } = useVehicles();
   const [deleting, setDeleting] = useState(false);
@@ -81,7 +81,7 @@ export default function VehicleDetailScreen() {
     );
   }
 
-  const statusVariant = getStatusColor(vehicle.status as VehicleStatus);
+  const statusVariant = getStatusColor(vehicle.status);
 
   return (
     <Screen safe={false}>
@@ -107,7 +107,7 @@ export default function VehicleDetailScreen() {
 
           {/* Status Badge Overlay */}
           <View className="absolute top-4 right-4">
-            <Badge variant={statusVariant as any} label={vehicle.status} />
+            <Badge variant={statusVariant} label={vehicle.status} />
           </View>
         </View>
 
@@ -224,9 +224,8 @@ function DocumentRow({
   return (
     <View className={`flex-row items-center py-3 ${!last ? 'border-b border-neutral-100' : ''}`}>
       <View
-        className={`w-8 h-8 rounded-lg items-center justify-center mr-3 ${
-          hasDocument ? 'bg-green-100' : 'bg-red-50'
-        }`}
+        className={`w-8 h-8 rounded-lg items-center justify-center mr-3 ${hasDocument ? 'bg-green-100' : 'bg-red-50'
+          }`}
       >
         <ShieldCheck
           size={16}

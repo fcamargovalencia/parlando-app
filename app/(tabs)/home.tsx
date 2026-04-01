@@ -163,10 +163,10 @@ export default function HomeScreen() {
               Buscar viaje
             </Text>
             {/* Input Origen */}
-            <View className="flex-row items-center bg-neutral-50 rounded-2xl px-6 py-5 mb-5 w-full max-w-none border border-neutral-200" style={{ borderWidth: 1, borderColor: '#E5E7EB' }}>
+            <View className="flex-row items-center bg-neutral-50 rounded-2xl px-3 py-5 mb-5 w-full max-w-none border border-neutral-200" style={{ borderWidth: 1, borderColor: '#E5E7EB' }}>
               <MapPin size={22} color={Colors.primary[500]} />
               <TextInput
-                className="flex-1 ml-4 text-lg text-neutral-900 w-full max-w-none"
+                className="flex-1 ml-2.5 text-lg text-neutral-900 w-full max-w-none"
                 placeholder="Origen"
                 placeholderTextColor="#A3A3A3"
                 value={origin}
@@ -174,10 +174,10 @@ export default function HomeScreen() {
               />
             </View>
             {/* Input Destino */}
-            <View className="flex-row items-center bg-neutral-50 rounded-2xl px-6 py-5 mb-5 w-full max-w-none border border-neutral-200" style={{ borderWidth: 1, borderColor: '#E5E7EB' }}>
+            <View className="flex-row items-center bg-neutral-50 rounded-2xl px-3 py-5 mb-5 w-full max-w-none border border-neutral-200" style={{ borderWidth: 1, borderColor: '#E5E7EB' }}>
               <MapPin size={22} color={Colors.accent[500]} />
               <TextInput
-                className="flex-1 ml-4 text-lg text-neutral-900 w-full max-w-none"
+                className="flex-1 ml-2.5 text-lg text-neutral-900 w-full max-w-none"
                 placeholder="Destino"
                 placeholderTextColor="#A3A3A3"
                 value={destination}
@@ -187,10 +187,10 @@ export default function HomeScreen() {
             {/* Pasajeros y tipo de viaje en una fila */}
             <View className="flex-row gap-2 mb-4">
               {/* Input Pasajeros (40%) */}
-              <View className="flex-row items-center bg-neutral-50 rounded-2xl px-6 py-5 w-full max-w-none border border-neutral-200" style={{ borderWidth: 1, borderColor: '#E5E7EB', flex: 0.5 }}>
-                <Text style={{ fontSize: 22, color: Colors.primary[500] }}>👥</Text>
+              <View className="flex-row items-center bg-neutral-50 rounded-2xl px-3 py-5 w-full max-w-none border border-neutral-200" style={{ borderWidth: 1, borderColor: '#E5E7EB', flex: 0.45 }}>
+                <Text style={{ fontSize: 16, color: Colors.primary[500] }}>👥</Text>
                 <TextInput
-                  className="flex-1 ml-4 text-lg text-neutral-900"
+                  className="flex-1 ml-2.5 text-lg text-neutral-900"
                   placeholder="Pasajeros"
                   placeholderTextColor="#A3A3A3"
                   keyboardType="numeric"
@@ -199,17 +199,17 @@ export default function HomeScreen() {
                 />
               </View>
               {/* Dropdown tipo de viaje (60%) */}
-              <View className="bg-neutral-50 rounded-2xl px-6 py-5 flex-row items-center w-full max-w-none border border-neutral-200" style={{ borderWidth: 1, borderColor: '#E5E7EB', flex: 0.5 }}>
+              <View className="bg-neutral-50 rounded-2xl px-3 py-5 flex-row items-center w-full max-w-none border border-neutral-200" style={{ borderWidth: 1, borderColor: '#E5E7EB', flex: 0.55 }}>
                 {tripType === 'INTERCITY' && <Bus size={20} color={Colors.primary[600]} />}
                 {tripType === 'URBAN' && <Building2 size={20} color={Colors.accent[600]} />}
                 {tripType === 'ROUTINE' && <GraduationCap size={20} color={'#3B82F6'} />}
                 <TouchableOpacity
-                  className="flex-1 ml-3 flex-row items-center justify-between"
+                  className="flex-1 ml-2 flex-row items-center justify-between"
                   activeOpacity={0.7}
                   onPress={() => setShowTripTypeDropdown((v) => !v)}
                 >
                   <Text className="text-lg text-neutral-900 font-semibold">
-                    {tripType === 'INTERCITY' ? 'Municipal' : tripType === 'URBAN' ? 'Urbano' : 'Rutinario'}
+                    {tripType === 'INTERCITY' ? 'Interurbano' : tripType === 'URBAN' ? 'Urbano' : 'Rutinario'}
                   </Text>
                   <Text style={{ fontSize: 18, color: '#888' }}>▼</Text>
                 </TouchableOpacity>
@@ -218,7 +218,7 @@ export default function HomeScreen() {
                   <View style={{ position: 'absolute', top: 60, left: 0, right: 0, zIndex: 10 }} className="bg-white rounded-xl shadow p-2">
                     <TouchableOpacity className="flex-row items-center p-2" onPress={() => { setTripType('INTERCITY'); setShowTripTypeDropdown(false); }}>
                       <Bus size={20} color={Colors.primary[600]} />
-                      <Text className="ml-2 text-lg text-primary-700 font-semibold">Municipal</Text>
+                      <Text className="ml-2 text-lg text-primary-700 font-semibold">Interurbano</Text>
                     </TouchableOpacity>
                     <TouchableOpacity className="flex-row items-center p-2" onPress={() => { setTripType('URBAN'); setShowTripTypeDropdown(false); }}>
                       <Building2 size={20} color={Colors.accent[600]} />
@@ -237,7 +237,9 @@ export default function HomeScreen() {
             <TouchableOpacity
               className="bg-primary-500 px-6 py-3 rounded-xl flex-row items-center justify-center"
               activeOpacity={0.8}
-            // onPress={handleSearch}
+              onPress={() => {
+                // TODO: Navigate to search results when trip search API is available
+              }}
             >
               <Search size={18} color="#FFF" />
               <Text className="text-white font-semibold ml-2 text-lg">Buscar viaje</Text>

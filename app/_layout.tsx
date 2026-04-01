@@ -15,9 +15,14 @@ export default function RootLayout() {
 
   useEffect(() => {
     (async () => {
-      await loadFonts();
-      setFontsLoaded(true);
-      SplashScreen.hideAsync();
+      try {
+        await loadFonts();
+      } catch (e) {
+        console.warn('Failed to load fonts, using system defaults', e);
+      } finally {
+        setFontsLoaded(true);
+        SplashScreen.hideAsync();
+      }
     })();
   }, []);
 

@@ -13,16 +13,16 @@ interface VehiclesState {
 }
 
 type VehiclesAction =
-  | { type: 'FETCH_START' }
-  | { type: 'FETCH_SUCCESS'; payload: VehicleResponse[] }
-  | { type: 'FETCH_ERROR'; payload: string }
-  | { type: 'SELECT'; payload: VehicleResponse }
-  | { type: 'SUBMIT_START' }
-  | { type: 'SUBMIT_SUCCESS'; payload: VehicleResponse }
-  | { type: 'UPDATE_SUCCESS'; payload: VehicleResponse }
-  | { type: 'DELETE_SUCCESS'; payload: string }
-  | { type: 'SUBMIT_ERROR'; payload: string }
-  | { type: 'CLEAR_ERROR' };
+  | { type: 'FETCH_START'; }
+  | { type: 'FETCH_SUCCESS'; payload: VehicleResponse[]; }
+  | { type: 'FETCH_ERROR'; payload: string; }
+  | { type: 'SELECT'; payload: VehicleResponse; }
+  | { type: 'SUBMIT_START'; }
+  | { type: 'SUBMIT_SUCCESS'; payload: VehicleResponse; }
+  | { type: 'UPDATE_SUCCESS'; payload: VehicleResponse; }
+  | { type: 'DELETE_SUCCESS'; payload: string; }
+  | { type: 'SUBMIT_ERROR'; payload: string; }
+  | { type: 'CLEAR_ERROR'; };
 
 function vehiclesReducer(state: VehiclesState, action: VehiclesAction): VehiclesState {
   switch (action.type) {
@@ -94,14 +94,19 @@ export function useVehicles() {
     dispatch({ type: 'FETCH_START' });
     try {
       const { data: res } = await vehiclesApi.getById(id);
-      if (res.data) dispatch({ type: 'SELECT', payload: res.data });
+      if (res.data) {
+        dispatch({ type: 'SELECT', payload: res.data });
+        dispatch({ type: 'FETCH_SUCCESS', payload: state.vehicles });
+      } else {
+        dispatch({ type: 'FETCH_ERROR', payload: 'Vehículo no encontrado' });
+      }
     } catch (err: any) {
       dispatch({
         type: 'FETCH_ERROR',
         payload: err?.response?.data?.message ?? 'Error al cargar vehículo',
       });
     }
-  }, []);
+  }, [state.vehicles]);
 
   const createVehicle = useCallback(async (data: CreateVehicleRequest) => {
     dispatch({ type: 'SUBMIT_START' });

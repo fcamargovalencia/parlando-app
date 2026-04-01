@@ -39,9 +39,9 @@ interface TripFormState {
 }
 
 type TripFormAction =
-  | { type: 'SET_FIELD'; field: keyof TripFormState; value: string | boolean }
-  | { type: 'SET_TRIP_TYPE'; payload: TripType }
-  | { type: 'RESET' };
+  | { type: 'SET_FIELD'; field: keyof TripFormState; value: string | boolean; }
+  | { type: 'SET_TRIP_TYPE'; payload: TripType; }
+  | { type: 'RESET'; };
 
 const initialFormState: TripFormState = {
   tripType: 'INTERCITY',
@@ -66,7 +66,7 @@ function formReducer(state: TripFormState, action: TripFormAction): TripFormStat
   }
 }
 
-const tripTypeOptions: { type: TripType; label: string; icon: React.ReactNode }[] = [
+const tripTypeOptions: { type: TripType; label: string; icon: React.ReactNode; }[] = [
   { type: 'INTERCITY', label: 'Interurbano', icon: <MapPin size={20} color={Colors.primary[600]} /> },
   { type: 'URBAN', label: 'Urbano', icon: <MapPin size={20} color={Colors.accent[600]} /> },
   { type: 'ROUTINE', label: 'Rutinario', icon: <Clock size={20} color="#3B82F6" /> },
@@ -117,17 +117,15 @@ export default function PublishScreen() {
               <TouchableOpacity
                 key={opt.type}
                 onPress={() => dispatch({ type: 'SET_TRIP_TYPE', payload: opt.type })}
-                className={`flex-1 flex-row items-center justify-center py-3 rounded-xl border-2 ${
-                  form.tripType === opt.type
+                className={`flex-1 flex-row items-center justify-center py-3 rounded-xl border-2 ${form.tripType === opt.type
                     ? 'border-primary-500 bg-primary-50'
-                    : 'border-neutral-150 bg-white'
-                }`}
+                    : 'border-neutral-200 bg-white'
+                  }`}
               >
                 {opt.icon}
                 <Text
-                  className={`text-sm font-medium ml-1.5 ${
-                    form.tripType === opt.type ? 'text-primary-700' : 'text-neutral-600'
-                  }`}
+                  className={`text-sm font-medium ml-1.5 ${form.tripType === opt.type ? 'text-primary-700' : 'text-neutral-600'
+                    }`}
                 >
                   {opt.label}
                 </Text>
@@ -220,14 +218,12 @@ export default function PublishScreen() {
                 <Text className="text-base text-neutral-800 ml-3">Permite equipaje</Text>
               </View>
               <View
-                className={`w-12 h-7 rounded-full ${
-                  form.allowsLuggage ? 'bg-primary-500' : 'bg-neutral-200'
-                } justify-center px-0.5`}
+                className={`w-12 h-7 rounded-full ${form.allowsLuggage ? 'bg-primary-500' : 'bg-neutral-200'
+                  } justify-center px-0.5`}
               >
                 <View
-                  className={`w-6 h-6 rounded-full bg-white ${
-                    form.allowsLuggage ? 'self-end' : 'self-start'
-                  }`}
+                  className={`w-6 h-6 rounded-full bg-white ${form.allowsLuggage ? 'self-end' : 'self-start'
+                    }`}
                   style={{
                     shadowColor: '#000',
                     shadowOffset: { width: 0, height: 1 },

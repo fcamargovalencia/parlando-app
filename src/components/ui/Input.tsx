@@ -60,7 +60,7 @@ export function Input({
   );
 
   return (
-    <View style={styles.wrapper}>
+    <View style={styles.wrapper} className={containerClassName}>
       {label && (
         <Text style={styles.label}>{label}</Text>
       )}
