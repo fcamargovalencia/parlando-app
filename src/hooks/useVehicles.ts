@@ -72,7 +72,7 @@ export function useVehicles() {
   const [state, dispatch] = useReducer(vehiclesReducer, {
     vehicles: [],
     selected: null,
-    loading: false,
+    loading: true,
     submitting: false,
     error: null,
   });

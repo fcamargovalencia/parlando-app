@@ -25,7 +25,7 @@ import {
   type CapturedPhoto,
   type CapturePhotoConfig,
 } from '@/components/verification/CapturePhotoModal';
-import type { CreateVehicleRequest, IdentityVerificationResponse } from '@/types/api';
+import type { CreateVehicleRequest } from '@/types/api';
 import Toast from 'react-native-toast-message';
 
 interface VehicleFormState {
@@ -210,9 +210,10 @@ export default function AddVehicleScreen() {
 
     const checkExistingDriverLicense = async () => {
       try {
-        const { data: res } = await verificationsApi.getMineByType('LICENCIA_CONDUCCION');
-        const verification = res.data as IdentityVerificationResponse | null;
-        const hasRegistered = !!verification && verification.status === 'VERIFIED';
+        const { data: res } = await verificationsApi.getMine();
+        const verifications = res.data ?? [];
+        const license = verifications.find((v) => v.documentType === 'LICENCIA_CONDUCCION');
+        const hasRegistered = !!license && license.status !== 'REJECTED' && license.status !== 'EXPIRED';
         if (mounted) setRequiresDriverLicense(!hasRegistered);
       } catch {
         if (mounted) setRequiresDriverLicense(true);
@@ -636,62 +637,62 @@ export default function AddVehicleScreen() {
             onRemove={transitCardDocument ? () => setTransitCardDocument(null) : undefined}
           />
 
-          <Text className="text-base font-semibold text-neutral-900 mb-2 mt-2">
-            Licencia de conducción {requiresDriverLicense ? '*' : '(opcional)'}
-          </Text>
-          {checkingLicense ? (
-            <Text className="text-sm text-neutral-500 mb-4">
-              Verificando si ya tienes una licencia registrada...
-            </Text>
-          ) : requiresDriverLicense ? (
-            <Text className="text-sm text-amber-700 mb-4">
-              No encontramos una licencia registrada. Debes cargar número, frente y respaldo para continuar.
-            </Text>
-          ) : (
-            <Text className="text-sm text-neutral-500 mb-4">
-              Ya tienes licencia registrada. Solo súbela nuevamente si deseas actualizarla.
-            </Text>
+          {(checkingLicense || requiresDriverLicense) && (
+            <>
+              <Text className="text-base font-semibold text-neutral-900 mb-2 mt-2">
+                Licencia de conducción *
+              </Text>
+              {checkingLicense ? (
+                <Text className="text-sm text-neutral-500 mb-4">
+                  Verificando si ya tienes una licencia registrada...
+                </Text>
+              ) : (
+                <Text className="text-sm text-amber-700 mb-4">
+                  No encontramos una licencia registrada. Debes cargar número, frente y respaldo para continuar.
+                </Text>
+              )}
+
+              <Input
+                label="Número de licencia *"
+                placeholder="123456789"
+                value={form.driverLicenseNumber}
+                onChangeText={(value) => setField('driverLicenseNumber', value)}
+                containerClassName="mb-4"
+              />
+
+              <UploadCard
+                title="Licencia frontal *"
+                description="Foto del frente de la licencia de conducción."
+                icon={<CreditCard size={24} color={Colors.primary[600]} />}
+                preview={driverLicenseFront?.uri}
+                onPick={() => pickImageAsset(setDriverLicenseFront, {
+                  title: 'Licencia frontal',
+                  description: 'Alinea el frente de la licencia dentro del marco.',
+                  hint: 'Evita reflejos y captura todos los bordes.',
+                  frameAspectRatio: 1.58,
+                  useFrontCamera: false,
+                  frameRadius: 20,
+                })}
+                onRemove={driverLicenseFront ? () => setDriverLicenseFront(null) : undefined}
+              />
+
+              <UploadCard
+                title="Licencia posterior *"
+                description="Foto del respaldo de la licencia de conducción."
+                icon={<CreditCard size={24} color={Colors.primary[600]} />}
+                preview={driverLicenseBack?.uri}
+                onPick={() => pickImageAsset(setDriverLicenseBack, {
+                  title: 'Licencia posterior',
+                  description: 'Alinea el respaldo de la licencia dentro del marco.',
+                  hint: 'Asegúrate de que toda la información sea legible.',
+                  frameAspectRatio: 1.58,
+                  useFrontCamera: false,
+                  frameRadius: 20,
+                })}
+                onRemove={driverLicenseBack ? () => setDriverLicenseBack(null) : undefined}
+              />
+            </>
           )}
-
-          <Input
-            label={`Número de licencia${requiresDriverLicense ? ' *' : ''}`}
-            placeholder="123456789"
-            value={form.driverLicenseNumber}
-            onChangeText={(value) => setField('driverLicenseNumber', value)}
-            containerClassName="mb-4"
-          />
-
-          <UploadCard
-            title={`Licencia frontal${requiresDriverLicense ? ' *' : ''}`}
-            description="Foto del frente de la licencia de conducción."
-            icon={<CreditCard size={24} color={Colors.primary[600]} />}
-            preview={driverLicenseFront?.uri}
-            onPick={() => pickImageAsset(setDriverLicenseFront, {
-              title: 'Licencia frontal',
-              description: 'Alinea el frente de la licencia dentro del marco.',
-              hint: 'Evita reflejos y captura todos los bordes.',
-              frameAspectRatio: 1.58,
-              useFrontCamera: false,
-              frameRadius: 20,
-            })}
-            onRemove={driverLicenseFront ? () => setDriverLicenseFront(null) : undefined}
-          />
-
-          <UploadCard
-            title={`Licencia posterior${requiresDriverLicense ? ' *' : ''}`}
-            description="Foto del respaldo de la licencia de conducción."
-            icon={<CreditCard size={24} color={Colors.primary[600]} />}
-            preview={driverLicenseBack?.uri}
-            onPick={() => pickImageAsset(setDriverLicenseBack, {
-              title: 'Licencia posterior',
-              description: 'Alinea el respaldo de la licencia dentro del marco.',
-              hint: 'Asegúrate de que toda la información sea legible.',
-              frameAspectRatio: 1.58,
-              useFrontCamera: false,
-              frameRadius: 20,
-            })}
-            onRemove={driverLicenseBack ? () => setDriverLicenseBack(null) : undefined}
-          />
 
           {error && (
             <View className="bg-red-50 border border-red-200 rounded-2xl px-4 py-3 mb-4">
@@ -748,6 +749,7 @@ export default function AddVehicleScreen() {
                 mode="date"
                 display="spinner"
                 minimumDate={new Date()}
+                themeVariant="light"
                 onChange={(_, selectedDate) => {
                   if (selectedDate) {
                     setIosDateDraft(selectedDate);
