@@ -309,6 +309,7 @@ export default function PublishScreen() {
   const [locationPicker, setLocationPicker] = useState<{
     visible: boolean;
     target: 'origin' | 'destination' | 'waypoint';
+    municipalityFocus?: { latitude: number; longitude: number; name: string; };
   }>({ visible: false, target: 'origin' });
   const [originQuery, setOriginQuery] = useState('');
   const [destinationQuery, setDestinationQuery] = useState('');
@@ -565,6 +566,25 @@ export default function PublishScreen() {
     setLocationPicker({ visible: true, target });
   };
 
+  // Origin-specific: if the suggestion is a municipality, open the map so the
+  // user can pin the exact pickup point. For addresses and POIs, confirm immediately.
+  const handleOriginSuggestionSelect = (item: LocationSearchResult) => {
+    if (item.locationType === 'municipality') {
+      setOriginResults([]);
+      setLocationPicker({
+        visible: true,
+        target: 'origin',
+        municipalityFocus: { latitude: item.latitude, longitude: item.longitude, name: item.name },
+      });
+    } else {
+      handleInlineLocationSelect('origin', {
+        latitude: item.latitude,
+        longitude: item.longitude,
+        name: item.name,
+      });
+    }
+  };
+
   const handleInlineLocationSelect = (target: 'origin' | 'destination', loc: SelectedLocation) => {
     dispatch({
       type: target === 'origin' ? 'SET_ORIGIN' : 'SET_DESTINATION',
@@ -617,7 +637,7 @@ export default function PublishScreen() {
 
     handleInlineLocationSelect(locationPicker.target, loc);
 
-    setLocationPicker((p) => ({ ...p, visible: false }));
+    setLocationPicker((p) => ({ ...p, visible: false, municipalityFocus: undefined }));
   };
 
 
@@ -800,11 +820,7 @@ export default function PublishScreen() {
               {originResults.map((item) => (
                 <TouchableOpacity
                   key={item.id}
-                  onPress={() => handleInlineLocationSelect('origin', {
-                    latitude: item.latitude,
-                    longitude: item.longitude,
-                    name: item.name,
-                  })}
+                  onPress={() => handleOriginSuggestionSelect(item)}
                   className="px-3 py-3 border-b border-neutral-100"
                 >
                   <Text className="text-sm font-medium text-neutral-900" numberOfLines={1}>{item.name}</Text>
@@ -1437,9 +1453,10 @@ export default function PublishScreen() {
               : 'Agregar ciudad intermedia'
         }
         onConfirm={handleLocationConfirm}
-        onClose={() => setLocationPicker((p) => ({ ...p, visible: false }))}
+        onClose={() => setLocationPicker((p) => ({ ...p, visible: false, municipalityFocus: undefined }))}
         initial={locationPicker.target === 'origin' ? form.origin : form.destination}
         mode={locationPicker.target === 'waypoint' ? 'full' : 'map-only'}
+        municipalityFocus={locationPicker.municipalityFocus}
       />
     </Screen>
   );

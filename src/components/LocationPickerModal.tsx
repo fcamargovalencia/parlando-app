@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
 import {
   Modal,
   View,
@@ -12,8 +12,8 @@ import {
   StyleSheet,
   KeyboardAvoidingView,
 } from 'react-native';
-import MapView, { Marker } from 'react-native-maps';
-import type { MapPressEvent, Region } from 'react-native-maps';
+import MapView from 'react-native-maps';
+import type { Region } from 'react-native-maps';
 import * as Location from 'expo-location';
 import { Navigation, X, Search, MapPin, ArrowLeft, ChevronRight, Zap } from 'lucide-react-native';
 import { Colors } from '@/constants/colors';
@@ -35,6 +35,8 @@ interface Props {
   onClose: () => void;
   initial?: SelectedLocation | null;
   mode?: 'full' | 'map-only';
+  /** When set, the map opens centred on this municipality at city-level zoom. */
+  municipalityFocus?: { latitude: number; longitude: number; name: string; };
 }
 
 // ── Constants ──
@@ -46,7 +48,7 @@ const COLOMBIA_REGION: Region = {
   longitudeDelta: 8,
 };
 
-export function LocationPickerModal({ visible, title, onConfirm, onClose, initial, mode = 'full' }: Props) {
+export function LocationPickerModal({ visible, title, onConfirm, onClose, initial, mode = 'full', municipalityFocus }: Props) {
   // ── Search state ──
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<LocationSearchResult[]>([]);
@@ -58,19 +60,65 @@ export function LocationPickerModal({ visible, title, onConfirm, onClose, initia
 
   // ── Map state ──
   const [mapVisible, setMapVisible] = useState(false);
-  const [marker, setMarker] = useState<{ latitude: number; longitude: number; } | null>(null);
+  const [centerCoord, setCenterCoord] = useState<{ latitude: number; longitude: number; } | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
   const [mapName, setMapName] = useState('');
   const [reverseGeocoding, setReverseGeocoding] = useState(false);
+  const [municipalityCenter, setMunicipalityCenter] = useState<{ latitude: number; longitude: number; name: string; } | null>(null);
   const mapRef = useRef<MapView>(null);
+  const reverseSeqRef = useRef(0);
+  const reverseDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // tracks the last coordinate that was successfully reverse-geocoded;
+  // avoids re-calling the API when the map settles with floating-point jitter
+  const lastGeocodedCoordRef = useRef<{ latitude: number; longitude: number; } | null>(null);
+  // set to true before programmatic animateToRegion calls so onRegionChange
+  // doesn't flip isDragging to true (which greyed out the pin during GPS pan)
+  const isProgrammaticRef = useRef(false);
+  // ── Map-ready animation queue ──
+  // animateToRegion must wait until the MapView fires onMapReady.
+  const mapReadyRef = useRef(false);
+  const pendingRegionRef = useRef<Region | null>(null);
+
+  const animateWhenReady = useCallback((region: Region) => {
+    isProgrammaticRef.current = true;
+    if (mapReadyRef.current && mapRef.current) {
+      mapRef.current.animateToRegion(region, 600);
+    } else {
+      pendingRegionRef.current = region;
+    }
+  }, []);
+
+  const handleMapReady = useCallback(() => {
+    mapReadyRef.current = true;
+    if (pendingRegionRef.current) {
+      isProgrammaticRef.current = true;
+      mapRef.current?.animateToRegion(pendingRegionRef.current, 600);
+      pendingRegionRef.current = null;
+    }
+  }, []);
 
   // Reset + fetch last known position on open
   useEffect(() => {
-    if (!visible) return;
+    if (!visible) {
+      // Reset map-ready state so the next open starts fresh
+      mapReadyRef.current = false;
+      pendingRegionRef.current = null;
+      isProgrammaticRef.current = false;
+      lastGeocodedCoordRef.current = null;
+      if (reverseDebounceRef.current) clearTimeout(reverseDebounceRef.current);
+      return;
+    }
+    mapReadyRef.current = false;
+    pendingRegionRef.current = null;
+    isProgrammaticRef.current = false;
+    lastGeocodedCoordRef.current = null;
     setQuery(initial?.name ?? '');
     setResults([]);
     setMapVisible(mode === 'map-only');
-    setMarker(initial ? { latitude: initial.latitude, longitude: initial.longitude } : null);
+    setCenterCoord(initial ? { latitude: initial.latitude, longitude: initial.longitude } : null);
+    setIsDragging(false);
     setMapName(initial?.name ?? '');
+    setMunicipalityCenter(municipalityFocus ?? null);
 
     (async () => {
       try {
@@ -82,7 +130,7 @@ export function LocationPickerModal({ visible, title, onConfirm, onClose, initia
         }
       } catch { }
     })();
-  }, [visible, initial, mode]);
+  }, [visible, initial, mode, municipalityFocus]);
 
   // Debounced search using TomTom service
   useEffect(() => {
@@ -117,11 +165,20 @@ export function LocationPickerModal({ visible, title, onConfirm, onClose, initia
   // ── Handlers ──
 
   const handleSelectSuggestion = (result: LocationSearchResult) => {
-    onConfirm({
-      latitude: result.latitude,
-      longitude: result.longitude,
-      name: result.name,
-    });
+    if (result.locationType !== 'specific') {
+      // Broad area → let the user pin the exact pickup/dropoff point on the map.
+      setCenterCoord(null);
+      setMapName('');
+      setMunicipalityCenter({ latitude: result.latitude, longitude: result.longitude, name: result.name });
+      setMapVisible(true);
+    } else {
+      // Specific address or POI → confirm directly, no map needed.
+      onConfirm({
+        latitude: result.latitude,
+        longitude: result.longitude,
+        name: result.name,
+      });
+    }
   };
 
   const handleUseMyLocation = async () => {
@@ -153,59 +210,100 @@ export function LocationPickerModal({ visible, title, onConfirm, onClose, initia
     setMapVisible(true);
   };
 
-  const handleMapPress = async (e: MapPressEvent) => {
-    if (reverseGeocoding) return;
-    const coord = e.nativeEvent.coordinate;
-    setMarker(coord);
-    setMapName('');
-    setReverseGeocoding(true);
-    const name = await tomtomService.reverseGeocode(coord.latitude, coord.longitude);
-    setMapName(name);
-    setReverseGeocoding(false);
+  const handleRegionChange = (region: Region) => {
+    // Ignore region changes caused by programmatic animations (e.g. GPS pan on open)
+    if (isProgrammaticRef.current) return;
+    setIsDragging(true);
+    setCenterCoord({ latitude: region.latitude, longitude: region.longitude });
+  };
+
+  const handleRegionChangeComplete = (region: Region) => {
+    isProgrammaticRef.current = false;
+    setIsDragging(false);
+    const coord = { latitude: region.latitude, longitude: region.longitude };
+    setCenterCoord(coord);
+
+    // Skip reverse geocode if the map settled within ~20 m of the last geocoded point.
+    // This prevents constant re-geocoding from floating-point jitter that react-native-maps
+    // emits on every tiny re-render even when the map is visually still.
+    const last = lastGeocodedCoordRef.current;
+    const movedEnough =
+      !last ||
+      Math.abs(coord.latitude - last.latitude) > 0.0002 ||
+      Math.abs(coord.longitude - last.longitude) > 0.0002;
+
+    if (!movedEnough) return;
+
+    // Debounce: wait 700 ms after the last stop before hitting the geocoding API
+    if (reverseDebounceRef.current) clearTimeout(reverseDebounceRef.current);
+    const seq = ++reverseSeqRef.current;
+
+    reverseDebounceRef.current = setTimeout(async () => {
+      setReverseGeocoding(true);
+      try {
+        const name = await tomtomService.reverseGeocode(coord.latitude, coord.longitude);
+        if (reverseSeqRef.current === seq) {
+          setMapName(name);
+          lastGeocodedCoordRef.current = coord;
+        }
+      } catch { }
+      if (reverseSeqRef.current === seq) setReverseGeocoding(false);
+    }, 700);
   };
 
   const handleMapConfirm = () => {
-    if (!marker) {
-      Alert.alert('', 'Toca el mapa para seleccionar un punto');
-      return;
-    }
+    if (!centerCoord) return;
     onConfirm({
-      latitude: marker.latitude,
-      longitude: marker.longitude,
+      latitude: centerCoord.latitude,
+      longitude: centerCoord.longitude,
       name: mapName.trim() || 'Ubicación seleccionada',
     });
     setMapVisible(false);
   };
 
-  // Map starts at device location, fallback to previous selection, fallback to Colombia
-  // Zoom levels: 0.05 = very close (street level), 0.2 = neighborhood, 0.5 = city, 8 = country
-  const mapInitialRegion: Region = userCoords
-    ? { ...userCoords, latitudeDelta: 0.05, longitudeDelta: 0.05 } // Close zoom to device location
-    : initial
-      ? {
-        latitude: initial.latitude,
-        longitude: initial.longitude,
-        latitudeDelta: 0.05,
-        longitudeDelta: 0.05,
-      }
-      : COLOMBIA_REGION;
+  // Map initial region (shown before GPS resolves)
+  const mapInitialRegion: Region = municipalityCenter
+    ? { latitude: municipalityCenter.latitude, longitude: municipalityCenter.longitude, latitudeDelta: 0.5, longitudeDelta: 0.5 }
+    : userCoords
+      ? { ...userCoords, latitudeDelta: 0.003, longitudeDelta: 0.003 }
+      : initial
+        ? { latitude: initial.latitude, longitude: initial.longitude, latitudeDelta: 0.003, longitudeDelta: 0.003 }
+        : COLOMBIA_REGION;
 
-  // Center map on user location when map opens
+  // On map open: municipality → city zoom; no municipality → high-accuracy GPS + max zoom.
+  // animateWhenReady queues the region so it fires as soon as onMapReady is called,
+  // avoiding the race where animateToRegion is called before the MapView is mounted.
   useEffect(() => {
-    if (mapVisible && mapRef.current && userCoords) {
-      setTimeout(() => {
-        mapRef.current?.animateToRegion(
-          {
-            latitude: userCoords.latitude,
-            longitude: userCoords.longitude,
-            latitudeDelta: 0.05,
-            longitudeDelta: 0.05,
-          },
-          500 // Animation duration in ms
-        );
-      }, 300); // Small delay to ensure map is rendered
+    if (!mapVisible) {
+      mapReadyRef.current = false;
+      pendingRegionRef.current = null;
+      return;
     }
-  }, [mapVisible, userCoords]);
+
+    if (municipalityCenter) {
+      animateWhenReady({ latitude: municipalityCenter.latitude, longitude: municipalityCenter.longitude, latitudeDelta: 0.5, longitudeDelta: 0.5 });
+      return;
+    }
+
+    // Request fresh high-accuracy GPS and animate to it with maximum zoom
+    (async () => {
+      try {
+        const { status } = await Location.requestForegroundPermissionsAsync();
+        if (status !== 'granted') {
+          const fallback = userCoords ?? (initial ? { latitude: initial.latitude, longitude: initial.longitude } : null);
+          if (fallback) animateWhenReady({ ...fallback, latitudeDelta: 0.003, longitudeDelta: 0.003 });
+          return;
+        }
+        const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High });
+        const coords = { latitude: loc.coords.latitude, longitude: loc.coords.longitude };
+        setUserCoords(coords);
+        animateWhenReady({ ...coords, latitudeDelta: 0.003, longitudeDelta: 0.003 });
+      } catch {
+        const fallback = userCoords ?? (initial ? { latitude: initial.latitude, longitude: initial.longitude } : null);
+        if (fallback) animateWhenReady({ ...fallback, latitudeDelta: 0.003, longitudeDelta: 0.003 });
+      }
+    })();
+  }, [mapVisible, municipalityCenter, animateWhenReady]);
 
   // ── Render ──
 
@@ -331,29 +429,46 @@ export function LocationPickerModal({ visible, title, onConfirm, onClose, initia
 
           {/* Hint */}
           <View style={styles.hintBar}>
-            <Text style={styles.hintText}>Toca el mapa para seleccionar la ubicación</Text>
+            <Text style={styles.hintText}>
+              {municipalityCenter
+                ? `Mueve el mapa para elegir el punto exacto en ${municipalityCenter.name}`
+                : 'Mueve el mapa para posicionar el pin en el punto exacto'}
+            </Text>
           </View>
 
-          {/* Map */}
-          <MapView
-            ref={mapRef}
-            style={styles.map}
-            initialRegion={mapInitialRegion}
-            onPress={handleMapPress}
-            showsUserLocation
-            showsMyLocationButton
-            zoomEnabled
-            scrollEnabled
-            zoomControlEnabled
-          >
-            {marker && <Marker coordinate={marker} pinColor={Colors.primary[500]} />}
-          </MapView>
+          {/* Map + floating pin overlay */}
+          <View style={styles.map}>
+            <MapView
+              ref={mapRef}
+              style={StyleSheet.absoluteFillObject}
+              initialRegion={mapInitialRegion}
+              onRegionChange={handleRegionChange}
+              onRegionChangeComplete={handleRegionChangeComplete}
+              onMapReady={handleMapReady}
+              showsUserLocation
+              showsMyLocationButton
+              zoomEnabled
+              scrollEnabled
+              zoomControlEnabled
+            />
+            {/* Crosshair pin — tip aligns with the map centre coordinate */}
+            <View style={styles.crosshairContainer} pointerEvents="none">
+              <View style={styles.crosshairPin}>
+                <MapPin
+                  size={40}
+                  color={isDragging ? Colors.neutral[400] : Colors.primary[600]}
+                  fill={isDragging ? Colors.neutral[100] : Colors.primary[100]}
+                />
+              </View>
+              <View style={[styles.pinShadow, isDragging && styles.pinShadowLifted]} />
+            </View>
+          </View>
 
           {/* Bottom panel */}
           <View style={styles.bottomPanel}>
-            {!marker ? (
-              <Text style={[styles.hintText, { textAlign: 'center' }]}>
-                Toca el mapa para continuar
+            {isDragging ? (
+              <Text style={[styles.hintText, { textAlign: 'center', color: Colors.neutral[500] }]}>
+                Suelta para confirmar posición
               </Text>
             ) : reverseGeocoding ? (
               <View style={styles.reverseRow}>
@@ -373,7 +488,7 @@ export function LocationPickerModal({ visible, title, onConfirm, onClose, initia
               onPress={handleMapConfirm}
               size="lg"
               className="w-full"
-              disabled={!marker || reverseGeocoding}
+              disabled={!centerCoord || isDragging || reverseGeocoding}
             >
               Confirmar ubicación
             </Button>
@@ -487,7 +602,28 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: Colors.primary[700],
   },
-  map: { flex: 1 },
+  map: { flex: 1, overflow: 'hidden' },
+  crosshairContainer: {
+    ...StyleSheet.absoluteFillObject,
+    alignItems: 'center',
+    justifyContent: 'center',
+    pointerEvents: 'none',
+  },
+  // marginBottom: 40 shifts the icon UP so its tip (bottom edge) aligns with the view centre
+  crosshairPin: { marginBottom: 40 },
+  pinShadow: {
+    width: 8,
+    height: 4,
+    borderRadius: 4,
+    backgroundColor: 'rgba(0,0,0,0.25)',
+    marginTop: -4,
+  },
+  pinShadowLifted: {
+    width: 12,
+    height: 5,
+    opacity: 0.12,
+    marginTop: -2,
+  },
   bottomPanel: {
     backgroundColor: Colors.white,
     paddingHorizontal: 16,

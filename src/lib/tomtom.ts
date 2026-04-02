@@ -5,6 +5,8 @@ import { Config } from '@/constants/config';
 export interface TomTomSearchResult {
   id: string;
   type: string;
+  /** Geographic entity subtype — present when type === 'Geography' */
+  entityType?: string;
   score: number;
   dist?: number;
   address: {
@@ -128,6 +130,11 @@ export interface LocationSearchResult {
   latitude: number;
   longitude: number;
   source: 'tomtom' | 'nominatim';
+  /**
+   * 'municipality' → broad area (city/town/region); user should pick exact point on map.
+   * 'specific'     → street address or POI; can be confirmed directly.
+   */
+  locationType: 'municipality' | 'specific';
 }
 
 // ── Public API ──
@@ -199,6 +206,17 @@ function formatTomTomResult(result: TomTomSearchResult, type: 'address' | 'poi')
     .filter((v, i, a) => a.indexOf(v) === i) // Remove duplicates
     .join(', ');
 
+  // A result is "specific" only when there is strong evidence of a precise, pinnable location:
+  //   • TomTom 'Point Address' type — has both street name and building number
+  //   • 'Street' type with a building number — e.g. "Carrera 5 #12-34"
+  //   • Explicit street AND building number in the address fields
+  // Everything else (Geography, Municipality, Street without number, etc.) is treated as
+  // 'municipality' so the user is always asked to pin the exact point on the map.
+  const isSpecific =
+    result.type === 'Point Address' ||
+    (result.type === 'Street' && !!addr.buildingNumber) ||
+    (!!addr.street && !!addr.buildingNumber);
+
   return {
     id: `addr_${result.id}`, // Prefix to ensure uniqueness with POI results
     name: primary,
@@ -206,6 +224,7 @@ function formatTomTomResult(result: TomTomSearchResult, type: 'address' | 'poi')
     latitude: result.position.lat,
     longitude: result.position.lon,
     source: 'tomtom' as const,
+    locationType: isSpecific ? 'specific' : 'municipality',
   };
 }
 
@@ -252,6 +271,7 @@ function formatTomTomPoiResult(result: any): LocationSearchResult {
     latitude: poi.position.lat,
     longitude: poi.position.lon,
     source: 'tomtom' as const,
+    locationType: 'specific', // POIs are always a precise point
   };
 }
 
@@ -361,8 +381,13 @@ async function tomtomReverseGeocode(latitude: number, longitude: number): Promis
     }
 
     return 'Ubicación';
-  } catch (error) {
-    console.error('[TomTom] Reverse geocode error:', error);
+  } catch (error: any) {
+    // 429 is expected under rapid movement — log as warn, not error
+    if (error?.message?.includes('429')) {
+      console.warn('[TomTom] Reverse geocode rate-limited (429), falling back to Nominatim');
+    } else {
+      console.warn('[TomTom] Reverse geocode error:', error);
+    }
     throw error;
   }
 }
@@ -392,6 +417,10 @@ async function nominatimSearch(query: string, options?: { latitude?: number; lon
         result.display_name.split(',')[0].trim();
       const secondary = [addr.state || addr.county, 'Colombia'].filter(Boolean).join(', ');
 
+      // Nominatim: if the address has a road/street it's a specific location;
+      // otherwise it's a broad area (city/town/village).
+      const hasStreet = !!(addr as any).road || !!(addr as any).street;
+
       return {
         id: `nom_${result.place_id}`, // Prefix for consistency across all sources
         name: primary,
@@ -399,6 +428,7 @@ async function nominatimSearch(query: string, options?: { latitude?: number; lon
         latitude: parseFloat(result.lat),
         longitude: parseFloat(result.lon),
         source: 'nominatim' as const,
+        locationType: hasStreet ? 'specific' : 'municipality',
       };
     });
   } catch (error) {
