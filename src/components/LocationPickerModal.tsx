@@ -34,6 +34,7 @@ interface Props {
   onConfirm: (loc: SelectedLocation) => void;
   onClose: () => void;
   initial?: SelectedLocation | null;
+  mode?: 'full' | 'map-only';
 }
 
 // ── Constants ──
@@ -45,7 +46,7 @@ const COLOMBIA_REGION: Region = {
   longitudeDelta: 8,
 };
 
-export function LocationPickerModal({ visible, title, onConfirm, onClose, initial }: Props) {
+export function LocationPickerModal({ visible, title, onConfirm, onClose, initial, mode = 'full' }: Props) {
   // ── Search state ──
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<LocationSearchResult[]>([]);
@@ -67,7 +68,7 @@ export function LocationPickerModal({ visible, title, onConfirm, onClose, initia
     if (!visible) return;
     setQuery(initial?.name ?? '');
     setResults([]);
-    setMapVisible(false);
+    setMapVisible(mode === 'map-only');
     setMarker(initial ? { latitude: initial.latitude, longitude: initial.longitude } : null);
     setMapName(initial?.name ?? '');
 
@@ -81,7 +82,7 @@ export function LocationPickerModal({ visible, title, onConfirm, onClose, initia
         }
       } catch { }
     })();
-  }, [visible]);
+  }, [visible, initial, mode]);
 
   // Debounced search using TomTom service
   useEffect(() => {
@@ -212,9 +213,9 @@ export function LocationPickerModal({ visible, title, onConfirm, onClose, initia
     <Modal
       visible={visible}
       animationType="slide"
-      onRequestClose={mapVisible ? () => setMapVisible(false) : onClose}
+      onRequestClose={mapVisible && mode !== 'map-only' ? () => setMapVisible(false) : onClose}
     >
-      {!mapVisible ? (
+      {!mapVisible && mode !== 'map-only' ? (
         /* ── Search View ── */
         <KeyboardAvoidingView
           style={styles.container}
@@ -321,7 +322,7 @@ export function LocationPickerModal({ visible, title, onConfirm, onClose, initia
         <View style={styles.container}>
           {/* Header */}
           <View style={styles.header}>
-            <TouchableOpacity onPress={() => setMapVisible(false)} style={styles.iconBtn}>
+            <TouchableOpacity onPress={mode === 'map-only' ? onClose : () => setMapVisible(false)} style={styles.iconBtn}>
               <ArrowLeft size={24} color={Colors.neutral[600]} />
             </TouchableOpacity>
             <Text style={styles.headerTitle}>Colocar en el mapa</Text>

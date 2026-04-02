@@ -27,7 +27,9 @@ import {
   Calendar,
   Check,
   Map,
+  MapPin,
   Plus,
+  Search,
   X,
 } from 'lucide-react-native';
 import MapView, { Polyline, Marker, type Region } from 'react-native-maps';
@@ -40,6 +42,7 @@ import { Colors } from '@/constants/colors';
 import { vehiclesApi } from '@/api/vehicles';
 import { tripsApi } from '@/api/trips';
 import type { TripType, VehicleResponse } from '@/types/api';
+import { tomtomService, type LocationSearchResult } from '@/lib/tomtom';
 import Toast from 'react-native-toast-message';
 
 // ── Form State ──
@@ -277,7 +280,11 @@ export default function PublishScreen() {
   const [slideDirection, setSlideDirection] = useState<'forward' | 'backward'>('forward');
   const [routeAlternatives, setRouteAlternatives] = useState<RouteAlternative[]>([]);
   const [selectedRouteId, setSelectedRouteId] = useState<string>('DIRECT');
+  const [isRouteSwitchLocked, setIsRouteSwitchLocked] = useState(false);
   const routeMapRef = useRef<MapView>(null);
+  const routeSwitchLockRef = useRef(false);
+  const routeSwitchUnlockTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const ROUTE_SWITCH_LOCK_MS = 450;
 
   const stepAnim = useRef(new Animated.Value(1)).current;
   const progressAnim = useRef(new Animated.Value(1 / 9)).current;
@@ -304,6 +311,16 @@ export default function PublishScreen() {
     visible: boolean;
     target: 'origin' | 'destination' | 'waypoint';
   }>({ visible: false, target: 'origin' });
+  const [originQuery, setOriginQuery] = useState('');
+  const [destinationQuery, setDestinationQuery] = useState('');
+  const [originResults, setOriginResults] = useState<LocationSearchResult[]>([]);
+  const [destinationResults, setDestinationResults] = useState<LocationSearchResult[]>([]);
+  const [searchingOrigin, setSearchingOrigin] = useState(false);
+  const [searchingDestination, setSearchingDestination] = useState(false);
+  const originSearchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const destinationSearchDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const originSearchSeqRef = useRef(0);
+  const destinationSearchSeqRef = useRef(0);
 
   // Date / Time pickers
   const [showDatePicker, setShowDatePicker] = useState(false);
@@ -360,12 +377,96 @@ export default function PublishScreen() {
   const tripTypeLabel = tripTypeOptions.find((opt) => opt.type === tripType)?.label ?? tripType;
   const selectedRoute = routeAlternatives.find((r) => r.id === selectedRouteId) ?? null;
 
+  const logRouteRuntime = useCallback((event: string, extra?: Record<string, unknown>) => {
+    if (!__DEV__) return;
+    console.log('[publish:route]', {
+      event,
+      step,
+      selectedRouteId,
+      routeCount: routeAlternatives.length,
+      lockState: routeSwitchLockRef.current,
+      lockUi: isRouteSwitchLocked,
+      timestamp: Date.now(),
+      ...extra,
+    });
+  }, [isRouteSwitchLocked, routeAlternatives.length, selectedRouteId, step]);
+
   const applyRouteSelection = useCallback((routeId: string) => {
+    logRouteRuntime('apply:start', { routeId });
+    if (routeSwitchLockRef.current) {
+      logRouteRuntime('apply:blocked_lock', { routeId });
+      return;
+    }
+    if (!routeAlternatives.some((route) => route.id === routeId)) {
+      logRouteRuntime('apply:invalid_route', { routeId });
+      return;
+    }
+    if (routeId === selectedRouteId) {
+      logRouteRuntime('apply:same_route', { routeId });
+      return;
+    }
+
+    routeSwitchLockRef.current = true;
+    setIsRouteSwitchLocked(true);
     setSelectedRouteId(routeId);
-    if (routeId === 'DIRECT') setRouteMode('DIRECT');
-    if (routeId === 'NORTH') setRouteMode('FLEXIBLE');
-    if (routeId === 'SOUTH') setRouteMode('WITH_STOPS');
+    logRouteRuntime('apply:committed', { routeId });
+
+    if (routeSwitchUnlockTimerRef.current) {
+      clearTimeout(routeSwitchUnlockTimerRef.current);
+    }
+    routeSwitchUnlockTimerRef.current = setTimeout(() => {
+      routeSwitchLockRef.current = false;
+      setIsRouteSwitchLocked(false);
+      logRouteRuntime('apply:unlocked', { routeId });
+    }, ROUTE_SWITCH_LOCK_MS);
+  }, [logRouteRuntime, routeAlternatives, selectedRouteId]);
+
+  const applyRouteSelectionByOffset = useCallback((offset: number) => {
+    logRouteRuntime('offset:start', { offset });
+    if (routeAlternatives.length < 2) return;
+    const selectedIndex = routeAlternatives.findIndex((r) => r.id === selectedRouteId);
+    if (selectedIndex < 0) {
+      logRouteRuntime('offset:invalid_selected_index', { offset, selectedIndex });
+      return;
+    }
+
+    const nextIndex = (selectedIndex + offset + routeAlternatives.length) % routeAlternatives.length;
+    const nextRoute = routeAlternatives[nextIndex];
+    if (!nextRoute) {
+      logRouteRuntime('offset:missing_next_route', { offset, selectedIndex, nextIndex });
+      return;
+    }
+
+    logRouteRuntime('offset:computed', {
+      offset,
+      selectedIndex,
+      nextIndex,
+      nextRouteId: nextRoute.id,
+    });
+    applyRouteSelection(nextRoute.id);
+  }, [applyRouteSelection, logRouteRuntime, routeAlternatives, selectedRouteId]);
+
+  useEffect(() => {
+    return () => {
+      if (routeSwitchUnlockTimerRef.current) {
+        clearTimeout(routeSwitchUnlockTimerRef.current);
+      }
+      routeSwitchLockRef.current = false;
+    };
   }, []);
+
+  useEffect(() => {
+    logRouteRuntime('routes:recomputed', {
+      ids: routeAlternatives.map((r) => r.id).join(','),
+    });
+  }, [logRouteRuntime, routeAlternatives]);
+
+  useEffect(() => {
+    if (selectedRouteId === 'DIRECT') setRouteMode('DIRECT');
+    if (selectedRouteId === 'NORTH') setRouteMode('FLEXIBLE');
+    if (selectedRouteId === 'SOUTH') setRouteMode('WITH_STOPS');
+    logRouteRuntime('route_mode:sync', { selectedRouteId });
+  }, [logRouteRuntime, selectedRouteId]);
 
   useEffect(() => {
     stepAnim.setValue(0);
@@ -402,7 +503,7 @@ export default function PublishScreen() {
   }, [form.origin, form.destination, selectedRouteId]);
 
   useEffect(() => {
-    const selected = routeAlternatives.find((r) => r.id === selectedRouteId);
+    const selected = routeAlternatives.find((r) => r.id === selectedRouteId) ?? routeAlternatives[0];
     if (step !== 4 || !selected || selected.points.length < 2 || !routeMapRef.current) return;
 
     const timer = setTimeout(() => {
@@ -410,15 +511,134 @@ export default function PublishScreen() {
         edgePadding: { top: 64, right: 48, bottom: 64, left: 48 },
         animated: true,
       });
-    }, 80);
+    }, 120);
 
     return () => clearTimeout(timer);
-  }, [step, selectedRouteId, routeAlternatives]);
+  }, [step, routeAlternatives]);
+
+  const searchLocationsInline = useCallback(
+    async (target: 'origin' | 'destination', query: string) => {
+      const trimmed = query.trim();
+      if (trimmed.length < 2) {
+        if (target === 'origin') {
+          setOriginResults([]);
+          setSearchingOrigin(false);
+        } else {
+          setDestinationResults([]);
+          setSearchingDestination(false);
+        }
+        return;
+      }
+
+      if (target === 'origin') {
+        const seq = originSearchSeqRef.current + 1;
+        originSearchSeqRef.current = seq;
+        setSearchingOrigin(true);
+        try {
+          const results = await tomtomService.searchLocations(trimmed);
+          if (originSearchSeqRef.current === seq) {
+            setOriginResults(results);
+          }
+        } catch {
+          if (originSearchSeqRef.current === seq) {
+            setOriginResults([]);
+          }
+        } finally {
+          if (originSearchSeqRef.current === seq) {
+            setSearchingOrigin(false);
+          }
+        }
+        return;
+      }
+
+      const seq = destinationSearchSeqRef.current + 1;
+      destinationSearchSeqRef.current = seq;
+      setSearchingDestination(true);
+      try {
+        const results = await tomtomService.searchLocations(trimmed);
+        if (destinationSearchSeqRef.current === seq) {
+          setDestinationResults(results);
+        }
+      } catch {
+        if (destinationSearchSeqRef.current === seq) {
+          setDestinationResults([]);
+        }
+      } finally {
+        if (destinationSearchSeqRef.current === seq) {
+          setSearchingDestination(false);
+        }
+      }
+    },
+    [],
+  );
+
+  useEffect(() => {
+    if (originSearchDebounceRef.current) clearTimeout(originSearchDebounceRef.current);
+    const q = originQuery.trim();
+    if (q.length < 2) {
+      setOriginResults([]);
+      setSearchingOrigin(false);
+      return;
+    }
+    originSearchDebounceRef.current = setTimeout(() => {
+      searchLocationsInline('origin', q);
+    }, 400);
+
+    return () => {
+      if (originSearchDebounceRef.current) clearTimeout(originSearchDebounceRef.current);
+    };
+  }, [originQuery, searchLocationsInline]);
+
+  useEffect(() => {
+    if (destinationSearchDebounceRef.current) clearTimeout(destinationSearchDebounceRef.current);
+    const q = destinationQuery.trim();
+    if (q.length < 2) {
+      setDestinationResults([]);
+      setSearchingDestination(false);
+      return;
+    }
+    destinationSearchDebounceRef.current = setTimeout(() => {
+      searchLocationsInline('destination', q);
+    }, 400);
+
+    return () => {
+      if (destinationSearchDebounceRef.current) clearTimeout(destinationSearchDebounceRef.current);
+    };
+  }, [destinationQuery, searchLocationsInline]);
 
   // ── Location handlers ──
 
-  const openLocationPicker = (target: 'origin' | 'destination') => {
+  const openLocationMapPicker = (target: 'origin' | 'destination') => {
     setLocationPicker({ visible: true, target });
+  };
+
+  const handleInlineLocationSelect = (target: 'origin' | 'destination', loc: SelectedLocation) => {
+    dispatch({
+      type: target === 'origin' ? 'SET_ORIGIN' : 'SET_DESTINATION',
+      payload: loc,
+    });
+
+    if (target === 'origin') {
+      if (destinationSearchDebounceRef.current) clearTimeout(destinationSearchDebounceRef.current);
+      destinationSearchSeqRef.current += 1;
+      setOriginQuery(loc.name);
+      setOriginResults([]);
+      if (form.destination) {
+        const sameCity = normalizePlace(form.destination.name) === normalizePlace(loc.name);
+        const near = distanceKm(form.destination, loc) < 1;
+        if (sameCity || near) {
+          Alert.alert('Destino inválido', 'Elige un destino diferente al nuevo origen.');
+        }
+      }
+      setSlideDirection('forward');
+      setStep(3);
+      return;
+    }
+
+    setDestinationQuery(loc.name);
+    setDestinationResults([]);
+    setSlideDirection('forward');
+    setStep(4);
   };
 
   const addWaypoint = () => {
@@ -442,18 +662,7 @@ export default function PublishScreen() {
       return;
     }
 
-    dispatch({
-      type: locationPicker.target === 'origin' ? 'SET_ORIGIN' : 'SET_DESTINATION',
-      payload: loc,
-    });
-
-    if (locationPicker.target === 'origin' && form.destination) {
-      const sameCity = normalizePlace(form.destination.name) === normalizePlace(loc.name);
-      const near = distanceKm(form.destination, loc) < 1;
-      if (sameCity || near) {
-        Alert.alert('Destino inválido', 'Elige un destino diferente al nuevo origen.');
-      }
-    }
+    handleInlineLocationSelect(locationPicker.target, loc);
 
     setLocationPicker((p) => ({ ...p, visible: false }));
   };
@@ -629,23 +838,52 @@ export default function PublishScreen() {
       return (
         <>
           <Text className="text-sm font-semibold text-neutral-700 mb-2">Lugar de origen</Text>
-          <TouchableOpacity onPress={() => openLocationPicker('origin')} activeOpacity={0.7}>
-            <View
-              className={`flex-row items-center px-4 py-4 rounded-xl border-2 ${form.origin
-                ? 'border-primary-500 bg-primary-50'
-                : 'border-neutral-200 bg-white'
-                }`}
-            >
-              <View className="w-3 h-3 rounded-full bg-primary-500 mr-3" />
-              <View className="flex-1">
-                <Text className="text-xs text-neutral-400 mb-0.5">Origen</Text>
-                <Text className={`text-sm font-medium ${form.origin ? 'text-neutral-900' : 'text-neutral-400'}`}>
-                  {form.origin?.name ?? '¿De dónde sales?'}
-                </Text>
-              </View>
-              <ChevronRight size={18} color={Colors.neutral[400]} />
+          <Input
+            placeholder="Escribe ciudad o lugar"
+            value={originQuery}
+            onChangeText={setOriginQuery}
+            leftIcon={<Search size={18} color={Colors.neutral[400]} />}
+          />
+
+          <TouchableOpacity
+            onPress={() => openLocationMapPicker('origin')}
+            className="flex-row items-center justify-between rounded-xl border border-neutral-200 bg-white px-3 py-3 mt-2"
+          >
+            <View className="flex-row items-center">
+              <MapPin size={16} color={Colors.primary[600]} />
+              <Text className="text-sm text-neutral-700 ml-2">Seleccionar desde el mapa</Text>
             </View>
           </TouchableOpacity>
+
+          {searchingOrigin && (
+            <Text className="text-xs text-neutral-500 mt-2">Buscando ubicaciones...</Text>
+          )}
+
+          {!searchingOrigin && originResults.length > 0 && (
+            <View className="mt-2 rounded-xl border border-neutral-200 overflow-hidden bg-white">
+              {originResults.map((item) => (
+                <TouchableOpacity
+                  key={item.id}
+                  onPress={() => handleInlineLocationSelect('origin', {
+                    latitude: item.latitude,
+                    longitude: item.longitude,
+                    name: item.name,
+                  })}
+                  className="px-3 py-3 border-b border-neutral-100"
+                >
+                  <Text className="text-sm font-medium text-neutral-900" numberOfLines={1}>{item.name}</Text>
+                  <Text className="text-xs text-neutral-500 mt-1" numberOfLines={1}>{item.address}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          )}
+
+          {form.origin && (
+            <View className="flex-row items-center px-3 py-3 rounded-xl border border-primary-200 bg-primary-50 mt-2">
+              <View className="w-2.5 h-2.5 rounded-full bg-primary-500 mr-2" />
+              <Text className="text-sm font-medium text-neutral-900 flex-1" numberOfLines={1}>{form.origin.name}</Text>
+            </View>
+          )}
         </>
       );
     }
@@ -660,25 +898,57 @@ export default function PublishScreen() {
       return (
         <>
           <Text className="text-sm font-semibold text-neutral-700 mb-2">Lugar de destino</Text>
-          <TouchableOpacity onPress={() => openLocationPicker('destination')} activeOpacity={0.7}>
-            <View
-              className={`flex-row items-center px-4 py-4 rounded-xl border-2 ${form.destination
-                ? invalidDestination
-                  ? 'border-red-400 bg-red-50'
-                  : 'border-accent-500 bg-accent-50'
-                : 'border-neutral-200 bg-white'
-                }`}
-            >
-              <View className="w-3 h-3 rounded-full bg-accent-500 mr-3" />
-              <View className="flex-1">
-                <Text className="text-xs text-neutral-400 mb-0.5">Destino</Text>
-                <Text className={`text-sm font-medium ${form.destination ? 'text-neutral-900' : 'text-neutral-400'}`}>
-                  {form.destination?.name ?? '¿A dónde vas?'}
-                </Text>
-              </View>
-              <ChevronRight size={18} color={Colors.neutral[400]} />
+          <Input
+            placeholder="Escribe ciudad o lugar"
+            value={destinationQuery}
+            onChangeText={setDestinationQuery}
+            leftIcon={<Search size={18} color={Colors.neutral[400]} />}
+          />
+
+          <TouchableOpacity
+            onPress={() => openLocationMapPicker('destination')}
+            className="flex-row items-center justify-between rounded-xl border border-neutral-200 bg-white px-3 py-3 mt-2"
+          >
+            <View className="flex-row items-center">
+              <MapPin size={16} color={Colors.accent[600]} />
+              <Text className="text-sm text-neutral-700 ml-2">Seleccionar desde el mapa</Text>
             </View>
           </TouchableOpacity>
+
+          {searchingDestination && (
+            <Text className="text-xs text-neutral-500 mt-2">Buscando ubicaciones...</Text>
+          )}
+
+          {!searchingDestination && destinationResults.length > 0 && (
+            <View className="mt-2 rounded-xl border border-neutral-200 overflow-hidden bg-white">
+              {destinationResults.map((item) => (
+                <TouchableOpacity
+                  key={item.id}
+                  onPress={() => handleInlineLocationSelect('destination', {
+                    latitude: item.latitude,
+                    longitude: item.longitude,
+                    name: item.name,
+                  })}
+                  className="px-3 py-3 border-b border-neutral-100"
+                >
+                  <Text className="text-sm font-medium text-neutral-900" numberOfLines={1}>{item.name}</Text>
+                  <Text className="text-xs text-neutral-500 mt-1" numberOfLines={1}>{item.address}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          )}
+
+          {form.destination && (
+            <View
+              className={`flex-row items-center px-3 py-3 rounded-xl border mt-2 ${invalidDestination
+                ? 'border-red-300 bg-red-50'
+                : 'border-accent-200 bg-accent-50'
+                }`}
+            >
+              <View className={`w-2.5 h-2.5 rounded-full mr-2 ${invalidDestination ? 'bg-red-500' : 'bg-accent-500'}`} />
+              <Text className="text-sm font-medium text-neutral-900 flex-1" numberOfLines={1}>{form.destination.name}</Text>
+            </View>
+          )}
           {invalidDestination && (
             <Text className="text-xs text-red-500 mt-2">
               El destino debe ser diferente al origen.
@@ -705,6 +975,11 @@ export default function PublishScreen() {
                 <MapView
                   ref={routeMapRef}
                   style={{ flex: 1 }}
+                  scrollEnabled={false}
+                  zoomEnabled={false}
+                  rotateEnabled={false}
+                  pitchEnabled={false}
+                  toolbarEnabled={false}
                   initialRegion={{
                     latitude: (form.origin.latitude + form.destination.latitude) / 2,
                     longitude: (form.origin.longitude + form.destination.longitude) / 2,
@@ -714,17 +989,15 @@ export default function PublishScreen() {
                 >
                   <Marker coordinate={{ latitude: form.origin.latitude, longitude: form.origin.longitude }} title="Origen" />
                   <Marker coordinate={{ latitude: form.destination.latitude, longitude: form.destination.longitude }} title="Destino" pinColor={Colors.accent[500]} />
-                  {routeAlternatives.map((route) => {
-                    const selected = route.id === selectedRouteId;
-                    return (
-                      <Polyline
-                        key={route.id}
-                        coordinates={route.points}
-                        strokeWidth={selected ? 6 : 4}
-                        strokeColor={selected ? Colors.primary[600] : Colors.neutral[400]}
-                      />
-                    );
-                  })}
+                  {selectedAlt && (
+                    <Polyline
+                      coordinates={selectedAlt.points}
+                      strokeWidth={6}
+                      strokeColor="#2563EB"
+                      lineCap="round"
+                      lineJoin="round"
+                    />
+                  )}
                 </MapView>
               </View>
 
@@ -733,10 +1006,10 @@ export default function PublishScreen() {
                   <View className="flex-row items-center justify-between">
                     <TouchableOpacity
                       onPress={() => {
-                        const prev = (selectedIndex - 1 + routeAlternatives.length) % routeAlternatives.length;
-                        applyRouteSelection(routeAlternatives[prev].id);
+                        applyRouteSelectionByOffset(-1);
                       }}
-                      className="w-9 h-9 rounded-full border border-neutral-200 items-center justify-center"
+                      disabled={isRouteSwitchLocked || routeAlternatives.length < 2}
+                      className={`w-9 h-9 rounded-full border items-center justify-center ${isRouteSwitchLocked || routeAlternatives.length < 2 ? 'border-neutral-100 opacity-50' : 'border-neutral-200 opacity-100'}`}
                     >
                       <ArrowLeft size={16} color={Colors.neutral[700]} />
                     </TouchableOpacity>
@@ -750,13 +1023,18 @@ export default function PublishScreen() {
 
                     <TouchableOpacity
                       onPress={() => {
-                        const next = (selectedIndex + 1) % routeAlternatives.length;
-                        applyRouteSelection(routeAlternatives[next].id);
+                        applyRouteSelectionByOffset(1);
                       }}
-                      className="w-9 h-9 rounded-full border border-neutral-200 items-center justify-center"
+                      disabled={isRouteSwitchLocked || routeAlternatives.length < 2}
+                      className={`w-9 h-9 rounded-full border items-center justify-center ${isRouteSwitchLocked || routeAlternatives.length < 2 ? 'border-neutral-100 opacity-50' : 'border-neutral-200 opacity-100'}`}
                     >
                       <ChevronRight size={16} color={Colors.neutral[700]} />
                     </TouchableOpacity>
+                  </View>
+                  <View className="h-4 mt-2 items-center justify-center">
+                    <Text className="text-[11px] text-neutral-400 text-center">
+                      {isRouteSwitchLocked ? 'Cambiando ruta...' : ' '}
+                    </Text>
                   </View>
                 </View>
               )}
@@ -1217,6 +1495,7 @@ export default function PublishScreen() {
         onConfirm={handleLocationConfirm}
         onClose={() => setLocationPicker((p) => ({ ...p, visible: false }))}
         initial={locationPicker.target === 'origin' ? form.origin : form.destination}
+        mode={locationPicker.target === 'waypoint' ? 'full' : 'map-only'}
       />
     </Screen>
   );
