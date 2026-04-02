@@ -1,5 +1,5 @@
 import { api } from './client';
-import type { ApiResponse, CreateTripRequest, TripResponse } from '@/types/api';
+import type { ApiResponse, CreateTripRequest, UpdateTripRequest, TripResponse } from '@/types/api';
 
 export const tripsApi = {
   create: (data: CreateTripRequest) =>
@@ -13,4 +13,19 @@ export const tripsApi = {
 
   getById: (id: string) =>
     api.get<ApiResponse<TripResponse>>(`/v1/trips/${encodeURIComponent(id)}`),
+
+  update: (id: string, data: UpdateTripRequest) =>
+    api.put<ApiResponse<TripResponse>>(`/v1/trips/${encodeURIComponent(id)}`, data),
+
+  getDetails: (id: string) =>
+    api.get<ApiResponse<TripResponse>>(`/v1/trips/${encodeURIComponent(id)}/details`),
+
+  start: (id: string) =>
+    api.patch<ApiResponse<TripResponse>>(`/v1/trips/${encodeURIComponent(id)}/start`),
+
+  complete: (id: string) =>
+    api.patch<ApiResponse<TripResponse>>(`/v1/trips/${encodeURIComponent(id)}/complete`),
+
+  cancel: (id: string) =>
+    api.delete<ApiResponse<null>>(`/v1/trips/${encodeURIComponent(id)}`),
 };

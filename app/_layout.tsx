@@ -46,6 +46,10 @@ export default function RootLayout() {
           name="profile"
           options={{ animation: 'slide_from_right' }}
         />
+        <Stack.Screen
+          name="trip"
+          options={{ animation: 'slide_from_right' }}
+        />
       </Stack>
       <StatusBar style="auto" />
       <Toast />

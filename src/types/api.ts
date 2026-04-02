@@ -237,6 +237,25 @@ export interface CreateTripRequest {
   waypoints?: WaypointRequest[];
 }
 
+export interface UpdateTripRequest {
+  tripType?: TripType;
+  originName?: string;
+  originLatitude?: number;
+  originLongitude?: number;
+  destinationName?: string;
+  destinationLatitude?: number;
+  destinationLongitude?: number;
+  departureAt?: string;
+  availableSeats?: number;
+  pricePerSeat?: number;
+  allowsLuggage?: boolean;
+  studentsOnly?: boolean;
+  universityId?: string;
+  isRecurring?: boolean;
+  recurrencePattern?: string;
+  waypoints?: WaypointRequest[];
+}
+
 export interface TripResponse {
   id: string;
   driverId: string;
