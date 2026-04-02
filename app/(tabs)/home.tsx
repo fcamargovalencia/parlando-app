@@ -4,7 +4,7 @@ import {
   Text,
   ScrollView,
   TouchableOpacity,
-  TextInput,
+  Modal,
   RefreshControl,
 } from 'react-native';
 import { useRouter } from 'expo-router';
@@ -15,95 +15,141 @@ import {
   Search,
   MapPin,
   Calendar,
-  ArrowRight,
   Bus,
   Building2,
   GraduationCap,
   Bell,
+  ChevronRight,
 } from 'lucide-react-native';
-import { Screen, Card, Badge, Avatar } from '@/components/ui';
+import { Screen, Avatar, DatePickerModal } from '@/components/ui';
+import { LocationPickerModal, type SelectedLocation } from '@/components/LocationPickerModal';
 import { useAuthStore } from '@/stores/auth-store';
 import { Colors } from '@/constants/colors';
+import dayjs from 'dayjs';
 
-const tripTypes = [
-  {
-    icon: <Bus size={24} color={Colors.primary[600]} />,
-    title: 'Interurbano',
-    subtitle: 'Ciudad a ciudad',
-    color: 'bg-primary-50',
-  },
-  {
-    icon: <Building2 size={24} color={Colors.accent[600]} />,
-    title: 'Urbano',
-    subtitle: 'Dentro de tu ciudad',
-    color: 'bg-accent-50',
-  },
-  {
-    icon: <GraduationCap size={24} color="#3B82F6" />,
-    title: 'Rutinario',
-    subtitle: 'Universidad / Empresa',
-    color: 'bg-blue-50',
-  },
+// Returns an ISO-8601 string with the local UTC offset (e.g. "2025-04-02T10:00:00-05:00")
+// instead of a UTC "Z" string, so the backend can interpret the time in the user's timezone.
+function toLocalISOString(date: Date): string {
+  const offsetMs  = date.getTimezoneOffset() * 60_000;
+  const local     = new Date(date.getTime() - offsetMs);
+  const offsetMin = -date.getTimezoneOffset();
+  const sign      = offsetMin >= 0 ? '+' : '-';
+  const hh        = String(Math.floor(Math.abs(offsetMin) / 60)).padStart(2, '0');
+  const mm        = String(Math.abs(offsetMin) % 60).padStart(2, '0');
+  return local.toISOString().slice(0, 19) + `${sign}${hh}:${mm}`;
+}
+
+// ── Trip type config ──
+
+type TripTypeKey = 'INTERCITY' | 'URBAN' | 'ROUTINE';
+
+const TRIP_TYPES: { key: TripTypeKey; label: string; subtitle: string }[] = [
+  { key: 'INTERCITY', label: 'Interurbano', subtitle: 'Ciudad a ciudad' },
+  { key: 'URBAN',     label: 'Urbano',       subtitle: 'Dentro de tu ciudad' },
+  { key: 'ROUTINE',   label: 'Rutinario',    subtitle: 'Universidad / Empresa' },
 ];
 
-const popularRoutes = [
-  { from: 'Bogotá', to: 'Medellín', trips: 24 },
-  { from: 'Cali', to: 'Pereira', trips: 12 },
-  { from: 'Bogotá', to: 'Bucaramanga', trips: 8 },
-  { from: 'Medellín', to: 'Cartagena', trips: 6 },
-];
+function TripTypeIcon({ type, size = 18 }: { type: TripTypeKey; size?: number }) {
+  if (type === 'INTERCITY') return <Bus size={size} color={Colors.primary[600]} />;
+  if (type === 'URBAN')     return <Building2 size={size} color={Colors.accent[600]} />;
+  return <GraduationCap size={size} color="#3B82F6" />;
+}
+
+// ── Location button ──
+
+function LocationButton({
+  label,
+  value,
+  accent,
+  onPress,
+}: {
+  label: string;
+  value: SelectedLocation | null;
+  accent: boolean;
+  onPress: () => void;
+}) {
+  const dotColor = accent ? Colors.accent[500] : Colors.primary[500];
+  return (
+    <TouchableOpacity
+      onPress={onPress}
+      activeOpacity={0.75}
+      className="flex-row items-center bg-neutral-50 rounded-2xl px-3 py-4 border border-neutral-200"
+      style={{ borderWidth: 1, borderColor: '#E5E7EB' }}
+    >
+      <View className="w-8 h-8 rounded-full items-center justify-center" style={{ backgroundColor: accent ? Colors.accent[50] : Colors.primary[50] }}>
+        <MapPin size={16} color={dotColor} />
+      </View>
+      <View className="flex-1 ml-2.5">
+        {value ? (
+          <>
+            <Text className="text-xs font-medium" style={{ color: Colors.neutral[400] }}>{label}</Text>
+            <Text className="text-sm font-semibold text-neutral-900 mt-0.5" numberOfLines={1}>
+              {value.name}
+            </Text>
+          </>
+        ) : (
+          <Text className="text-base text-neutral-400">{label}</Text>
+        )}
+      </View>
+      <ChevronRight size={16} color={Colors.neutral[300]} />
+    </TouchableOpacity>
+  );
+}
+
+// ── Main screen ──
 
 export default function HomeScreen() {
-
   const router = useRouter();
   const user = useAuthStore((s) => s.user);
   const insets = useSafeAreaInsets();
   const [refreshing, setRefreshing] = useState(false);
 
-  // Estados para el formulario de búsqueda
-  const [origin, setOrigin] = useState('');
-  const [destination, setDestination] = useState('');
-  const [passengers, setPassengers] = useState('');
-  const [tripType, setTripType] = useState<'INTERCITY' | 'URBAN' | 'ROUTINE'>('INTERCITY');
-  const [showTripTypeDropdown, setShowTripTypeDropdown] = useState(false);
+  // Search form state
+  const [origin, setOrigin] = useState<SelectedLocation | null>(null);
+  const [destination, setDestination] = useState<SelectedLocation | null>(null);
+  const [departureDate, setDepartureDate] = useState<Date>(new Date());
+  const [tripType, setTripType] = useState<TripTypeKey>('INTERCITY');
+
+  // Modal state
+  const [originPickerVisible, setOriginPickerVisible] = useState(false);
+  const [destPickerVisible, setDestPickerVisible] = useState(false);
+  const [datePickerVisible, setDatePickerVisible] = useState(false);
+  const [tripTypeSheetVisible, setTripTypeSheetVisible] = useState(false);
 
   const onRefresh = async () => {
     setRefreshing(true);
-    // Future: fetch nearby trips, refresh data
-    setTimeout(() => setRefreshing(false), 1000);
+    setTimeout(() => setRefreshing(false), 800);
   };
 
-  // Banner de verificación (ajustado)
-  const showVerificationBanner = user && (user.verificationLevel === 'NONE' || user.verificationLevel === 'BASIC');
-  const verificationBanner = showVerificationBanner && (
-    <View className="mb-4">
-      <LinearGradient
-        colors={user.verificationLevel === 'NONE' ? ['#ff3b30', '#ff7f50'] : ['#ffb300', '#ffe082']}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        className="rounded-3xl"
-        style={{ borderWidth: 0, borderRadius: 28, paddingHorizontal: 20, paddingVertical: 18 }}
-      >
-        <Text className="text-base font-bold mb-2" style={{ color: user.verificationLevel === 'NONE' ? '#fff' : '#7a4f01' }}>
-          {user.verificationLevel === 'NONE' ? '¡Verificación requerida!' : 'Verifica tu identidad'}
-        </Text>
-        <Text className="text-sm leading-5 mb-3" style={{ color: user.verificationLevel === 'NONE' ? '#fff' : '#7a4f01' }}>
-          {user.verificationLevel === 'NONE'
-            ? 'Debes verificar tu identidad y teléfono para usar la app y generar confianza en la comunidad.'
-            : 'Completa la verificación de identidad para acceder a todas las funcionalidades y aumentar tu confianza.'}
-        </Text>
-        <TouchableOpacity
-          className="self-start px-5 py-2 rounded-2xl"
-          style={{ backgroundColor: user.verificationLevel === 'NONE' ? '#fff' : '#ffb300' }}
-          onPress={() => router.push('/verification')}
-          activeOpacity={0.85}
-        >
-          <Text className="font-semibold text-sm" style={{ color: user.verificationLevel === 'NONE' ? '#ff3b30' : '#7a4f01' }}>
-            {user.verificationLevel === 'NONE' ? 'Verificar ahora' : 'Mejorar verificación'}
-          </Text>
-        </TouchableOpacity>
-      </LinearGradient>
-    </View>
+  const handleSearch = () => {
+    if (!origin || !destination) return;
+
+    const isToday = dayjs(departureDate).isSame(dayjs(), 'day');
+    const from = isToday
+      ? toLocalISOString(dayjs().add(1, 'hour').toDate())
+      : toLocalISOString(dayjs(departureDate).startOf('day').toDate());
+    const to = toLocalISOString(dayjs(departureDate).endOf('day').toDate());
+
+    router.push({
+      pathname: '/search/results',
+      params: {
+        originLat:   String(origin.latitude),
+        originLng:   String(origin.longitude),
+        originName:  origin.name,
+        destLat:     String(destination.latitude),
+        destLng:     String(destination.longitude),
+        destName:    destination.name,
+        departureFrom: from,
+        departureTo:   to,
+        tripType,
+      },
+    });
+  };
+
+  const canSearch = !!origin && !!destination;
+
+  const showVerificationBanner = user && (
+    user.verificationLevel === 'NONE' || user.verificationLevel === 'BASIC'
   );
 
   return (
@@ -112,22 +158,20 @@ export default function HomeScreen() {
       <ScrollView
         className="flex-1"
         refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={onRefresh}
-            tintColor={Colors.primary[500]}
-          />
+          <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={Colors.primary[500]} />
         }
         showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="handled"
       >
+        {/* ── Header gradient ── */}
         <LinearGradient
           colors={['#003040', '#005660', '#007380']}
           start={{ x: 0, y: 0 }}
           end={{ x: 1, y: 1 }}
-          style={{ paddingTop: insets.top + 12, paddingBottom: 32, paddingHorizontal: 24 }}
+          style={{ paddingTop: insets.top + 12, paddingBottom: 36, paddingHorizontal: 20 }}
         >
           {/* Top bar */}
-          <View className="flex-row items-center justify-between mb-6">
+          <View className="flex-row items-center justify-between mb-5">
             <View className="flex-row items-center">
               <Avatar
                 uri={user?.profilePhotoUrl}
@@ -147,106 +191,238 @@ export default function HomeScreen() {
             </TouchableOpacity>
           </View>
 
-          {/* Banner de verificación */}
-          {verificationBanner}
-          {/* Más separación entre banner y formulario */}
-          <View style={{ height: 24 }} />
-          {/* Formulario de búsqueda */}
-          <View className="bg-white rounded-2xl p-4" style={{
-            shadowColor: '#000',
-            shadowOffset: { width: 0, height: 4 },
-            shadowOpacity: 0.15,
-            shadowRadius: 12,
-            elevation: 6,
-          }}>
-            <Text className="text-base font-bold text-neutral-900 mb-4">
-              Buscar viaje
-            </Text>
-            {/* Input Origen */}
-            <View className="flex-row items-center bg-neutral-50 rounded-2xl px-3 py-5 mb-5 w-full max-w-none border border-neutral-200" style={{ borderWidth: 1, borderColor: '#E5E7EB' }}>
-              <MapPin size={22} color={Colors.primary[500]} />
-              <TextInput
-                className="flex-1 ml-2.5 text-lg text-neutral-900 w-full max-w-none"
-                placeholder="Origen"
-                placeholderTextColor="#A3A3A3"
-                value={origin}
-                onChangeText={setOrigin}
-              />
-            </View>
-            {/* Input Destino */}
-            <View className="flex-row items-center bg-neutral-50 rounded-2xl px-3 py-5 mb-5 w-full max-w-none border border-neutral-200" style={{ borderWidth: 1, borderColor: '#E5E7EB' }}>
-              <MapPin size={22} color={Colors.accent[500]} />
-              <TextInput
-                className="flex-1 ml-2.5 text-lg text-neutral-900 w-full max-w-none"
-                placeholder="Destino"
-                placeholderTextColor="#A3A3A3"
-                value={destination}
-                onChangeText={setDestination}
-              />
-            </View>
-            {/* Pasajeros y tipo de viaje en una fila */}
-            <View className="flex-row gap-2 mb-4">
-              {/* Input Pasajeros (40%) */}
-              <View className="flex-row items-center bg-neutral-50 rounded-2xl px-3 py-5 w-full max-w-none border border-neutral-200" style={{ borderWidth: 1, borderColor: '#E5E7EB', flex: 0.45 }}>
-                <Text style={{ fontSize: 16, color: Colors.primary[500] }}>👥</Text>
-                <TextInput
-                  className="flex-1 ml-2.5 text-lg text-neutral-900"
-                  placeholder="Pasajeros"
-                  placeholderTextColor="#A3A3A3"
-                  keyboardType="numeric"
-                  value={passengers}
-                  onChangeText={setPassengers}
-                />
-              </View>
-              {/* Dropdown tipo de viaje (60%) */}
-              <View className="bg-neutral-50 rounded-2xl px-3 py-5 flex-row items-center w-full max-w-none border border-neutral-200" style={{ borderWidth: 1, borderColor: '#E5E7EB', flex: 0.55 }}>
-                {tripType === 'INTERCITY' && <Bus size={20} color={Colors.primary[600]} />}
-                {tripType === 'URBAN' && <Building2 size={20} color={Colors.accent[600]} />}
-                {tripType === 'ROUTINE' && <GraduationCap size={20} color={'#3B82F6'} />}
+          {/* Verification banner */}
+          {showVerificationBanner && (
+            <View className="mb-5">
+              <LinearGradient
+                colors={user!.verificationLevel === 'NONE' ? ['#ff3b30', '#ff7f50'] : ['#ffb300', '#ffe082']}
+                start={{ x: 0, y: 0 }}
+                end={{ x: 1, y: 1 }}
+                className="rounded-3xl"
+                style={{ borderRadius: 20, paddingHorizontal: 18, paddingVertical: 16 }}
+              >
+                <Text className="text-sm font-bold mb-1.5" style={{ color: user!.verificationLevel === 'NONE' ? '#fff' : '#7a4f01' }}>
+                  {user!.verificationLevel === 'NONE' ? '¡Verificación requerida!' : 'Verifica tu identidad'}
+                </Text>
+                <Text className="text-xs leading-5 mb-3" style={{ color: user!.verificationLevel === 'NONE' ? '#fff' : '#7a4f01' }}>
+                  {user!.verificationLevel === 'NONE'
+                    ? 'Debes verificar tu identidad y teléfono para usar la app.'
+                    : 'Completa la verificación para acceder a todas las funcionalidades.'}
+                </Text>
                 <TouchableOpacity
-                  className="flex-1 ml-2 flex-row items-center justify-between"
-                  activeOpacity={0.7}
-                  onPress={() => setShowTripTypeDropdown((v) => !v)}
+                  className="self-start px-4 py-1.5 rounded-xl"
+                  style={{ backgroundColor: user!.verificationLevel === 'NONE' ? '#fff' : '#ffb300' }}
+                  onPress={() => router.push('/verification')}
+                  activeOpacity={0.85}
                 >
-                  <Text className="text-lg text-neutral-900 font-semibold">
-                    {tripType === 'INTERCITY' ? 'Interurbano' : tripType === 'URBAN' ? 'Urbano' : 'Rutinario'}
+                  <Text className="font-semibold text-xs" style={{ color: user!.verificationLevel === 'NONE' ? '#ff3b30' : '#7a4f01' }}>
+                    {user!.verificationLevel === 'NONE' ? 'Verificar ahora' : 'Mejorar verificación'}
                   </Text>
-                  <Text style={{ fontSize: 18, color: '#888' }}>▼</Text>
                 </TouchableOpacity>
-                {/* Dropdown menu */}
-                {showTripTypeDropdown && (
-                  <View style={{ position: 'absolute', top: 60, left: 0, right: 0, zIndex: 10 }} className="bg-white rounded-xl shadow p-2">
-                    <TouchableOpacity className="flex-row items-center p-2" onPress={() => { setTripType('INTERCITY'); setShowTripTypeDropdown(false); }}>
-                      <Bus size={20} color={Colors.primary[600]} />
-                      <Text className="ml-2 text-lg text-primary-700 font-semibold">Interurbano</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity className="flex-row items-center p-2" onPress={() => { setTripType('URBAN'); setShowTripTypeDropdown(false); }}>
-                      <Building2 size={20} color={Colors.accent[600]} />
-                      <Text className="ml-2 text-lg text-accent-700 font-semibold">Urbano</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity className="flex-row items-center p-2" onPress={() => { setTripType('ROUTINE'); setShowTripTypeDropdown(false); }}>
-                      <GraduationCap size={20} color={'#3B82F6'} />
-                      <Text className="ml-2 text-lg text-blue-700 font-semibold">Rutinario</Text>
-                    </TouchableOpacity>
-                  </View>
-                )}
+              </LinearGradient>
+            </View>
+          )}
+
+          {/* Search card */}
+          <View
+            className="bg-white rounded-3xl p-5"
+            style={{ shadowColor: '#000', shadowOffset: { width: 0, height: 8 }, shadowOpacity: 0.18, shadowRadius: 16, elevation: 8 }}
+          >
+            <Text className="text-base font-bold text-neutral-900 mb-4">¿A dónde vas?</Text>
+
+            {/* Route inputs */}
+            <View className="gap-2 mb-3">
+              {/* Route line decoration */}
+              <View className="flex-row">
+                <View className="items-center mr-3 pt-5 pb-5" style={{ width: 20 }}>
+                  <View className="w-3 h-3 rounded-full" style={{ backgroundColor: Colors.primary[500] }} />
+                  <View className="flex-1 w-0.5 my-1" style={{ backgroundColor: Colors.neutral[200], minHeight: 18 }} />
+                  <View className="w-3 h-3 rounded-full" style={{ backgroundColor: Colors.accent[500] }} />
+                </View>
+                <View className="flex-1 gap-2">
+                  <LocationButton
+                    label="¿Desde dónde sales?"
+                    value={origin}
+                    accent={false}
+                    onPress={() => setOriginPickerVisible(true)}
+                  />
+                  <LocationButton
+                    label="¿A dónde vas?"
+                    value={destination}
+                    accent={true}
+                    onPress={() => setDestPickerVisible(true)}
+                  />
+                </View>
               </View>
             </View>
-            {/* Más separación antes del botón */}
-            <View style={{ height: 18 }} />
+
+            {/* Date & trip type row */}
+            <View className="flex-row gap-2 mb-4">
+              {/* Date picker trigger */}
+              <TouchableOpacity
+                onPress={() => setDatePickerVisible(true)}
+                activeOpacity={0.75}
+                className="flex-1 flex-row items-center bg-neutral-50 rounded-2xl px-3 py-3.5 border border-neutral-200"
+                style={{ borderWidth: 1, borderColor: '#E5E7EB' }}
+              >
+                <Calendar size={16} color={Colors.primary[500]} />
+                <View className="ml-2 flex-1">
+                  <Text className="text-xs font-medium" style={{ color: Colors.neutral[400] }}>Fecha</Text>
+                  <Text className="text-sm font-semibold text-neutral-900">
+                    {dayjs(departureDate).isSame(dayjs(), 'day')
+                      ? 'Hoy'
+                      : dayjs(departureDate).isSame(dayjs().add(1, 'day'), 'day')
+                      ? 'Mañana'
+                      : dayjs(departureDate).format('D MMM')}
+                  </Text>
+                </View>
+              </TouchableOpacity>
+
+              {/* Trip type trigger */}
+              <TouchableOpacity
+                onPress={() => setTripTypeSheetVisible(true)}
+                activeOpacity={0.75}
+                className="flex-1 flex-row items-center bg-neutral-50 rounded-2xl px-3 py-3.5 border border-neutral-200"
+                style={{ borderWidth: 1, borderColor: '#E5E7EB' }}
+              >
+                <TripTypeIcon type={tripType} />
+                <View className="ml-2 flex-1">
+                  <Text className="text-xs font-medium" style={{ color: Colors.neutral[400] }}>Tipo</Text>
+                  <Text className="text-sm font-semibold text-neutral-900">
+                    {TRIP_TYPES.find((t) => t.key === tripType)?.label}
+                  </Text>
+                </View>
+                <ChevronRight size={14} color={Colors.neutral[300]} />
+              </TouchableOpacity>
+            </View>
+
+            {/* Search button */}
             <TouchableOpacity
-              className="bg-primary-500 px-6 py-3 rounded-xl flex-row items-center justify-center"
-              activeOpacity={0.8}
-              onPress={() => {
-                // TODO: Navigate to search results when trip search API is available
-              }}
+              onPress={handleSearch}
+              activeOpacity={canSearch ? 0.8 : 1}
+              className="rounded-2xl py-4 flex-row items-center justify-center"
+              style={{ backgroundColor: canSearch ? Colors.primary[600] : Colors.neutral[200] }}
             >
-              <Search size={18} color="#FFF" />
-              <Text className="text-white font-semibold ml-2 text-lg">Buscar viaje</Text>
+              <Search size={18} color={canSearch ? '#FFF' : Colors.neutral[400]} />
+              <Text
+                className="font-bold ml-2 text-base"
+                style={{ color: canSearch ? '#FFF' : Colors.neutral[400] }}
+              >
+                Buscar viaje
+              </Text>
             </TouchableOpacity>
           </View>
         </LinearGradient>
+
+        {/* ── Quick actions ── */}
+        <View className="px-5 pt-6 pb-2">
+          <Text className="text-base font-bold text-neutral-900 mb-3">Tipo de viaje</Text>
+          <View className="flex-row gap-3">
+            {TRIP_TYPES.map((t) => (
+              <TouchableOpacity
+                key={t.key}
+                onPress={() => {
+                  setTripType(t.key);
+                  setOriginPickerVisible(true);
+                }}
+                activeOpacity={0.8}
+                className="flex-1 rounded-2xl p-3.5 items-center"
+                style={{
+                  backgroundColor: tripType === t.key ? Colors.primary[50] : '#F8F9FA',
+                  borderWidth: 1.5,
+                  borderColor: tripType === t.key ? Colors.primary[300] : '#F0F0F0',
+                }}
+              >
+                <TripTypeIcon type={t.key} size={22} />
+                <Text className="text-xs font-semibold mt-2 text-center" style={{ color: Colors.neutral[700] }}>
+                  {t.label}
+                </Text>
+                <Text className="text-xs mt-0.5 text-center" style={{ color: Colors.neutral[400] }} numberOfLines={1}>
+                  {t.subtitle}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </View>
+
+        <View style={{ height: 32 }} />
       </ScrollView>
-    </Screen >
+
+      {/* ── Location pickers ── */}
+      <LocationPickerModal
+        visible={originPickerVisible}
+        title="Origen"
+        initial={origin}
+        onConfirm={(loc) => { setOrigin(loc); setOriginPickerVisible(false); }}
+        onClose={() => setOriginPickerVisible(false)}
+      />
+      <LocationPickerModal
+        visible={destPickerVisible}
+        title="Destino"
+        initial={destination}
+        onConfirm={(loc) => { setDestination(loc); setDestPickerVisible(false); }}
+        onClose={() => setDestPickerVisible(false)}
+      />
+
+      {/* ── Date picker ── */}
+      <DatePickerModal
+        visible={datePickerVisible}
+        value={departureDate}
+        mode="date"
+        title="Fecha de viaje"
+        minimumDate={new Date()}
+        onConfirm={(date) => { setDepartureDate(date); setDatePickerVisible(false); }}
+        onCancel={() => setDatePickerVisible(false)}
+      />
+
+      {/* ── Trip type bottom sheet ── */}
+      <Modal
+        visible={tripTypeSheetVisible}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setTripTypeSheetVisible(false)}
+      >
+        <TouchableOpacity
+          style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.35)' }}
+          activeOpacity={1}
+          onPress={() => setTripTypeSheetVisible(false)}
+        />
+        <View
+          className="bg-white rounded-t-3xl px-5 pt-4 pb-8"
+          style={{ shadowColor: '#000', shadowOffset: { width: 0, height: -4 }, shadowOpacity: 0.1, shadowRadius: 16, elevation: 16 }}
+        >
+          {/* Handle */}
+          <View className="w-10 h-1 rounded-full bg-neutral-200 self-center mb-4" />
+          <Text className="text-base font-bold text-neutral-900 mb-4">Tipo de viaje</Text>
+          {TRIP_TYPES.map((t) => {
+            const selected = tripType === t.key;
+            return (
+              <TouchableOpacity
+                key={t.key}
+                onPress={() => { setTripType(t.key); setTripTypeSheetVisible(false); }}
+                activeOpacity={0.7}
+                className="flex-row items-center py-4 border-b border-neutral-100"
+              >
+                <View
+                  className="w-11 h-11 rounded-2xl items-center justify-center mr-4"
+                  style={{ backgroundColor: selected ? Colors.primary[50] : Colors.neutral[100] }}
+                >
+                  <TripTypeIcon type={t.key} size={20} />
+                </View>
+                <View className="flex-1">
+                  <Text className="text-sm font-semibold text-neutral-900">{t.label}</Text>
+                  <Text className="text-xs text-neutral-400 mt-0.5">{t.subtitle}</Text>
+                </View>
+                {selected && (
+                  <View className="w-5 h-5 rounded-full items-center justify-center" style={{ backgroundColor: Colors.primary[500] }}>
+                    <View className="w-2 h-2 rounded-full bg-white" />
+                  </View>
+                )}
+              </TouchableOpacity>
+            );
+          })}
+        </View>
+      </Modal>
+    </Screen>
   );
 }

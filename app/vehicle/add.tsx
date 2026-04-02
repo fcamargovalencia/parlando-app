@@ -12,10 +12,9 @@ import {
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import * as DocumentPicker from 'expo-document-picker';
-import DateTimePicker from '@react-native-community/datetimepicker';
 import { useRouter } from 'expo-router';
 import { Camera, Car, ChevronDown, CreditCard, FileText, Plus, Upload, X } from 'lucide-react-native';
-import { Screen, Button, Input, Card } from '@/components/ui';
+import { Screen, Button, Input, Card, DatePickerModal } from '@/components/ui';
 import { useVehicles } from '@/hooks/useVehicles';
 import { Colors } from '@/constants/colors';
 import { uploadFileToCloudinary, uploadImageToCloudinary } from '@/lib/cloudinary';
@@ -199,7 +198,6 @@ export default function AddVehicleScreen() {
   const [driverLicenseBack, setDriverLicenseBack] = useState<LocalAsset | null>(null);
   const [soatExpiryDate, setSoatExpiryDate] = useState<Date | null>(null);
   const [showDatePicker, setShowDatePicker] = useState(false);
-  const [iosDateDraft, setIosDateDraft] = useState<Date>(new Date());
   const [pendingCameraCapture, setPendingCameraCapture] = useState<PendingCameraCapture | null>(null);
 
   const todayIso = useMemo(() => formatIsoDate(new Date()), []);
@@ -240,20 +238,8 @@ export default function AddVehicleScreen() {
   }, []);
 
   const openSoatDatePicker = useCallback(() => {
-    if (Platform.OS === 'ios') {
-      setIosDateDraft(soatExpiryDate ?? new Date());
-    }
     setShowDatePicker(true);
-  }, [soatExpiryDate]);
-
-  const closeSoatDatePicker = useCallback(() => {
-    setShowDatePicker(false);
   }, []);
-
-  const confirmSoatDatePicker = useCallback(() => {
-    setSoatExpiryDate(iosDateDraft);
-    setShowDatePicker(false);
-  }, [iosDateDraft]);
 
   const handleSelectLicense = useCallback((id: string | null) => {
     setSelectedLicenseId(id);
@@ -589,19 +575,15 @@ export default function AddVehicleScreen() {
             </Text>
           </TouchableOpacity>
 
-          {showDatePicker && Platform.OS !== 'ios' && (
-            <DateTimePicker
-              value={soatExpiryDate ?? new Date()}
-              mode="date"
-              display="default"
-              minimumDate={new Date()}
-              onValueChange={(_, date) => {
-                setSoatExpiryDate(date);
-                setShowDatePicker(false);
-              }}
-              onDismiss={() => setShowDatePicker(false)}
-            />
-          )}
+          <DatePickerModal
+            visible={showDatePicker}
+            value={soatExpiryDate ?? new Date()}
+            mode="date"
+            title="Vencimiento SOAT"
+            minimumDate={new Date()}
+            onConfirm={(date) => { setSoatExpiryDate(date); setShowDatePicker(false); }}
+            onCancel={() => setShowDatePicker(false)}
+          />
 
           <Text className="text-base font-semibold text-neutral-900 mb-3">
             Archivos requeridos
@@ -829,38 +811,6 @@ export default function AddVehicleScreen() {
         </Modal>
       )}
 
-      {/* Date picker iOS */}
-      {Platform.OS === 'ios' && showDatePicker && (
-        <Modal
-          visible
-          transparent
-          animationType="fade"
-          onRequestClose={closeSoatDatePicker}
-        >
-          <View className="flex-1 bg-black/35 justify-end">
-            <View className="bg-white rounded-t-3xl px-5 pt-4 pb-6">
-              <View className="flex-row items-center justify-between mb-3">
-                <TouchableOpacity onPress={closeSoatDatePicker} hitSlop={8}>
-                  <Text className="text-sm font-semibold text-neutral-500">Cancelar</Text>
-                </TouchableOpacity>
-                <Text className="text-base font-semibold text-neutral-900">Vencimiento SOAT</Text>
-                <TouchableOpacity onPress={confirmSoatDatePicker} hitSlop={8}>
-                  <Text className="text-sm font-semibold text-primary-700">Confirmar</Text>
-                </TouchableOpacity>
-              </View>
-
-              <DateTimePicker
-                value={iosDateDraft}
-                mode="date"
-                display="spinner"
-                minimumDate={new Date()}
-                themeVariant="light"
-                onValueChange={(_, date) => setIosDateDraft(date)}
-              />
-            </View>
-          </View>
-        </Modal>
-      )}
     </Screen>
   );
 }

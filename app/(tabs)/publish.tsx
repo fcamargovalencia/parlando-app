@@ -10,7 +10,6 @@ import {
   ActivityIndicator,
   Animated,
 } from 'react-native';
-import DateTimePicker from '@react-native-community/datetimepicker';
 import { useRouter } from 'expo-router';
 import { useFocusEffect } from '@react-navigation/native';
 import {
@@ -33,7 +32,7 @@ import {
   X,
 } from 'lucide-react-native';
 import MapView, { Polyline, Marker, type Region } from 'react-native-maps';
-import { Screen, Button, Input, Card } from '@/components/ui';
+import { Screen, Button, Input, Card, DatePickerModal } from '@/components/ui';
 import {
   LocationPickerModal,
   type SelectedLocation,
@@ -621,23 +620,6 @@ export default function PublishScreen() {
     setLocationPicker((p) => ({ ...p, visible: false }));
   };
 
-  // ── Date handlers ──
-
-  const handleDateChange = (_: unknown, date?: Date) => {
-    if (!date) return;
-    const next = new Date(date);
-    next.setHours(form.departureAt.getHours(), form.departureAt.getMinutes(), 0, 0);
-    dispatch({ type: 'SET_DEPARTURE', payload: next });
-    setShowDatePicker(false);
-  };
-
-  const handleTimeChange = (_: unknown, date?: Date) => {
-    if (!date) return;
-    const next = new Date(form.departureAt);
-    next.setHours(date.getHours(), date.getMinutes(), 0, 0);
-    dispatch({ type: 'SET_DEPARTURE', payload: next });
-    setShowTimePicker(false);
-  };
 
   // ── Submit ──
 
@@ -1391,25 +1373,33 @@ export default function PublishScreen() {
             </Animated.View>
           </Card>
 
-          {showDatePicker && (
-            <DateTimePicker
-              value={form.departureAt}
-              mode="date"
-              minimumDate={new Date()}
-              display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-              onValueChange={handleDateChange}
-              onDismiss={() => setShowDatePicker(false)}
-            />
-          )}
-          {showTimePicker && (
-            <DateTimePicker
-              value={form.departureAt}
-              mode="time"
-              display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-              onValueChange={handleTimeChange}
-              onDismiss={() => setShowTimePicker(false)}
-            />
-          )}
+          <DatePickerModal
+            visible={showDatePicker}
+            value={form.departureAt}
+            mode="date"
+            title="Fecha de salida"
+            minimumDate={new Date()}
+            onConfirm={(date) => {
+              const next = new Date(date);
+              next.setHours(form.departureAt.getHours(), form.departureAt.getMinutes(), 0, 0);
+              dispatch({ type: 'SET_DEPARTURE', payload: next });
+              setShowDatePicker(false);
+            }}
+            onCancel={() => setShowDatePicker(false)}
+          />
+          <DatePickerModal
+            visible={showTimePicker}
+            value={form.departureAt}
+            mode="time"
+            title="Hora de salida"
+            onConfirm={(date) => {
+              const next = new Date(form.departureAt);
+              next.setHours(date.getHours(), date.getMinutes(), 0, 0);
+              dispatch({ type: 'SET_DEPARTURE', payload: next });
+              setShowTimePicker(false);
+            }}
+            onCancel={() => setShowTimePicker(false)}
+          />
 
           <View className={step < TOTAL_STEPS ? 'items-end' : 'items-center'}>
             {step < TOTAL_STEPS ? (

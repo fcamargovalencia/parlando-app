@@ -92,6 +92,10 @@ export function useAuth() {
       // Best-effort logout
     } finally {
       storeLogout();
+      // Explicitly remove the persisted key so SecureStore is fully cleared.
+      // setItem alone can fail silently when the payload exceeds SecureStore's ~2 KB limit,
+      // leaving stale session data that gets restored on the next app launch.
+      await useAuthStore.persist.clearStorage();
     }
   }, [storeLogout]);
 

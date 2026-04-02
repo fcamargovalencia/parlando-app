@@ -1,5 +1,5 @@
 import { api } from './client';
-import type { ApiResponse, CreateTripRequest, UpdateTripRequest, TripResponse } from '@/types/api';
+import type { ApiResponse, PageResponse, CreateTripRequest, UpdateTripRequest, TripResponse, SearchTripsParams } from '@/types/api';
 
 export const tripsApi = {
   create: (data: CreateTripRequest) =>
@@ -28,4 +28,7 @@ export const tripsApi = {
 
   cancel: (id: string) =>
     api.delete<ApiResponse<null>>(`/v1/trips/${encodeURIComponent(id)}`),
+
+  search: (params: SearchTripsParams) =>
+    api.get<ApiResponse<PageResponse<TripResponse>>>('/v1/trips/search', { params }),
 };

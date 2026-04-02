@@ -280,4 +280,58 @@ export interface TripResponse {
   recurrencePattern?: string | null;
   createdAt: string;
   updatedAt: string;
+  driver?: {
+    id: string;
+    firstName: string;
+    lastName: string;
+    profilePhotoUrl: string | null;
+    trustScore: number;
+    verificationLevel: VerificationLevel;
+  };
+}
+
+// ── Search ──
+
+export interface SearchTripsParams {
+  tripType?: TripType;
+  departureFrom?: string;
+  departureTo?: string;
+  originLat?: number;
+  originLng?: number;
+  destLat?: number;
+  destLng?: number;
+  radiusKm?: number;
+  studentsOnly?: boolean;
+  page?: number;
+  size?: number;
+}
+
+// ── Bookings ──
+
+export interface CreateBookingRequest {
+  seatsBooked: number;
+  tripId: string;
+  pickupWaypointId?: string;
+  dropoffWaypointId?: string;
+}
+
+export interface BookingResponse {
+  id: string;
+  tripId: string;
+  passengerId: string;
+  seatsBooked: number;
+  status: BookingStatus;
+  pickupWaypointId?: string | null;
+  dropoffWaypointId?: string | null;
+  createdAt: string;
+  updatedAt: string;
+  trip?: TripResponse;
+  passenger?: {
+    id: string;
+    firstName: string;
+    lastName: string;
+    profilePhotoUrl: string | null;
+    trustScore: number;
+    verificationLevel: VerificationLevel;
+  };
 }

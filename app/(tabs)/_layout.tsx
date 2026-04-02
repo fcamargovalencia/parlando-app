@@ -2,7 +2,7 @@ import React from 'react';
 import { Platform } from 'react-native';
 import { Tabs } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Home, Route, PlusCircle, User } from 'lucide-react-native';
+import { Home, Route, PlusCircle, User, Ticket } from 'lucide-react-native';
 import { Colors } from '@/constants/colors';
 
 export default function TabsLayout() {
@@ -50,6 +50,13 @@ export default function TabsLayout() {
           tabBarIcon: ({ color, size }) => (
             <PlusCircle size={size + 4} color={Colors.primary[500]} />
           ),
+        }}
+      />
+      <Tabs.Screen
+        name="my-bookings"
+        options={{
+          title: 'Reservas',
+          tabBarIcon: ({ color, size }) => <Ticket size={size} color={color} />,
         }}
       />
       <Tabs.Screen

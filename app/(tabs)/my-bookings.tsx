@@ -1,0 +1,334 @@
+import React, { useCallback, useEffect, useReducer, useState } from 'react';
+import {
+  View,
+  Text,
+  FlatList,
+  TouchableOpacity,
+  Alert,
+  RefreshControl,
+} from 'react-native';
+import { useRouter } from 'expo-router';
+import {
+  Ticket,
+  Clock,
+  DollarSign,
+  ChevronRight,
+  Bus,
+  Building2,
+  GraduationCap,
+  MapPin,
+} from 'lucide-react-native';
+import { Screen, Badge, Card, EmptyState, Spinner } from '@/components/ui';
+import { Colors } from '@/constants/colors';
+import { bookingsApi } from '@/api/bookings';
+import { formatCurrency, getTripTypeLabel } from '@/lib/utils';
+import type { BookingResponse, BookingStatus } from '@/types/api';
+import Toast from 'react-native-toast-message';
+import dayjs from 'dayjs';
+
+// ── Helpers ──
+
+const STATUS_CONFIG: Record<BookingStatus, { label: string; variant: 'success' | 'warning' | 'info' | 'error' | 'neutral' }> = {
+  PENDING:   { label: 'Pendiente',  variant: 'warning' },
+  ACCEPTED:  { label: 'Aceptado',   variant: 'success' },
+  REJECTED:  { label: 'Rechazado',  variant: 'error' },
+  BOARDED:   { label: 'Abordo',     variant: 'info' },
+  COMPLETED: { label: 'Completado', variant: 'success' },
+  CANCELLED: { label: 'Cancelado',  variant: 'neutral' },
+  NO_SHOW:   { label: 'No asistió', variant: 'error' },
+};
+
+type FilterKey = 'active' | 'past';
+
+const FILTERS: { key: FilterKey; label: string; statuses: BookingStatus[] }[] = [
+  { key: 'active', label: 'Activas',  statuses: ['PENDING', 'ACCEPTED', 'BOARDED'] },
+  { key: 'past',   label: 'Pasadas',  statuses: ['COMPLETED', 'CANCELLED', 'REJECTED', 'NO_SHOW'] },
+];
+
+function TripTypeIcon({ type, size = 14 }: { type?: string; size?: number }) {
+  if (type === 'INTERCITY') return <Bus size={size} color={Colors.primary[600]} />;
+  if (type === 'URBAN')     return <Building2 size={size} color={Colors.accent[600]} />;
+  return <GraduationCap size={size} color="#3B82F6" />;
+}
+
+function fmtDeparture(iso?: string) {
+  if (!iso) return '–';
+  const d = dayjs(iso);
+  const today = dayjs();
+  if (d.isSame(today, 'day')) return `Hoy, ${d.format('h:mm A')}`;
+  if (d.isSame(today.add(1, 'day'), 'day')) return `Mañana, ${d.format('h:mm A')}`;
+  return d.format('D MMM, h:mm A');
+}
+
+// ── State ──
+
+interface State {
+  bookings: BookingResponse[];
+  loading: boolean;
+  refreshing: boolean;
+  error: string | null;
+  cancelling: string | null;
+}
+
+type Action =
+  | { type: 'FETCH_START'; refreshing?: boolean }
+  | { type: 'FETCH_SUCCESS'; payload: BookingResponse[] }
+  | { type: 'FETCH_ERROR'; payload: string }
+  | { type: 'CANCEL_START'; id: string }
+  | { type: 'CANCEL_SUCCESS'; id: string }
+  | { type: 'CANCEL_ERROR' };
+
+function reducer(state: State, action: Action): State {
+  switch (action.type) {
+    case 'FETCH_START':
+      return { ...state, loading: !action.refreshing, refreshing: action.refreshing ?? false, error: null };
+    case 'FETCH_SUCCESS':
+      return { ...state, loading: false, refreshing: false, bookings: action.payload };
+    case 'FETCH_ERROR':
+      return { ...state, loading: false, refreshing: false, error: action.payload };
+    case 'CANCEL_START':
+      return { ...state, cancelling: action.id };
+    case 'CANCEL_SUCCESS':
+      return {
+        ...state,
+        cancelling: null,
+        bookings: state.bookings.map((b) =>
+          b.id === action.id ? { ...b, status: 'CANCELLED' } : b,
+        ),
+      };
+    case 'CANCEL_ERROR':
+      return { ...state, cancelling: null };
+  }
+}
+
+// ── Booking card ──
+
+function BookingCard({
+  booking,
+  cancelling,
+  onPress,
+  onCancel,
+}: {
+  booking: BookingResponse;
+  cancelling: boolean;
+  onPress: () => void;
+  onCancel: () => void;
+}) {
+  const config = STATUS_CONFIG[booking.status];
+  const trip = booking.trip;
+  const canCancel = booking.status === 'PENDING' || booking.status === 'ACCEPTED';
+
+  return (
+    <TouchableOpacity onPress={onPress} activeOpacity={0.75}>
+      <Card className="mb-3">
+        {/* Header */}
+        <View className="flex-row items-center justify-between mb-3">
+          <View className="flex-row items-center gap-1.5">
+            <TripTypeIcon type={trip?.tripType} />
+            <Text className="text-xs font-medium text-neutral-500">
+              {trip ? getTripTypeLabel(trip.tripType) : 'Viaje'}
+            </Text>
+          </View>
+          <Badge label={config.label} variant={config.variant} />
+        </View>
+
+        {/* Route */}
+        {trip && (
+          <View className="flex-row items-start mb-3">
+            <View className="items-center mr-3 pt-1">
+              <View className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: Colors.primary[500] }} />
+              <View className="w-0.5 h-5 my-1" style={{ backgroundColor: Colors.neutral[200] }} />
+              <View className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: Colors.accent[500] }} />
+            </View>
+            <View className="flex-1 gap-1">
+              <Text className="text-sm font-semibold text-neutral-900" numberOfLines={1}>
+                {trip.originName}
+              </Text>
+              <Text className="text-sm font-semibold text-neutral-900" numberOfLines={1}>
+                {trip.destinationName}
+              </Text>
+            </View>
+            <ChevronRight size={18} color={Colors.neutral[300]} />
+          </View>
+        )}
+
+        {/* Meta */}
+        <View className="flex-row flex-wrap gap-x-4 gap-y-1.5 mb-1">
+          {trip && (
+            <>
+              <View className="flex-row items-center gap-1">
+                <Clock size={13} color={Colors.neutral[400]} />
+                <Text className="text-xs text-neutral-500">{fmtDeparture(trip.departureAt)}</Text>
+              </View>
+              <View className="flex-row items-center gap-1">
+                <DollarSign size={13} color={Colors.neutral[400]} />
+                <Text className="text-xs font-semibold text-neutral-700">
+                  {formatCurrency(trip.pricePerSeat * booking.seatsBooked, trip.currency)}
+                </Text>
+              </View>
+            </>
+          )}
+          <View className="flex-row items-center gap-1">
+            <Text className="text-xs text-neutral-400">
+              {booking.seatsBooked} {booking.seatsBooked === 1 ? 'asiento' : 'asientos'}
+            </Text>
+          </View>
+        </View>
+
+        {/* Cancel link */}
+        {canCancel && (
+          <TouchableOpacity
+            onPress={(e) => { e.stopPropagation?.(); onCancel(); }}
+            disabled={cancelling}
+            className="mt-2 self-start"
+          >
+            <Text className={`text-sm font-medium ${cancelling ? 'text-neutral-400' : 'text-red-500'}`}>
+              {cancelling ? 'Cancelando...' : 'Cancelar reserva'}
+            </Text>
+          </TouchableOpacity>
+        )}
+      </Card>
+    </TouchableOpacity>
+  );
+}
+
+// ── Screen ──
+
+export default function MyBookingsScreen() {
+  const router = useRouter();
+  const [activeFilter, setActiveFilter] = useState<FilterKey>('active');
+  const [state, dispatch] = useReducer(reducer, {
+    bookings: [],
+    loading: true,
+    refreshing: false,
+    error: null,
+    cancelling: null,
+  });
+
+  const load = useCallback(async (refreshing = false) => {
+    dispatch({ type: 'FETCH_START', refreshing });
+    try {
+      const { data: res } = await bookingsApi.getMine();
+      dispatch({ type: 'FETCH_SUCCESS', payload: res.data ?? [] });
+    } catch (err: any) {
+      dispatch({ type: 'FETCH_ERROR', payload: err?.response?.data?.message ?? 'Error al cargar tus reservas' });
+    }
+  }, []);
+
+  useEffect(() => { load(); }, [load]);
+
+  const handleCancel = (booking: BookingResponse) => {
+    const origin = booking.trip?.originName ?? '–';
+    const dest   = booking.trip?.destinationName ?? '–';
+    Alert.alert(
+      'Cancelar reserva',
+      `¿Seguro que quieres cancelar tu reserva de ${origin} a ${dest}?`,
+      [
+        { text: 'No', style: 'cancel' },
+        {
+          text: 'Sí, cancelar',
+          style: 'destructive',
+          onPress: async () => {
+            dispatch({ type: 'CANCEL_START', id: booking.id });
+            try {
+              await bookingsApi.cancel(booking.id);
+              dispatch({ type: 'CANCEL_SUCCESS', id: booking.id });
+              Toast.show({ type: 'success', text1: 'Reserva cancelada' });
+            } catch (err: any) {
+              dispatch({ type: 'CANCEL_ERROR' });
+              Alert.alert('Error', err?.response?.data?.message ?? 'No se pudo cancelar la reserva');
+            }
+          },
+        },
+      ],
+    );
+  };
+
+  const filtered = state.bookings
+    .filter((b) => FILTERS.find((f) => f.key === activeFilter)!.statuses.includes(b.status))
+    .sort((a, b) => {
+      const da = new Date(a.createdAt).getTime();
+      const db = new Date(b.createdAt).getTime();
+      return activeFilter === 'active' ? db - da : db - da;
+    });
+
+  return (
+    <Screen>
+      {/* Header */}
+      <View className="px-6 pt-4 pb-2">
+        <Text className="text-2xl font-bold text-neutral-900">Mis reservas</Text>
+        <Text className="text-sm text-neutral-500 mt-1">Cupos que has solicitado como pasajero</Text>
+      </View>
+
+      {/* Filter tabs */}
+      <View className="flex-row px-6 mt-3 mb-4 gap-2">
+        {FILTERS.map((f) => {
+          const count = state.bookings.filter((b) => f.statuses.includes(b.status)).length;
+          return (
+            <TouchableOpacity
+              key={f.key}
+              onPress={() => setActiveFilter(f.key)}
+              className={`flex-row items-center px-4 py-2 rounded-full ${activeFilter === f.key ? 'bg-primary-500' : 'bg-neutral-100'}`}
+            >
+              <Text className={`text-sm font-medium ${activeFilter === f.key ? 'text-white' : 'text-neutral-600'}`}>
+                {f.label}
+              </Text>
+              {count > 0 && (
+                <View className={`ml-1.5 w-5 h-5 rounded-full items-center justify-center ${activeFilter === f.key ? 'bg-white/30' : 'bg-neutral-200'}`}>
+                  <Text className={`text-xs font-bold ${activeFilter === f.key ? 'text-white' : 'text-neutral-600'}`}>
+                    {count > 9 ? '9+' : count}
+                  </Text>
+                </View>
+              )}
+            </TouchableOpacity>
+          );
+        })}
+      </View>
+
+      {/* Content */}
+      {state.loading ? (
+        <View className="flex-1 items-center justify-center">
+          <Spinner />
+        </View>
+      ) : state.error ? (
+        <View className="flex-1 items-center justify-center px-6">
+          <Text className="text-sm text-neutral-500 text-center mb-3">{state.error}</Text>
+          <TouchableOpacity onPress={() => load()}>
+            <Text className="text-sm font-semibold text-primary-600">Reintentar</Text>
+          </TouchableOpacity>
+        </View>
+      ) : (
+        <FlatList
+          data={filtered}
+          keyExtractor={(b) => b.id}
+          contentContainerClassName="px-6 pb-8"
+          showsVerticalScrollIndicator={false}
+          refreshControl={
+            <RefreshControl refreshing={state.refreshing} onRefresh={() => load(true)} tintColor={Colors.primary[500]} />
+          }
+          ListEmptyComponent={
+            <EmptyState
+              icon={<Ticket size={56} color={Colors.neutral[300]} />}
+              title={activeFilter === 'active' ? 'Sin reservas activas' : 'Sin reservas pasadas'}
+              description={
+                activeFilter === 'active'
+                  ? 'Busca un viaje y reserva tu cupo.'
+                  : 'Aquí aparecerán tus reservas completadas o canceladas.'
+              }
+              actionLabel={activeFilter === 'active' ? 'Buscar viaje' : undefined}
+              onAction={activeFilter === 'active' ? () => router.push('/(tabs)/home') : undefined}
+            />
+          }
+          renderItem={({ item }) => (
+            <BookingCard
+              booking={item}
+              cancelling={state.cancelling === item.id}
+              onPress={() => item.trip && router.push({ pathname: '/trip/[id]', params: { id: item.tripId } })}
+              onCancel={() => handleCancel(item)}
+            />
+          )}
+        />
+      )}
+    </Screen>
+  );
+}
