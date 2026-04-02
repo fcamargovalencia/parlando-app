@@ -14,7 +14,7 @@ import * as ImagePicker from 'expo-image-picker';
 import * as DocumentPicker from 'expo-document-picker';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { useRouter } from 'expo-router';
-import { Camera, Car, CreditCard, FileText, Upload, X } from 'lucide-react-native';
+import { Camera, Car, ChevronDown, CreditCard, FileText, Plus, Upload, X } from 'lucide-react-native';
 import { Screen, Button, Input, Card } from '@/components/ui';
 import { useVehicles } from '@/hooks/useVehicles';
 import { Colors } from '@/constants/colors';
@@ -25,7 +25,7 @@ import {
   type CapturedPhoto,
   type CapturePhotoConfig,
 } from '@/components/verification/CapturePhotoModal';
-import type { CreateVehicleRequest } from '@/types/api';
+import type { CreateVehicleRequest, IdentityVerificationResponse } from '@/types/api';
 import Toast from 'react-native-toast-message';
 
 interface VehicleFormState {
@@ -77,6 +77,11 @@ const initialState: VehicleFormState = {
   driverLicenseNumber: '',
 };
 
+const LICENSE_STATUS_LABEL: Record<string, string> = {
+  PENDING: 'Pendiente',
+  VERIFIED: 'Verificada',
+};
+
 function formReducer(state: VehicleFormState, action: VehicleFormAction): VehicleFormState {
   switch (action.type) {
     case 'SET':
@@ -118,6 +123,11 @@ function formatIsoDate(date: Date) {
 function formatHumanDate(isoDate: string) {
   const [year, month, day] = isoDate.split('-');
   return `${day}/${month}/${year}`;
+}
+
+function licenseOptionLabel(license: IdentityVerificationResponse, index: number): string {
+  const status = LICENSE_STATUS_LABEL[license.status] ?? license.status;
+  return `Licencia ${index + 1} · ${status}`;
 }
 
 function UploadCard({ title, description, icon, preview, fileLabel, onPick, onRemove }: UploadCardProps) {
@@ -174,8 +184,14 @@ export default function AddVehicleScreen() {
   const { createVehicle, submitting, error, clearError } = useVehicles();
   const [form, dispatch] = useReducer(formReducer, initialState);
   const [uploading, setUploading] = useState(false);
-  const [checkingLicense, setCheckingLicense] = useState(true);
-  const [requiresDriverLicense, setRequiresDriverLicense] = useState(true);
+
+  // Licencias existentes
+  const [existingLicenses, setExistingLicenses] = useState<IdentityVerificationResponse[]>([]);
+  const [loadingLicenses, setLoadingLicenses] = useState(true);
+  const [selectedLicenseId, setSelectedLicenseId] = useState<string | null>(null);
+  const [showNewLicenseForm, setShowNewLicenseForm] = useState(false);
+  const [showLicenseDropdown, setShowLicenseDropdown] = useState(false);
+
   const [vehiclePhotos, setVehiclePhotos] = useState<LocalAsset[]>([]);
   const [soatDocument, setSoatDocument] = useState<LocalDocument | null>(null);
   const [transitCardDocument, setTransitCardDocument] = useState<LocalAsset | null>(null);
@@ -188,6 +204,40 @@ export default function AddVehicleScreen() {
 
   const todayIso = useMemo(() => formatIsoDate(new Date()), []);
   const soatExpiry = soatExpiryDate ? formatIsoDate(soatExpiryDate) : null;
+
+  useEffect(() => {
+    let mounted = true;
+
+    const fetchLicenses = async () => {
+      try {
+        const { data: res } = await verificationsApi.getMine();
+        const licenses = (res.data ?? []).filter(
+          (v) => v.documentType === 'LICENCIA_CONDUCCION'
+            && v.status !== 'REJECTED'
+            && v.status !== 'EXPIRED',
+        );
+        if (mounted) {
+          setExistingLicenses(licenses);
+          if (licenses.length === 1) {
+            setSelectedLicenseId(licenses[0].id);
+          } else if (licenses.length === 0) {
+            setShowNewLicenseForm(true);
+          }
+        }
+      } catch {
+        // si falla, dejar al usuario agregar manualmente
+        if (mounted) setShowNewLicenseForm(true);
+      } finally {
+        if (mounted) setLoadingLicenses(false);
+      }
+    };
+
+    void fetchLicenses();
+
+    return () => {
+      mounted = false;
+    };
+  }, []);
 
   const openSoatDatePicker = useCallback(() => {
     if (Platform.OS === 'ios') {
@@ -205,34 +255,23 @@ export default function AddVehicleScreen() {
     setShowDatePicker(false);
   }, [iosDateDraft]);
 
-  useEffect(() => {
-    let mounted = true;
+  const handleSelectLicense = useCallback((id: string | null) => {
+    setSelectedLicenseId(id);
+    setShowNewLicenseForm(false);
+    setShowLicenseDropdown(false);
+  }, []);
 
-    const checkExistingDriverLicense = async () => {
-      try {
-        const { data: res } = await verificationsApi.getMine();
-        const verifications = res.data ?? [];
-        const license = verifications.find((v) => v.documentType === 'LICENCIA_CONDUCCION');
-        const hasRegistered = !!license && license.status !== 'REJECTED' && license.status !== 'EXPIRED';
-        if (mounted) setRequiresDriverLicense(!hasRegistered);
-      } catch {
-        if (mounted) setRequiresDriverLicense(true);
-      } finally {
-        if (mounted) setCheckingLicense(false);
+  const handleToggleNewLicenseForm = useCallback(() => {
+    setShowNewLicenseForm((prev) => {
+      if (!prev) {
+        setSelectedLicenseId(null);
       }
-    };
-
-    void checkExistingDriverLicense();
-
-    return () => {
-      mounted = false;
-    };
+      return !prev;
+    });
   }, []);
 
   const setField = (field: keyof VehicleFormState, value: string) => {
-    if (error) {
-      clearError();
-    }
+    if (error) clearError();
     dispatch({ type: 'SET', field, value });
   };
 
@@ -306,7 +345,7 @@ export default function AddVehicleScreen() {
   }, [pickImageAsset, vehiclePhotos.length]);
 
   const removeVehiclePhoto = (index: number) => {
-    setVehiclePhotos((current) => current.filter((_, currentIndex) => currentIndex !== index));
+    setVehiclePhotos((current) => current.filter((_, i) => i !== index));
   };
 
   const validateForm = () => {
@@ -353,23 +392,17 @@ export default function AddVehicleScreen() {
       return false;
     }
 
-    const hasAnyDriverLicenseField = !!form.driverLicenseNumber || !!driverLicenseFront || !!driverLicenseBack;
-    const hasFullDriverLicense = !!form.driverLicenseNumber && !!driverLicenseFront && !!driverLicenseBack;
-
-    if (requiresDriverLicense && !hasFullDriverLicense) {
-      Alert.alert(
-        'Licencia requerida',
-        'Tu licencia no está registrada. Debes enviar número, foto frontal y foto posterior.',
-      );
-      return false;
-    }
-
-    if (!requiresDriverLicense && hasAnyDriverLicenseField && !hasFullDriverLicense) {
-      Alert.alert(
-        'Licencia incompleta',
-        'Si vas a reenviar licencia, debes completar número, foto frontal y foto posterior.',
-      );
-      return false;
+    if (showNewLicenseForm) {
+      const hasNumber = !!form.driverLicenseNumber.trim();
+      const hasFront = !!driverLicenseFront;
+      const hasBack = !!driverLicenseBack;
+      if (!hasNumber || !hasFront || !hasBack) {
+        Alert.alert(
+          'Licencia incompleta',
+          'Para registrar una nueva licencia debes completar número, foto frontal y foto posterior.',
+        );
+        return false;
+      }
     }
 
     return true;
@@ -411,8 +444,7 @@ export default function AddVehicleScreen() {
       ]);
 
       let driverLicense: CreateVehicleRequest['driverLicense'];
-      const shouldSendDriverLicense = !!form.driverLicenseNumber && !!driverLicenseFront && !!driverLicenseBack;
-      if (shouldSendDriverLicense) {
+      if (showNewLicenseForm && form.driverLicenseNumber && driverLicenseFront && driverLicenseBack) {
         const [documentFrontUrl, documentBackUrl] = await Promise.all([
           uploadImageToCloudinary(driverLicenseFront.uri, {
             folder: 'parlando/vehicles/driver-license',
@@ -463,6 +495,9 @@ export default function AddVehicleScreen() {
       setUploading(false);
     }
   };
+
+  const selectedLicense = existingLicenses.find((l) => l.id === selectedLicenseId);
+  const selectedLicenseIndex = existingLicenses.findIndex((l) => l.id === selectedLicenseId);
 
   return (
     <Screen safe={false}>
@@ -560,12 +595,11 @@ export default function AddVehicleScreen() {
               mode="date"
               display="default"
               minimumDate={new Date()}
-              onChange={(_, selectedDate) => {
+              onValueChange={(_, date) => {
+                setSoatExpiryDate(date);
                 setShowDatePicker(false);
-                if (selectedDate) {
-                  setSoatExpiryDate(selectedDate);
-                }
               }}
+              onDismiss={() => setShowDatePicker(false)}
             />
           )}
 
@@ -615,9 +649,7 @@ export default function AddVehicleScreen() {
             description="Selecciona el PDF del SOAT desde la galería/archivos del dispositivo."
             icon={<Car size={24} color={Colors.accent[600]} />}
             fileLabel={soatDocument?.name}
-            onPick={() => {
-              void pickSoatPdfFromGallery();
-            }}
+            onPick={() => { void pickSoatPdfFromGallery(); }}
             onRemove={soatDocument ? () => setSoatDocument(null) : undefined}
           />
 
@@ -637,21 +669,46 @@ export default function AddVehicleScreen() {
             onRemove={transitCardDocument ? () => setTransitCardDocument(null) : undefined}
           />
 
-          {(checkingLicense || requiresDriverLicense) && (
-            <>
-              <Text className="text-base font-semibold text-neutral-900 mb-2 mt-2">
-                Licencia de conducción *
-              </Text>
-              {checkingLicense ? (
-                <Text className="text-sm text-neutral-500 mb-4">
-                  Verificando si ya tienes una licencia registrada...
-                </Text>
-              ) : (
-                <Text className="text-sm text-amber-700 mb-4">
-                  No encontramos una licencia registrada. Debes cargar número, frente y respaldo para continuar.
-                </Text>
-              )}
+          {/* ── Licencia de conducción ── */}
+          <Text className="text-base font-semibold text-neutral-900 mb-2 mt-2">
+            Licencia de conducción
+          </Text>
 
+          {loadingLicenses ? (
+            <Text className="text-sm text-neutral-500 mb-4">
+              Cargando licencias registradas...
+            </Text>
+          ) : (
+            <View className="flex-row items-center gap-2 mb-4">
+              <TouchableOpacity
+                onPress={() => existingLicenses.length > 0 && setShowLicenseDropdown(true)}
+                activeOpacity={existingLicenses.length > 0 ? 0.8 : 1}
+                className="flex-1 flex-row items-center justify-between border border-neutral-200 rounded-2xl px-4 py-3 bg-white"
+              >
+                <Text className={selectedLicense ? 'text-neutral-900' : 'text-neutral-400'}>
+                  {selectedLicense
+                    ? licenseOptionLabel(selectedLicense, selectedLicenseIndex)
+                    : existingLicenses.length > 0
+                      ? 'Sin licencia seleccionada'
+                      : 'Sin licencias registradas'}
+                </Text>
+                {existingLicenses.length > 0 && (
+                  <ChevronDown size={16} color={Colors.neutral[400]} />
+                )}
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                onPress={handleToggleNewLicenseForm}
+                activeOpacity={0.8}
+                className={`w-11 h-11 rounded-2xl items-center justify-center ${showNewLicenseForm ? 'bg-primary-600' : 'bg-primary-50'}`}
+              >
+                <Plus size={20} color={showNewLicenseForm ? '#FFF' : Colors.primary[600]} />
+              </TouchableOpacity>
+            </View>
+          )}
+
+          {showNewLicenseForm && (
+            <>
               <Input
                 label="Número de licencia *"
                 placeholder="123456789"
@@ -702,8 +759,8 @@ export default function AddVehicleScreen() {
 
           <Button
             onPress={handleSubmit}
-            loading={submitting || uploading || checkingLicense}
-            disabled={checkingLicense}
+            loading={submitting || uploading || loadingLicenses}
+            disabled={loadingLicenses}
             size="lg"
             className="w-full"
           >
@@ -725,6 +782,54 @@ export default function AddVehicleScreen() {
         }}
       />
 
+      {/* Dropdown de licencias */}
+      {showLicenseDropdown && (
+        <Modal
+          visible
+          transparent
+          animationType="fade"
+          onRequestClose={() => setShowLicenseDropdown(false)}
+        >
+          <TouchableOpacity
+            className="flex-1 bg-black/35 justify-end"
+            activeOpacity={1}
+            onPress={() => setShowLicenseDropdown(false)}
+          >
+            <View className="bg-white rounded-t-3xl px-5 pt-4 pb-8">
+              <Text className="text-base font-semibold text-neutral-900 mb-4">
+                Seleccionar licencia
+              </Text>
+
+              <TouchableOpacity
+                onPress={() => handleSelectLicense(null)}
+                activeOpacity={0.8}
+                className={`flex-row items-center px-4 py-3 rounded-2xl mb-2 ${selectedLicenseId === null ? 'bg-primary-50' : 'bg-neutral-50'}`}
+              >
+                <Text className={`flex-1 text-sm ${selectedLicenseId === null ? 'font-semibold text-primary-700' : 'text-neutral-700'}`}>
+                  Sin licencia
+                </Text>
+              </TouchableOpacity>
+
+              {existingLicenses.map((license, index) => (
+                <TouchableOpacity
+                  key={license.id}
+                  onPress={() => handleSelectLicense(license.id)}
+                  activeOpacity={0.8}
+                  className={`flex-row items-center px-4 py-3 rounded-2xl mb-2 ${selectedLicenseId === license.id ? 'bg-primary-50' : 'bg-neutral-50'}`}
+                >
+                  <View className="flex-1">
+                    <Text className={`text-sm ${selectedLicenseId === license.id ? 'font-semibold text-primary-700' : 'text-neutral-700'}`}>
+                      {licenseOptionLabel(license, index)}
+                    </Text>
+                  </View>
+                </TouchableOpacity>
+              ))}
+            </View>
+          </TouchableOpacity>
+        </Modal>
+      )}
+
+      {/* Date picker iOS */}
       {Platform.OS === 'ios' && showDatePicker && (
         <Modal
           visible
@@ -750,11 +855,7 @@ export default function AddVehicleScreen() {
                 display="spinner"
                 minimumDate={new Date()}
                 themeVariant="light"
-                onChange={(_, selectedDate) => {
-                  if (selectedDate) {
-                    setIosDateDraft(selectedDate);
-                  }
-                }}
+                onValueChange={(_, date) => setIosDateDraft(date)}
               />
             </View>
           </View>

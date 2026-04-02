@@ -204,3 +204,61 @@ export interface SubmitVerificationRequest {
   documentBackUrl: string;
   selfieUrl?: string;
 }
+
+// ── Trip ──
+
+export interface WaypointRequest {
+  latitude: number;
+  longitude: number;
+  orderIndex: number;
+  name: string;
+  isPickupPoint: boolean;
+  estimatedArrival?: string;
+}
+
+export interface CreateTripRequest {
+  tripType: TripType;
+  originName: string;
+  originLatitude: number;
+  originLongitude: number;
+  destinationName: string;
+  destinationLatitude: number;
+  destinationLongitude: number;
+  departureAt: string;
+  availableSeats: number;
+  pricePerSeat: number;
+  currency: string;
+  vehicleId: string;
+  allowsLuggage: boolean;
+  studentsOnly: boolean;
+  universityId?: string;
+  isRecurring?: boolean;
+  recurrencePattern?: string;
+  waypoints?: WaypointRequest[];
+}
+
+export interface TripResponse {
+  id: string;
+  driverId: string;
+  vehicleId: string;
+  tripType: TripType;
+  status: TripStatus;
+  originName: string;
+  originLatitude: number;
+  originLongitude: number;
+  destinationName: string;
+  destinationLatitude: number;
+  destinationLongitude: number;
+  departureAt: string;
+  availableSeats: number;
+  totalSeats: number;
+  pricePerSeat: number;
+  currency: string;
+  allowsLuggage: boolean;
+  studentsOnly: boolean;
+  universityId?: string | null;
+  isRecurring: boolean;
+  recurrencePattern?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}

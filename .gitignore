@@ -1,4 +1,4 @@
-
+.claude/
 # Dependencies
 node_modules/
 
@@ -39,3 +39,4 @@ Thumbs.db
 
 # Project-specific local artifacts
 ParlAndo API.postman_collection.json
+parlando-proposal.html
