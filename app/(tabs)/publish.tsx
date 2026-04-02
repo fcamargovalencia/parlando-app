@@ -377,39 +377,14 @@ export default function PublishScreen() {
   const tripTypeLabel = tripTypeOptions.find((opt) => opt.type === tripType)?.label ?? tripType;
   const selectedRoute = routeAlternatives.find((r) => r.id === selectedRouteId) ?? null;
 
-  const logRouteRuntime = useCallback((event: string, extra?: Record<string, unknown>) => {
-    if (!__DEV__) return;
-    console.log('[publish:route]', {
-      event,
-      step,
-      selectedRouteId,
-      routeCount: routeAlternatives.length,
-      lockState: routeSwitchLockRef.current,
-      lockUi: isRouteSwitchLocked,
-      timestamp: Date.now(),
-      ...extra,
-    });
-  }, [isRouteSwitchLocked, routeAlternatives.length, selectedRouteId, step]);
-
   const applyRouteSelection = useCallback((routeId: string) => {
-    logRouteRuntime('apply:start', { routeId });
-    if (routeSwitchLockRef.current) {
-      logRouteRuntime('apply:blocked_lock', { routeId });
-      return;
-    }
-    if (!routeAlternatives.some((route) => route.id === routeId)) {
-      logRouteRuntime('apply:invalid_route', { routeId });
-      return;
-    }
-    if (routeId === selectedRouteId) {
-      logRouteRuntime('apply:same_route', { routeId });
-      return;
-    }
+    if (routeSwitchLockRef.current) return;
+    if (!routeAlternatives.some((route) => route.id === routeId)) return;
+    if (routeId === selectedRouteId) return;
 
     routeSwitchLockRef.current = true;
     setIsRouteSwitchLocked(true);
     setSelectedRouteId(routeId);
-    logRouteRuntime('apply:committed', { routeId });
 
     if (routeSwitchUnlockTimerRef.current) {
       clearTimeout(routeSwitchUnlockTimerRef.current);
@@ -417,34 +392,19 @@ export default function PublishScreen() {
     routeSwitchUnlockTimerRef.current = setTimeout(() => {
       routeSwitchLockRef.current = false;
       setIsRouteSwitchLocked(false);
-      logRouteRuntime('apply:unlocked', { routeId });
     }, ROUTE_SWITCH_LOCK_MS);
-  }, [logRouteRuntime, routeAlternatives, selectedRouteId]);
+  }, [routeAlternatives, selectedRouteId]);
 
   const applyRouteSelectionByOffset = useCallback((offset: number) => {
-    logRouteRuntime('offset:start', { offset });
     if (routeAlternatives.length < 2) return;
     const selectedIndex = routeAlternatives.findIndex((r) => r.id === selectedRouteId);
-    if (selectedIndex < 0) {
-      logRouteRuntime('offset:invalid_selected_index', { offset, selectedIndex });
-      return;
-    }
+    if (selectedIndex < 0) return;
 
     const nextIndex = (selectedIndex + offset + routeAlternatives.length) % routeAlternatives.length;
     const nextRoute = routeAlternatives[nextIndex];
-    if (!nextRoute) {
-      logRouteRuntime('offset:missing_next_route', { offset, selectedIndex, nextIndex });
-      return;
-    }
-
-    logRouteRuntime('offset:computed', {
-      offset,
-      selectedIndex,
-      nextIndex,
-      nextRouteId: nextRoute.id,
-    });
+    if (!nextRoute) return;
     applyRouteSelection(nextRoute.id);
-  }, [applyRouteSelection, logRouteRuntime, routeAlternatives, selectedRouteId]);
+  }, [applyRouteSelection, routeAlternatives, selectedRouteId]);
 
   useEffect(() => {
     return () => {
@@ -456,17 +416,10 @@ export default function PublishScreen() {
   }, []);
 
   useEffect(() => {
-    logRouteRuntime('routes:recomputed', {
-      ids: routeAlternatives.map((r) => r.id).join(','),
-    });
-  }, [logRouteRuntime, routeAlternatives]);
-
-  useEffect(() => {
     if (selectedRouteId === 'DIRECT') setRouteMode('DIRECT');
     if (selectedRouteId === 'NORTH') setRouteMode('FLEXIBLE');
     if (selectedRouteId === 'SOUTH') setRouteMode('WITH_STOPS');
-    logRouteRuntime('route_mode:sync', { selectedRouteId });
-  }, [logRouteRuntime, selectedRouteId]);
+  }, [selectedRouteId]);
 
   useEffect(() => {
     stepAnim.setValue(0);
@@ -495,12 +448,13 @@ export default function PublishScreen() {
       setRouteAlternatives([]);
       return;
     }
+    if (step !== 4) return;
+
     const alternatives = buildRouteAlternatives(form.origin, form.destination);
     setRouteAlternatives(alternatives);
-    if (!alternatives.some((r) => r.id === selectedRouteId)) {
-      setSelectedRouteId(alternatives[0].id);
-    }
-  }, [form.origin, form.destination, selectedRouteId]);
+    const hasDirect = alternatives.some((r) => r.id === 'DIRECT');
+    setSelectedRouteId(hasDirect ? 'DIRECT' : alternatives[0]?.id ?? 'DIRECT');
+  }, [step, form.origin, form.destination]);
 
   useEffect(() => {
     const selected = routeAlternatives.find((r) => r.id === selectedRouteId) ?? routeAlternatives[0];
@@ -975,8 +929,8 @@ export default function PublishScreen() {
                 <MapView
                   ref={routeMapRef}
                   style={{ flex: 1 }}
-                  scrollEnabled={false}
-                  zoomEnabled={false}
+                  scrollEnabled
+                  zoomEnabled
                   rotateEnabled={false}
                   pitchEnabled={false}
                   toolbarEnabled={false}
