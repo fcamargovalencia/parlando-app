@@ -1,4 +1,4 @@
-import React, { useState, useReducer, useEffect, useCallback } from 'react';
+import React, { useState, useReducer, useEffect, useCallback, useRef } from 'react';
 import {
   View,
   Text,
@@ -8,6 +8,7 @@ import {
   Platform,
   Alert,
   ActivityIndicator,
+  Animated,
 } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { useRouter } from 'expo-router';
@@ -18,13 +19,18 @@ import {
   DollarSign,
   Luggage,
   Car,
+  ArrowLeft,
   ChevronRight,
   GraduationCap,
   Bus,
   Building2,
   Calendar,
   Check,
+  Map,
+  Plus,
+  X,
 } from 'lucide-react-native';
+import MapView, { Polyline, Marker, type Region } from 'react-native-maps';
 import { Screen, Button, Input, Card } from '@/components/ui';
 import {
   LocationPickerModal,
@@ -122,6 +128,126 @@ function fmtTime(d: Date) {
   return d.toLocaleTimeString('es-CO', { hour: '2-digit', minute: '2-digit', hour12: true });
 }
 
+function normalizePlace(value: string) {
+  return value
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .split(',')[0]
+    .trim();
+}
+
+function distanceKm(a: SelectedLocation, b: SelectedLocation) {
+  const toRad = (deg: number) => (deg * Math.PI) / 180;
+  const R = 6371;
+  const dLat = toRad(b.latitude - a.latitude);
+  const dLon = toRad(b.longitude - a.longitude);
+  const lat1 = toRad(a.latitude);
+  const lat2 = toRad(b.latitude);
+  const h =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLon / 2) * Math.sin(dLon / 2);
+  const c = 2 * Math.atan2(Math.sqrt(h), Math.sqrt(1 - h));
+  return R * c;
+}
+
+function isVehicleActive(status: string | undefined) {
+  return (status ?? '').toUpperCase() === 'ACTIVE';
+}
+
+type RouteAlternative = {
+  id: string;
+  title: string;
+  points: { latitude: number; longitude: number; }[];
+  distanceKm: number;
+  durationMin: number;
+  hasTolls: boolean;
+  tollCount: number;
+};
+
+function routeDistanceKm(points: { latitude: number; longitude: number; }[]) {
+  if (points.length < 2) return 0;
+  let total = 0;
+  for (let i = 1; i < points.length; i += 1) {
+    const a = { latitude: points[i - 1].latitude, longitude: points[i - 1].longitude, name: '' };
+    const b = { latitude: points[i].latitude, longitude: points[i].longitude, name: '' };
+    total += distanceKm(a, b);
+  }
+  return total;
+}
+
+function estimateDurationMin(distance: number, speedKmh: number) {
+  if (speedKmh <= 0) return 0;
+  return Math.max(1, Math.round((distance / speedKmh) * 60));
+}
+
+function fmtDuration(min: number) {
+  const h = Math.floor(min / 60);
+  const m = min % 60;
+  if (h <= 0) return `${m} min`;
+  return `${h} h ${m} min`;
+}
+
+function buildRouteAlternatives(origin: SelectedLocation, destination: SelectedLocation): RouteAlternative[] {
+  const midLat = (origin.latitude + destination.latitude) / 2;
+  const midLng = (origin.longitude + destination.longitude) / 2;
+  const dLat = destination.latitude - origin.latitude;
+  const dLng = destination.longitude - origin.longitude;
+  const norm = Math.sqrt(dLat * dLat + dLng * dLng) || 1;
+  const offset = 0.25;
+  const perpLat = -(dLng / norm) * offset;
+  const perpLng = (dLat / norm) * offset;
+
+  const baseRoutes = [
+    {
+      id: 'DIRECT',
+      title: 'Ruta directa',
+      speedKmh: 72,
+      tollCount: 2,
+      points: [
+        { latitude: origin.latitude, longitude: origin.longitude },
+        { latitude: destination.latitude, longitude: destination.longitude },
+      ],
+    },
+    {
+      id: 'NORTH',
+      title: 'Alternativa A',
+      speedKmh: 60,
+      tollCount: 1,
+      points: [
+        { latitude: origin.latitude, longitude: origin.longitude },
+        { latitude: midLat + perpLat, longitude: midLng + perpLng },
+        { latitude: destination.latitude, longitude: destination.longitude },
+      ],
+    },
+    {
+      id: 'SOUTH',
+      title: 'Alternativa B',
+      speedKmh: 56,
+      tollCount: 0,
+      points: [
+        { latitude: origin.latitude, longitude: origin.longitude },
+        { latitude: midLat - perpLat, longitude: midLng - perpLng },
+        { latitude: destination.latitude, longitude: destination.longitude },
+      ],
+    },
+  ];
+
+  return baseRoutes.map((route) => {
+    const distance = routeDistanceKm(route.points);
+    const duration = estimateDurationMin(distance, route.speedKmh);
+    return {
+      id: route.id,
+      title: route.title,
+      points: route.points,
+      distanceKm: distance,
+      durationMin: duration,
+      hasTolls: route.tollCount > 0,
+      tollCount: route.tollCount,
+    };
+  });
+}
+
 // ── Toggle UI ──
 
 function Toggle({ value, onPress }: { value: boolean; onPress: () => void; }) {
@@ -145,6 +271,29 @@ export default function PublishScreen() {
 
   const [tripType, setTripType] = useState<TripType>('INTERCITY');
   const [form, dispatch] = useReducer(formReducer, initialForm);
+  const [step, setStep] = useState(1);
+  const [routeMode, setRouteMode] = useState<'DIRECT' | 'FLEXIBLE' | 'WITH_STOPS'>('DIRECT');
+  const [waypoints, setWaypoints] = useState<SelectedLocation[]>([]);
+  const [slideDirection, setSlideDirection] = useState<'forward' | 'backward'>('forward');
+  const [routeAlternatives, setRouteAlternatives] = useState<RouteAlternative[]>([]);
+  const [selectedRouteId, setSelectedRouteId] = useState<string>('DIRECT');
+  const routeMapRef = useRef<MapView>(null);
+
+  const stepAnim = useRef(new Animated.Value(1)).current;
+  const progressAnim = useRef(new Animated.Value(1 / 9)).current;
+
+  const TOTAL_STEPS = 9;
+  const stepTitles = [
+    'Tipo de viaje',
+    'Lugar de origen',
+    'Lugar de destino',
+    'Selección de ruta',
+    'Ciudades intermedias',
+    'Día y hora de salida',
+    'Asientos y precio',
+    'Selección de vehículo',
+    'Resumen final',
+  ];
 
   // Vehicles
   const [vehicles, setVehicles] = useState<VehicleResponse[]>([]);
@@ -153,7 +302,7 @@ export default function PublishScreen() {
   // Location picker
   const [locationPicker, setLocationPicker] = useState<{
     visible: boolean;
-    target: 'origin' | 'destination';
+    target: 'origin' | 'destination' | 'waypoint';
   }>({ visible: false, target: 'origin' });
 
   // Date / Time pickers
@@ -194,8 +343,45 @@ export default function PublishScreen() {
     }
   }, [vehicles, form.vehicleId]);
 
-  const activeVehicles = vehicles.filter((v) => v.status === 'ACTIVE');
+  const activeVehicles = vehicles.filter((v) => isVehicleActive(v.status));
+  const vehicleOptions = [...vehicles].sort((a, b) => {
+    const aActive = isVehicleActive(a.status) ? 1 : 0;
+    const bActive = isVehicleActive(b.status) ? 1 : 0;
+    return bActive - aActive;
+  });
+  const selectedVehicle = vehicleOptions.find((v) => v.id === form.vehicleId) ?? null;
   const hasRegisteredVehicles = vehicles.length > 0;
+  const routeModeLabel =
+    routeMode === 'DIRECT'
+      ? 'Ruta directa'
+      : routeMode === 'FLEXIBLE'
+        ? 'Ruta flexible'
+        : 'Con paradas';
+  const tripTypeLabel = tripTypeOptions.find((opt) => opt.type === tripType)?.label ?? tripType;
+  const selectedRoute = routeAlternatives.find((r) => r.id === selectedRouteId) ?? null;
+
+  const applyRouteSelection = useCallback((routeId: string) => {
+    setSelectedRouteId(routeId);
+    if (routeId === 'DIRECT') setRouteMode('DIRECT');
+    if (routeId === 'NORTH') setRouteMode('FLEXIBLE');
+    if (routeId === 'SOUTH') setRouteMode('WITH_STOPS');
+  }, []);
+
+  useEffect(() => {
+    stepAnim.setValue(0);
+    Animated.parallel([
+      Animated.timing(stepAnim, {
+        toValue: 1,
+        duration: 260,
+        useNativeDriver: true,
+      }),
+      Animated.timing(progressAnim, {
+        toValue: step / TOTAL_STEPS,
+        duration: 300,
+        useNativeDriver: false,
+      }),
+    ]).start();
+  }, [step, TOTAL_STEPS, stepAnim, progressAnim]);
 
   useEffect(() => {
     if (form.vehicleId && !activeVehicles.some((v) => v.id === form.vehicleId)) {
@@ -203,17 +389,72 @@ export default function PublishScreen() {
     }
   }, [form.vehicleId, activeVehicles]);
 
+  useEffect(() => {
+    if (!form.origin || !form.destination) {
+      setRouteAlternatives([]);
+      return;
+    }
+    const alternatives = buildRouteAlternatives(form.origin, form.destination);
+    setRouteAlternatives(alternatives);
+    if (!alternatives.some((r) => r.id === selectedRouteId)) {
+      setSelectedRouteId(alternatives[0].id);
+    }
+  }, [form.origin, form.destination, selectedRouteId]);
+
+  useEffect(() => {
+    const selected = routeAlternatives.find((r) => r.id === selectedRouteId);
+    if (step !== 4 || !selected || selected.points.length < 2 || !routeMapRef.current) return;
+
+    const timer = setTimeout(() => {
+      routeMapRef.current?.fitToCoordinates(selected.points, {
+        edgePadding: { top: 64, right: 48, bottom: 64, left: 48 },
+        animated: true,
+      });
+    }, 80);
+
+    return () => clearTimeout(timer);
+  }, [step, selectedRouteId, routeAlternatives]);
+
   // ── Location handlers ──
 
   const openLocationPicker = (target: 'origin' | 'destination') => {
     setLocationPicker({ visible: true, target });
   };
 
+  const addWaypoint = () => {
+    if (!form.origin) {
+      Alert.alert('Origen requerido', 'Primero selecciona el lugar de origen.');
+      setStep(2);
+      return;
+    }
+    setLocationPicker({ visible: true, target: 'waypoint' });
+  };
+
   const handleLocationConfirm = (loc: SelectedLocation) => {
+    if (locationPicker.target === 'waypoint') {
+      const exists = waypoints.some((w) => distanceKm(w, loc) < 0.5);
+      if (exists) {
+        Alert.alert('Ciudad repetida', 'Esa ciudad intermedia ya fue agregada.');
+      } else {
+        setWaypoints((prev) => [...prev, loc]);
+      }
+      setLocationPicker((p) => ({ ...p, visible: false }));
+      return;
+    }
+
     dispatch({
       type: locationPicker.target === 'origin' ? 'SET_ORIGIN' : 'SET_DESTINATION',
       payload: loc,
     });
+
+    if (locationPicker.target === 'origin' && form.destination) {
+      const sameCity = normalizePlace(form.destination.name) === normalizePlace(loc.name);
+      const near = distanceKm(form.destination, loc) < 1;
+      if (sameCity || near) {
+        Alert.alert('Destino inválido', 'Elige un destino diferente al nuevo origen.');
+      }
+    }
+
     setLocationPicker((p) => ({ ...p, visible: false }));
   };
 
@@ -250,6 +491,10 @@ export default function PublishScreen() {
       Alert.alert('Campos requeridos', 'Ingresa el precio por asiento');
       return;
     }
+    if (!form.availableSeats || parseInt(form.availableSeats, 10) <= 0) {
+      Alert.alert('Campos requeridos', 'Ingresa la cantidad de asientos disponibles');
+      return;
+    }
     if (form.departureAt <= new Date()) {
       Alert.alert('Fecha inválida', 'La fecha de salida debe ser en el futuro');
       return;
@@ -271,7 +516,14 @@ export default function PublishScreen() {
         currency: 'COP',
         vehicleId: form.vehicleId,
         allowsLuggage: form.allowsLuggage,
-        studentsOnly: form.studentsOnly,
+        studentsOnly: tripType === 'ROUTINE' ? form.studentsOnly : false,
+        waypoints: waypoints.map((w, idx) => ({
+          latitude: w.latitude,
+          longitude: w.longitude,
+          orderIndex: idx,
+          name: w.name,
+          isPickupPoint: true,
+        })),
       });
 
       if (!createRes.data) throw new Error('Error al crear viaje');
@@ -284,6 +536,10 @@ export default function PublishScreen() {
       });
 
       dispatch({ type: 'RESET' });
+      setWaypoints([]);
+      setRouteMode('DIRECT');
+      setSelectedRouteId('DIRECT');
+      setStep(1);
       router.push('/(tabs)/my-trips');
     } catch (err: any) {
       Alert.alert(
@@ -297,36 +553,61 @@ export default function PublishScreen() {
 
   // ── Render ──
 
-  return (
-    <Screen>
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        className="flex-1"
-      >
-        <ScrollView
-          className="flex-1"
-          contentContainerClassName="px-6 pt-4 pb-8"
-          showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="handled"
-        >
-          {/* Header */}
-          <View className="mb-6">
-            <Text className="text-2xl font-bold text-neutral-900">Publicar viaje</Text>
-            <Text className="text-sm text-neutral-500 mt-1">
-              Comparte tu ruta y gana dinero viajando
-            </Text>
-          </View>
+  const isStepValid = (current: number) => {
+    if (current === 2) return !!form.origin;
+    if (current === 3) {
+      if (!form.origin || !form.destination) return false;
+      const sameCity = normalizePlace(form.origin.name) === normalizePlace(form.destination.name);
+      const near = distanceKm(form.origin, form.destination) < 1;
+      return !sameCity && !near;
+    }
+    if (current === 4) return routeAlternatives.length > 0 && !!selectedRouteId;
+    if (current === 6) return form.departureAt > new Date();
+    if (current === 7) {
+      return (
+        !!form.availableSeats &&
+        parseInt(form.availableSeats, 10) > 0 &&
+        !!form.pricePerSeat &&
+        parseInt(form.pricePerSeat, 10) > 0
+      );
+    }
+    if (current === 8) return !!form.vehicleId;
+    if (current === 9) return true;
+    return true;
+  };
 
-          {/* Trip Type */}
+  const goNext = () => {
+    if (!isStepValid(step)) {
+      if (step === 2) Alert.alert('Falta el origen', 'Selecciona el lugar de origen.');
+      if (step === 3) Alert.alert('Destino inválido', 'El destino no puede ser la misma ciudad de origen.');
+      if (step === 4) Alert.alert('Ruta requerida', 'Selecciona una alternativa de ruta en el mapa.');
+      if (step === 6) Alert.alert('Fecha inválida', 'Selecciona una fecha y hora futura.');
+      if (step === 7) Alert.alert('Datos incompletos', 'Completa asientos y precio.');
+      if (step === 8) Alert.alert('Vehículo requerido', 'Selecciona el vehículo para este viaje.');
+      return;
+    }
+    setSlideDirection('forward');
+    setStep((s) => Math.min(TOTAL_STEPS, s + 1));
+  };
+
+  const goBack = () => {
+    setSlideDirection('backward');
+    setStep((s) => Math.max(1, s - 1));
+  };
+
+  const renderStepContent = () => {
+    if (step === 1) {
+      return (
+        <>
           <Text className="text-sm font-semibold text-neutral-700 mb-2">Tipo de viaje</Text>
-          <View className="flex-row gap-2 mb-6">
+          <View className="flex-row gap-2 mb-2">
             {tripTypeOptions.map((opt) => (
               <TouchableOpacity
                 key={opt.type}
                 onPress={() => setTripType(opt.type)}
-                className={`flex-1 items-center py-3 rounded-xl border-2 ${tripType === opt.type
-                    ? 'border-primary-500 bg-primary-50'
-                    : 'border-neutral-200 bg-white'
+                className={`flex-1 items-center py-4 rounded-xl border-2 ${tripType === opt.type
+                  ? 'border-primary-500 bg-primary-50'
+                  : 'border-neutral-200 bg-white'
                   }`}
               >
                 {opt.icon}
@@ -339,272 +620,587 @@ export default function PublishScreen() {
               </TouchableOpacity>
             ))}
           </View>
+          <Text className="text-xs text-neutral-500">Puedes cambiarlo más adelante antes de publicar.</Text>
+        </>
+      );
+    }
 
-          {/* Non-INTERCITY placeholder */}
-          {tripType !== 'INTERCITY' && (
-            <Card className="items-center py-10 mb-6">
-              <Text className="text-base font-semibold text-neutral-700 mb-1">
-                Próximamente
-              </Text>
-              <Text className="text-sm text-neutral-400 text-center px-4">
-                La publicación de viajes{' '}
-                {tripType === 'URBAN' ? 'urbanos' : 'rutinarios'} estará
-                disponible pronto.
-              </Text>
-            </Card>
+    if (step === 2) {
+      return (
+        <>
+          <Text className="text-sm font-semibold text-neutral-700 mb-2">Lugar de origen</Text>
+          <TouchableOpacity onPress={() => openLocationPicker('origin')} activeOpacity={0.7}>
+            <View
+              className={`flex-row items-center px-4 py-4 rounded-xl border-2 ${form.origin
+                ? 'border-primary-500 bg-primary-50'
+                : 'border-neutral-200 bg-white'
+                }`}
+            >
+              <View className="w-3 h-3 rounded-full bg-primary-500 mr-3" />
+              <View className="flex-1">
+                <Text className="text-xs text-neutral-400 mb-0.5">Origen</Text>
+                <Text className={`text-sm font-medium ${form.origin ? 'text-neutral-900' : 'text-neutral-400'}`}>
+                  {form.origin?.name ?? '¿De dónde sales?'}
+                </Text>
+              </View>
+              <ChevronRight size={18} color={Colors.neutral[400]} />
+            </View>
+          </TouchableOpacity>
+        </>
+      );
+    }
+
+    if (step === 3) {
+      const invalidDestination =
+        !!form.origin &&
+        !!form.destination &&
+        (normalizePlace(form.origin.name) === normalizePlace(form.destination.name) ||
+          distanceKm(form.origin, form.destination) < 1);
+
+      return (
+        <>
+          <Text className="text-sm font-semibold text-neutral-700 mb-2">Lugar de destino</Text>
+          <TouchableOpacity onPress={() => openLocationPicker('destination')} activeOpacity={0.7}>
+            <View
+              className={`flex-row items-center px-4 py-4 rounded-xl border-2 ${form.destination
+                ? invalidDestination
+                  ? 'border-red-400 bg-red-50'
+                  : 'border-accent-500 bg-accent-50'
+                : 'border-neutral-200 bg-white'
+                }`}
+            >
+              <View className="w-3 h-3 rounded-full bg-accent-500 mr-3" />
+              <View className="flex-1">
+                <Text className="text-xs text-neutral-400 mb-0.5">Destino</Text>
+                <Text className={`text-sm font-medium ${form.destination ? 'text-neutral-900' : 'text-neutral-400'}`}>
+                  {form.destination?.name ?? '¿A dónde vas?'}
+                </Text>
+              </View>
+              <ChevronRight size={18} color={Colors.neutral[400]} />
+            </View>
+          </TouchableOpacity>
+          {invalidDestination && (
+            <Text className="text-xs text-red-500 mt-2">
+              El destino debe ser diferente al origen.
+            </Text>
           )}
+        </>
+      );
+    }
 
-          {/* INTERCITY Form */}
-          {tripType === 'INTERCITY' && (
+    if (step === 4) {
+      const selectedAlt = selectedRoute;
+      const selectedIndex = Math.max(0, routeAlternatives.findIndex((r) => r.id === selectedRouteId));
+
+      return (
+        <>
+          <Text className="text-sm font-semibold text-neutral-700 mb-2">Selección de ruta</Text>
+          {!form.origin || !form.destination ? (
+            <Card>
+              <Text className="text-sm text-neutral-500">Define origen y destino para ver alternativas de ruta.</Text>
+            </Card>
+          ) : (
             <>
-              {/* Route */}
-              <Text className="text-sm font-semibold text-neutral-700 mb-2">Ruta</Text>
-              <View className="gap-3 mb-6">
-                {/* Origin */}
-                <TouchableOpacity
-                  onPress={() => openLocationPicker('origin')}
-                  activeOpacity={0.7}
+              <View className="rounded-2xl overflow-hidden border border-neutral-200 bg-white mb-3" style={{ height: 320 }}>
+                <MapView
+                  ref={routeMapRef}
+                  style={{ flex: 1 }}
+                  initialRegion={{
+                    latitude: (form.origin.latitude + form.destination.latitude) / 2,
+                    longitude: (form.origin.longitude + form.destination.longitude) / 2,
+                    latitudeDelta: Math.max(Math.abs(form.origin.latitude - form.destination.latitude) * 1.8, 0.2),
+                    longitudeDelta: Math.max(Math.abs(form.origin.longitude - form.destination.longitude) * 1.8, 0.2),
+                  } as Region}
                 >
-                  <View
-                    className={`flex-row items-center px-4 py-3.5 rounded-xl border-2 ${form.origin
-                        ? 'border-primary-500 bg-primary-50'
-                        : 'border-neutral-200 bg-white'
-                      }`}
-                  >
-                    <View className="w-3 h-3 rounded-full bg-primary-500 mr-3" />
-                    <View className="flex-1">
-                      <Text className="text-xs text-neutral-400 mb-0.5">Origen</Text>
-                      <Text
-                        className={`text-sm font-medium ${form.origin ? 'text-neutral-900' : 'text-neutral-400'
-                          }`}
-                      >
-                        {form.origin?.name ?? '¿De dónde sales?'}
-                      </Text>
-                    </View>
-                    <ChevronRight size={18} color={Colors.neutral[400]} />
-                  </View>
-                </TouchableOpacity>
-
-                {/* Destination */}
-                <TouchableOpacity
-                  onPress={() => openLocationPicker('destination')}
-                  activeOpacity={0.7}
-                >
-                  <View
-                    className={`flex-row items-center px-4 py-3.5 rounded-xl border-2 ${form.destination
-                        ? 'border-accent-500 bg-accent-50'
-                        : 'border-neutral-200 bg-white'
-                      }`}
-                  >
-                    <View className="w-3 h-3 rounded-full bg-accent-500 mr-3" />
-                    <View className="flex-1">
-                      <Text className="text-xs text-neutral-400 mb-0.5">Destino</Text>
-                      <Text
-                        className={`text-sm font-medium ${form.destination ? 'text-neutral-900' : 'text-neutral-400'
-                          }`}
-                      >
-                        {form.destination?.name ?? '¿A dónde vas?'}
-                      </Text>
-                    </View>
-                    <ChevronRight size={18} color={Colors.neutral[400]} />
-                  </View>
-                </TouchableOpacity>
-              </View>
-
-              {/* Departure */}
-              <Text className="text-sm font-semibold text-neutral-700 mb-2">Salida</Text>
-              <View className="flex-row gap-3 mb-6">
-                <TouchableOpacity
-                  onPress={() => setShowDatePicker(true)}
-                  activeOpacity={0.7}
-                  className="flex-1"
-                >
-                  <View className="flex-row items-center px-4 py-3.5 rounded-xl border-2 border-neutral-200 bg-white">
-                    <Calendar size={18} color={Colors.neutral[500]} />
-                    <View className="ml-3">
-                      <Text className="text-xs text-neutral-400 mb-0.5">Fecha</Text>
-                      <Text className="text-sm font-medium text-neutral-900">
-                        {fmtDate(form.departureAt)}
-                      </Text>
-                    </View>
-                  </View>
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  onPress={() => setShowTimePicker(true)}
-                  activeOpacity={0.7}
-                  className="flex-1"
-                >
-                  <View className="flex-row items-center px-4 py-3.5 rounded-xl border-2 border-neutral-200 bg-white">
-                    <Clock size={18} color={Colors.neutral[500]} />
-                    <View className="ml-3">
-                      <Text className="text-xs text-neutral-400 mb-0.5">Hora</Text>
-                      <Text className="text-sm font-medium text-neutral-900">
-                        {fmtTime(form.departureAt)}
-                      </Text>
-                    </View>
-                  </View>
-                </TouchableOpacity>
-              </View>
-
-              {showDatePicker && (
-                <DateTimePicker
-                  value={form.departureAt}
-                  mode="date"
-                  minimumDate={new Date()}
-                  display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-                  onValueChange={handleDateChange}
-                  onDismiss={() => setShowDatePicker(false)}
-                />
-              )}
-              {showTimePicker && (
-                <DateTimePicker
-                  value={form.departureAt}
-                  mode="time"
-                  display={Platform.OS === 'ios' ? 'spinner' : 'default'}
-                  onValueChange={handleTimeChange}
-                  onDismiss={() => setShowTimePicker(false)}
-                />
-              )}
-
-              {/* Seats & Price */}
-              <View className="flex-row gap-3 mb-6">
-                <View className="flex-1">
-                  <Input
-                    label="Asientos disponibles"
-                    placeholder="3"
-                    keyboardType="number-pad"
-                    value={form.availableSeats}
-                    onChangeText={(v) =>
-                      dispatch({ type: 'SET_SEATS', payload: v.replace(/\D/g, '') })
-                    }
-                    leftIcon={<Users size={18} color={Colors.neutral[400]} />}
-                  />
-                </View>
-                <View className="flex-1">
-                  <Input
-                    label="Precio / asiento (COP)"
-                    placeholder="50000"
-                    keyboardType="number-pad"
-                    value={form.pricePerSeat}
-                    onChangeText={(v) =>
-                      dispatch({ type: 'SET_PRICE', payload: v.replace(/\D/g, '') })
-                    }
-                    leftIcon={<DollarSign size={18} color={Colors.neutral[400]} />}
-                  />
-                </View>
-              </View>
-
-              {/* Vehicle */}
-              <Text className="text-sm font-semibold text-neutral-700 mb-2">Vehículo</Text>
-              {loadingVehicles ? (
-                <View className="items-center py-6 mb-6">
-                  <ActivityIndicator color={Colors.primary[500]} />
-                </View>
-              ) : activeVehicles.length === 0 ? (
-                <TouchableOpacity
-                  onPress={() => router.push('/vehicle/add')}
-                  activeOpacity={0.7}
-                >
-                  <Card className="mb-6">
-                    <View className="flex-row items-center justify-between">
-                      <View className="flex-row items-center flex-1">
-                        <Car size={20} color={Colors.primary[600]} />
-                        <Text className="text-sm text-neutral-700 ml-3 flex-1">
-                          {hasRegisteredVehicles
-                            ? 'Tu vehículo está registrado pero aún no está activo para publicar viajes.'
-                            : 'No tienes vehículos activos. '}
-                          <Text className="text-primary-600 font-semibold">
-                            {hasRegisteredVehicles ? 'Ver mis vehículos' : 'Registrar uno'}
-                          </Text>
-                        </Text>
-                      </View>
-                      <ChevronRight size={20} color={Colors.neutral[400]} />
-                    </View>
-                  </Card>
-                </TouchableOpacity>
-              ) : (
-                <View className="mb-6">
-                  {activeVehicles.map((v) => {
-                    const selected = form.vehicleId === v.id;
+                  <Marker coordinate={{ latitude: form.origin.latitude, longitude: form.origin.longitude }} title="Origen" />
+                  <Marker coordinate={{ latitude: form.destination.latitude, longitude: form.destination.longitude }} title="Destino" pinColor={Colors.accent[500]} />
+                  {routeAlternatives.map((route) => {
+                    const selected = route.id === selectedRouteId;
                     return (
-                      <TouchableOpacity
-                        key={v.id}
-                        onPress={() => dispatch({ type: 'SET_VEHICLE', payload: v.id })}
-                        activeOpacity={0.7}
-                        className={`flex-row items-center p-3 rounded-2xl border-2 mb-2 bg-white ${selected ? 'border-primary-500' : 'border-neutral-200'
-                          }`}
-                      >
-                        <View className="w-12 h-12 rounded-xl bg-primary-50 items-center justify-center mr-3">
-                          <Car size={22} color={Colors.primary[400]} />
-                        </View>
-                        <View className="flex-1">
-                          <Text className="text-sm font-semibold text-neutral-900">
-                            {v.brand} {v.model} {v.year}
-                          </Text>
-                          <Text className="text-xs text-neutral-500 mt-0.5">{v.color}</Text>
-                          <View className="bg-primary-50 rounded px-1.5 py-0.5 self-start mt-1">
-                            <Text className="text-xs font-bold text-primary-700">
-                              {v.plateNumber}
-                            </Text>
-                          </View>
-                        </View>
-                        {selected && (
-                          <View className="w-6 h-6 rounded-full bg-primary-500 items-center justify-center">
-                            <Check size={14} color="white" />
-                          </View>
-                        )}
-                      </TouchableOpacity>
+                      <Polyline
+                        key={route.id}
+                        coordinates={route.points}
+                        strokeWidth={selected ? 6 : 4}
+                        strokeColor={selected ? Colors.primary[600] : Colors.neutral[400]}
+                      />
                     );
                   })}
+                </MapView>
+              </View>
+
+              {routeAlternatives.length > 0 && selectedAlt && (
+                <View className="rounded-xl border border-neutral-200 bg-white px-3 py-3">
+                  <View className="flex-row items-center justify-between">
+                    <TouchableOpacity
+                      onPress={() => {
+                        const prev = (selectedIndex - 1 + routeAlternatives.length) % routeAlternatives.length;
+                        applyRouteSelection(routeAlternatives[prev].id);
+                      }}
+                      className="w-9 h-9 rounded-full border border-neutral-200 items-center justify-center"
+                    >
+                      <ArrowLeft size={16} color={Colors.neutral[700]} />
+                    </TouchableOpacity>
+
+                    <View className="mx-2 flex-1">
+                      <Text className="text-base font-semibold text-neutral-900 text-center">{selectedAlt.title}</Text>
+                      <Text className="text-xs text-neutral-500 text-center mt-1">
+                        {selectedAlt.distanceKm.toFixed(1)} km · {fmtDuration(selectedAlt.durationMin)} · {selectedAlt.hasTolls ? `${selectedAlt.tollCount} peajes` : 'Sin peajes'}
+                      </Text>
+                    </View>
+
+                    <TouchableOpacity
+                      onPress={() => {
+                        const next = (selectedIndex + 1) % routeAlternatives.length;
+                        applyRouteSelection(routeAlternatives[next].id);
+                      }}
+                      className="w-9 h-9 rounded-full border border-neutral-200 items-center justify-center"
+                    >
+                      <ChevronRight size={16} color={Colors.neutral[700]} />
+                    </TouchableOpacity>
+                  </View>
                 </View>
               )}
+            </>
+          )}
+        </>
+      );
+    }
 
-              {/* Options */}
-              <Card className="mb-6">
-                <TouchableOpacity
-                  className="flex-row items-center justify-between py-1"
-                  onPress={() => dispatch({ type: 'TOGGLE_LUGGAGE' })}
+    if (step === 5) {
+      return (
+        <>
+          <View className="flex-row items-center justify-between mb-2">
+            <Text className="text-sm font-semibold text-neutral-700">Ciudades intermedias</Text>
+            <TouchableOpacity onPress={addWaypoint} className="flex-row items-center">
+              <Plus size={16} color={Colors.primary[600]} />
+              <Text className="text-xs font-semibold text-primary-600 ml-1">Agregar</Text>
+            </TouchableOpacity>
+          </View>
+
+          {waypoints.length === 0 ? (
+            <Card>
+              <Text className="text-sm text-neutral-500">
+                No has agregado paradas. Puedes continuar sin ciudades intermedias.
+              </Text>
+            </Card>
+          ) : (
+            <View className="gap-2">
+              {waypoints.map((w, idx) => (
+                <View
+                  key={`${w.latitude}-${w.longitude}-${idx}`}
+                  className="flex-row items-center justify-between rounded-xl border border-neutral-200 bg-white px-3 py-3"
                 >
-                  <View className="flex-row items-center">
-                    <Luggage size={20} color={Colors.neutral[600]} />
-                    <Text className="text-base text-neutral-800 ml-3">Permite equipaje</Text>
+                  <View className="flex-1 mr-2">
+                    <Text className="text-xs text-neutral-400">Parada {idx + 1}</Text>
+                    <Text className="text-sm font-medium text-neutral-900" numberOfLines={1}>{w.name}</Text>
                   </View>
-                  <Toggle
-                    value={form.allowsLuggage}
-                    onPress={() => dispatch({ type: 'TOGGLE_LUGGAGE' })}
-                  />
-                </TouchableOpacity>
+                  <TouchableOpacity onPress={() => setWaypoints((prev) => prev.filter((_, i) => i !== idx))}>
+                    <X size={16} color={Colors.neutral[500]} />
+                  </TouchableOpacity>
+                </View>
+              ))}
+            </View>
+          )}
+        </>
+      );
+    }
 
-                <View className="h-px bg-neutral-100 my-3" />
+    if (step === 6) {
+      return (
+        <>
+          <Text className="text-sm font-semibold text-neutral-700 mb-2">Día y hora de salida</Text>
+          <View className="flex-row gap-3 mb-2">
+            <TouchableOpacity
+              onPress={() => setShowDatePicker(true)}
+              activeOpacity={0.7}
+              className="flex-1"
+            >
+              <View className="flex-row items-center px-4 py-3.5 rounded-xl border-2 border-neutral-200 bg-white">
+                <Calendar size={18} color={Colors.neutral[500]} />
+                <View className="ml-3">
+                  <Text className="text-xs text-neutral-400 mb-0.5">Fecha</Text>
+                  <Text className="text-sm font-medium text-neutral-900">{fmtDate(form.departureAt)}</Text>
+                </View>
+              </View>
+            </TouchableOpacity>
 
-                <TouchableOpacity
-                  className="flex-row items-center justify-between py-1"
+            <TouchableOpacity
+              onPress={() => setShowTimePicker(true)}
+              activeOpacity={0.7}
+              className="flex-1"
+            >
+              <View className="flex-row items-center px-4 py-3.5 rounded-xl border-2 border-neutral-200 bg-white">
+                <Clock size={18} color={Colors.neutral[500]} />
+                <View className="ml-3">
+                  <Text className="text-xs text-neutral-400 mb-0.5">Hora</Text>
+                  <Text className="text-sm font-medium text-neutral-900">{fmtTime(form.departureAt)}</Text>
+                </View>
+              </View>
+            </TouchableOpacity>
+          </View>
+          {form.departureAt <= new Date() && (
+            <Text className="text-xs text-red-500">La salida debe ser en una fecha futura.</Text>
+          )}
+        </>
+      );
+    }
+
+    if (step === 7) {
+      return (
+        <>
+          <View className="flex-row gap-3 mb-5">
+            <View className="flex-1">
+              <Input
+                label="Asientos disponibles"
+                placeholder="3"
+                keyboardType="number-pad"
+                value={form.availableSeats}
+                onChangeText={(v) => dispatch({ type: 'SET_SEATS', payload: v.replace(/\D/g, '') })}
+                leftIcon={<Users size={18} color={Colors.neutral[400]} />}
+              />
+            </View>
+            <View className="flex-1">
+              <Input
+                label="Precio / asiento (COP)"
+                placeholder="50000"
+                keyboardType="number-pad"
+                value={form.pricePerSeat}
+                onChangeText={(v) => dispatch({ type: 'SET_PRICE', payload: v.replace(/\D/g, '') })}
+                leftIcon={<DollarSign size={18} color={Colors.neutral[400]} />}
+              />
+            </View>
+          </View>
+
+          <Card className="mb-2">
+            <TouchableOpacity
+              className="flex-row items-center justify-between py-1"
+              onPress={() => dispatch({ type: 'TOGGLE_LUGGAGE' })}
+            >
+              <View className="flex-row items-center">
+                <Luggage size={20} color={Colors.neutral[600]} />
+                <Text className="text-base text-neutral-800 ml-3">Permite equipaje</Text>
+              </View>
+              <Toggle
+                value={form.allowsLuggage}
+                onPress={() => dispatch({ type: 'TOGGLE_LUGGAGE' })}
+              />
+            </TouchableOpacity>
+
+            <View className="h-px bg-neutral-100 my-3" />
+
+            {tripType === 'ROUTINE' ? (
+              <TouchableOpacity
+                className="flex-row items-center justify-between py-1"
+                onPress={() => dispatch({ type: 'TOGGLE_STUDENTS' })}
+              >
+                <View className="flex-row items-center">
+                  <GraduationCap size={20} color={Colors.neutral[600]} />
+                  <Text className="text-base text-neutral-800 ml-3">Solo estudiantes</Text>
+                </View>
+                <Toggle
+                  value={form.studentsOnly}
                   onPress={() => dispatch({ type: 'TOGGLE_STUDENTS' })}
-                >
-                  <View className="flex-row items-center">
-                    <GraduationCap size={20} color={Colors.neutral[600]} />
-                    <Text className="text-base text-neutral-800 ml-3">Solo estudiantes</Text>
-                  </View>
-                  <Toggle
-                    value={form.studentsOnly}
-                    onPress={() => dispatch({ type: 'TOGGLE_STUDENTS' })}
-                  />
-                </TouchableOpacity>
-              </Card>
+                />
+              </TouchableOpacity>
+            ) : (
+              <View className="py-1">
+                <Text className="text-xs text-neutral-500">
+                  Para viajes interurbanos no se aplica restricción de solo estudiantes.
+                </Text>
+              </View>
+            )}
+          </Card>
+        </>
+      );
+    }
 
-              {/* Submit */}
+    if (step === 8) {
+      return (
+        <>
+          <Text className="text-sm font-semibold text-neutral-700 mb-2">Selecciona tu vehículo</Text>
+          {loadingVehicles ? (
+            <View className="items-center py-6 mb-6">
+              <ActivityIndicator color={Colors.primary[500]} />
+            </View>
+          ) : vehicleOptions.length === 0 ? (
+            <TouchableOpacity
+              onPress={() => router.push('/vehicle/add')}
+              activeOpacity={0.7}
+            >
+              <Card className="mb-6">
+                <View className="flex-row items-center justify-between">
+                  <View className="flex-row items-center flex-1">
+                    <Car size={20} color={Colors.primary[600]} />
+                    <Text className="text-sm text-neutral-700 ml-3 flex-1">
+                      {hasRegisteredVehicles
+                        ? 'Tu vehículo está registrado pero aún no está activo para publicar viajes.'
+                        : 'No tienes vehículos activos. '}
+                      <Text className="text-primary-600 font-semibold">
+                        {hasRegisteredVehicles ? 'Ver mis vehículos' : 'Registrar uno'}
+                      </Text>
+                    </Text>
+                  </View>
+                  <ChevronRight size={20} color={Colors.neutral[400]} />
+                </View>
+              </Card>
+            </TouchableOpacity>
+          ) : (
+            <View className="mb-5">
+              {vehicleOptions.map((v) => {
+                const selected = form.vehicleId === v.id;
+                const active = isVehicleActive(v.status);
+                return (
+                  <TouchableOpacity
+                    key={v.id}
+                    onPress={() => {
+                      if (!active) {
+                        Alert.alert('Vehículo no disponible', 'Solo puedes seleccionar vehículos activos.');
+                        return;
+                      }
+                      dispatch({ type: 'SET_VEHICLE', payload: v.id });
+                    }}
+                    activeOpacity={0.7}
+                    className={`flex-row items-center p-3 rounded-2xl border-2 mb-2 ${active ? 'bg-white' : 'bg-neutral-50'} ${selected ? 'border-primary-500' : 'border-neutral-200'
+                      }`}
+                  >
+                    <View className="w-12 h-12 rounded-xl bg-primary-50 items-center justify-center mr-3">
+                      <Car size={22} color={Colors.primary[400]} />
+                    </View>
+                    <View className="flex-1">
+                      <Text className="text-sm font-semibold text-neutral-900">{v.brand} {v.model} {v.year}</Text>
+                      <Text className="text-xs text-neutral-500 mt-0.5">{v.color}</Text>
+                      <View className={`rounded px-1.5 py-0.5 self-start mt-1 ${active ? 'bg-primary-50' : 'bg-neutral-200'}`}>
+                        <Text className={`text-xs font-bold ${active ? 'text-primary-700' : 'text-neutral-600'}`}>{v.plateNumber}</Text>
+                      </View>
+                      <Text className={`text-xs mt-1 ${active ? 'text-emerald-600' : 'text-amber-600'}`}>
+                        Estado: {active ? 'Activo' : 'No activo'}
+                      </Text>
+                    </View>
+                    {selected && (
+                      <View className="w-6 h-6 rounded-full bg-primary-500 items-center justify-center">
+                        <Check size={14} color="white" />
+                      </View>
+                    )}
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+          )}
+        </>
+      );
+    }
+
+    return (
+      <>
+        <Text className="text-lg font-bold text-neutral-900 mb-3">Resumen del viaje</Text>
+
+        <View style={{ gap: 5 }}>
+          <Card className="bg-primary-50 border border-primary-100">
+            <View className="flex-row items-center">
+              <Bus size={20} color={Colors.primary[700]} />
+              <View className="ml-3">
+                <Text className="text-xs text-neutral-500">Tipo y ruta</Text>
+                <Text className="text-base font-semibold text-neutral-900">{tripTypeLabel} · {routeModeLabel}</Text>
+              </View>
+            </View>
+          </Card>
+
+          <Card>
+            <View className="flex-row gap-3">
+              <View className="flex-1 flex-row items-center">
+                <Map size={18} color={Colors.neutral[700]} />
+                <View className="ml-2 flex-1">
+                  <Text className="text-xs text-neutral-500">Origen</Text>
+                  <Text className="text-base font-semibold text-neutral-900" numberOfLines={1}>{form.origin?.name ?? 'Sin definir'}</Text>
+                </View>
+              </View>
+              <View className="flex-1 flex-row items-center">
+                <Map size={18} color={Colors.accent[600]} />
+                <View className="ml-2 flex-1">
+                  <Text className="text-xs text-neutral-500">Destino</Text>
+                  <Text className="text-base font-semibold text-neutral-900" numberOfLines={1}>{form.destination?.name ?? 'Sin definir'}</Text>
+                </View>
+              </View>
+            </View>
+          </Card>
+
+          <Card>
+            <View className="flex-row">
+              <View className="flex-1">
+                <Text className="text-xs text-neutral-500">Distancia</Text>
+                <Text className="text-lg font-bold text-neutral-900">{selectedRoute ? `${selectedRoute.distanceKm.toFixed(1)} km` : '-'}</Text>
+              </View>
+              <View className="flex-1">
+                <Text className="text-xs text-neutral-500">Tiempo estimado</Text>
+                <Text className="text-lg font-bold text-neutral-900">{selectedRoute ? fmtDuration(selectedRoute.durationMin) : '-'}</Text>
+              </View>
+            </View>
+          </Card>
+
+          <Card>
+            <View className="flex-row items-center">
+              <Calendar size={20} color={Colors.neutral[700]} />
+              <View className="ml-3">
+                <Text className="text-xs text-neutral-500">Salida</Text>
+                <Text className="text-base font-semibold text-neutral-900">{fmtDate(form.departureAt)} · {fmtTime(form.departureAt)}</Text>
+              </View>
+            </View>
+          </Card>
+
+          <Card>
+            <View className="flex-row">
+              <View className="flex-row items-center flex-1">
+                <Users size={18} color={Colors.neutral[700]} />
+                <View className="ml-2">
+                  <Text className="text-xs text-neutral-500">Asientos</Text>
+                  <Text className="text-base font-semibold text-neutral-900">{form.availableSeats || '0'}</Text>
+                </View>
+              </View>
+              <View className="flex-row items-center flex-1">
+                <DollarSign size={18} color={Colors.neutral[700]} />
+                <View className="ml-2">
+                  <Text className="text-xs text-neutral-500">Precio</Text>
+                  <Text className="text-base font-semibold text-neutral-900">COP ${form.pricePerSeat || '0'}</Text>
+                </View>
+              </View>
+            </View>
+          </Card>
+
+          <Card>
+            <View className="flex-row items-center">
+              <Car size={20} color={Colors.neutral[700]} />
+              <View className="ml-3 flex-1">
+                <Text className="text-xs text-neutral-500">Vehículo</Text>
+                <Text className="text-base font-semibold text-neutral-900" numberOfLines={1}>
+                  {selectedVehicle ? `${selectedVehicle.brand} ${selectedVehicle.model} (${selectedVehicle.plateNumber})` : 'Sin seleccionar'}
+                </Text>
+              </View>
+            </View>
+          </Card>
+
+          <Card>
+            <View className="flex-row items-center justify-between">
+              <View className="flex-row items-center">
+                <Luggage size={18} color={Colors.neutral[700]} />
+                <Text className="text-sm text-neutral-700 ml-2">Equipaje</Text>
+              </View>
+              <Text className="text-sm font-semibold text-neutral-900">{form.allowsLuggage ? 'Permitido' : 'No permitido'}</Text>
+            </View>
+            {tripType === 'ROUTINE' && (
+              <View className="flex-row items-center justify-between mt-3">
+                <View className="flex-row items-center">
+                  <GraduationCap size={18} color={Colors.neutral[700]} />
+                  <Text className="text-sm text-neutral-700 ml-2">Solo estudiantes</Text>
+                </View>
+                <Text className="text-sm font-semibold text-neutral-900">{form.studentsOnly ? 'Sí' : 'No'}</Text>
+              </View>
+            )}
+          </Card>
+        </View>
+      </>
+    );
+  };
+
+  return (
+    <Screen edges={['top', 'left', 'right']}>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        className="flex-1"
+      >
+        <ScrollView
+          className="flex-1"
+          contentContainerClassName="px-6 pt-4 pb-2"
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+        >
+          {/* Header */}
+          <View className="mb-6">
+            <Text className="text-2xl font-bold text-neutral-900">Publicar viaje</Text>
+          </View>
+
+          <View className="mb-5">
+            <View className="mb-2">
+              <TouchableOpacity
+                onPress={goBack}
+                disabled={step === 1 || submitting}
+                className={`w-9 h-9 rounded-full border border-neutral-200 bg-white items-center justify-center ${step === 1 ? 'opacity-30' : 'opacity-100'}`}
+              >
+                <ArrowLeft size={18} color={Colors.neutral[700]} />
+              </TouchableOpacity>
+            </View>
+            <View className="h-2 rounded-full bg-neutral-100 overflow-hidden">
+              <Animated.View
+                className="h-2 bg-primary-500"
+                style={{
+                  width: progressAnim.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: ['0%', '100%'],
+                  }),
+                }}
+              />
+            </View>
+          </View>
+
+          <Card className={step === TOTAL_STEPS ? 'mb-2' : 'mb-6'}>
+            <Animated.View
+              style={{
+                opacity: stepAnim,
+                transform: [
+                  {
+                    translateX: stepAnim.interpolate({
+                      inputRange: [0, 1],
+                      outputRange: [slideDirection === 'forward' ? 24 : -24, 0],
+                    }),
+                  },
+                ],
+              }}
+            >
+              {renderStepContent()}
+            </Animated.View>
+          </Card>
+
+          {showDatePicker && (
+            <DateTimePicker
+              value={form.departureAt}
+              mode="date"
+              minimumDate={new Date()}
+              display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+              onValueChange={handleDateChange}
+              onDismiss={() => setShowDatePicker(false)}
+            />
+          )}
+          {showTimePicker && (
+            <DateTimePicker
+              value={form.departureAt}
+              mode="time"
+              display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+              onValueChange={handleTimeChange}
+              onDismiss={() => setShowTimePicker(false)}
+            />
+          )}
+
+          <View className={step < TOTAL_STEPS ? 'items-end' : 'items-center'}>
+            {step < TOTAL_STEPS ? (
+              <TouchableOpacity
+                onPress={goNext}
+                disabled={submitting}
+                activeOpacity={0.85}
+                className="w-14 h-14 rounded-full bg-primary-500 items-center justify-center"
+              >
+                <ChevronRight size={24} color="white" />
+              </TouchableOpacity>
+            ) : (
               <Button
                 onPress={handlePublish}
                 size="lg"
-                className="w-full"
+                className="px-6"
                 loading={submitting}
                 disabled={submitting}
               >
                 Publicar viaje
               </Button>
-            </>
-          )}
+            )}
+          </View>
         </ScrollView>
       </KeyboardAvoidingView>
 
@@ -612,7 +1208,11 @@ export default function PublishScreen() {
       <LocationPickerModal
         visible={locationPicker.visible}
         title={
-          locationPicker.target === 'origin' ? 'Seleccionar origen' : 'Seleccionar destino'
+          locationPicker.target === 'origin'
+            ? 'Seleccionar origen'
+            : locationPicker.target === 'destination'
+              ? 'Seleccionar destino'
+              : 'Agregar ciudad intermedia'
         }
         onConfirm={handleLocationConfirm}
         onClose={() => setLocationPicker((p) => ({ ...p, visible: false }))}

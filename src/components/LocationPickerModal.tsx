@@ -15,9 +15,10 @@ import {
 import MapView, { Marker } from 'react-native-maps';
 import type { MapPressEvent, Region } from 'react-native-maps';
 import * as Location from 'expo-location';
-import { Navigation, X, Search, MapPin, ArrowLeft, ChevronRight } from 'lucide-react-native';
+import { Navigation, X, Search, MapPin, ArrowLeft, ChevronRight, Zap } from 'lucide-react-native';
 import { Colors } from '@/constants/colors';
 import { Button } from '@/components/ui';
+import { tomtomService, type LocationSearchResult } from '@/lib/tomtom';
 
 // ── Types ──
 
@@ -25,23 +26,6 @@ export interface SelectedLocation {
   latitude: number;
   longitude: number;
   name: string;
-}
-
-interface NominatimResult {
-  place_id: string;
-  display_name: string;
-  lat: string;
-  lon: string;
-  address?: {
-    city?: string;
-    town?: string;
-    village?: string;
-    hamlet?: string;
-    municipality?: string;
-    suburb?: string;
-    county?: string;
-    state?: string;
-  };
 }
 
 interface Props {
@@ -61,52 +45,19 @@ const COLOMBIA_REGION: Region = {
   longitudeDelta: 8,
 };
 
-const NOMINATIM = 'https://nominatim.openstreetmap.org';
-
-// ── Helpers ──
-
-function bestName(r: NominatimResult): { primary: string; secondary: string } {
-  const a = r.address ?? {};
-  const primary =
-    a.city ?? a.town ?? a.village ?? a.hamlet ?? a.municipality ?? a.suburb ??
-    r.display_name.split(',')[0].trim();
-  const secondary = [a.state ?? a.county, 'Colombia'].filter(Boolean).join(', ');
-  return { primary, secondary };
-}
-
-async function reverseGeocode(lat: number, lon: number): Promise<string> {
-  try {
-    const res = await fetch(
-      `${NOMINATIM}/reverse?lat=${lat}&lon=${lon}&format=json&addressdetails=1`,
-      { headers: { 'User-Agent': 'ParlAndo/1.0' } },
-    );
-    const data = await res.json();
-    const a = data.address ?? {};
-    return (
-      a.city ?? a.town ?? a.village ?? a.hamlet ?? a.municipality ??
-      data.display_name?.split(',')[0]?.trim() ??
-      'Ubicación'
-    );
-  } catch {
-    return 'Ubicación';
-  }
-}
-
-// ── Component ──
-
 export function LocationPickerModal({ visible, title, onConfirm, onClose, initial }: Props) {
   // ── Search state ──
   const [query, setQuery] = useState('');
-  const [results, setResults] = useState<NominatimResult[]>([]);
+  const [results, setResults] = useState<LocationSearchResult[]>([]);
   const [searching, setSearching] = useState(false);
   const [locating, setLocating] = useState(false);
-  const [userCoords, setUserCoords] = useState<{ latitude: number; longitude: number } | null>(null);
+  const [userCoords, setUserCoords] = useState<{ latitude: number; longitude: number; } | null>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const abortRef = useRef<AbortController | null>(null);
 
   // ── Map state ──
   const [mapVisible, setMapVisible] = useState(false);
-  const [marker, setMarker] = useState<{ latitude: number; longitude: number } | null>(null);
+  const [marker, setMarker] = useState<{ latitude: number; longitude: number; } | null>(null);
   const [mapName, setMapName] = useState('');
   const [reverseGeocoding, setReverseGeocoding] = useState(false);
   const mapRef = useRef<MapView>(null);
@@ -128,17 +79,22 @@ export function LocationPickerModal({ visible, title, onConfirm, onClose, initia
         if (loc) {
           setUserCoords({ latitude: loc.coords.latitude, longitude: loc.coords.longitude });
         }
-      } catch {}
+      } catch { }
     })();
   }, [visible]);
 
-  // Debounced Nominatim search
+  // Debounced search using TomTom service
   useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
     const q = query.trim();
-    if (q.length < 2) { setResults([]); return; }
+    if (q.length < 2) {
+      setResults([]);
+      return;
+    }
     debounceRef.current = setTimeout(() => doSearch(q), 420);
-    return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
+    return () => {
+      if (debounceRef.current) clearTimeout(debounceRef.current);
+    };
   }, [query]);
 
   const doSearch = async (q: string) => {
@@ -146,19 +102,12 @@ export function LocationPickerModal({ visible, title, onConfirm, onClose, initia
     abortRef.current = new AbortController();
     setSearching(true);
     try {
-      let url =
-        `${NOMINATIM}/search?q=${encodeURIComponent(q)}` +
-        `&countrycodes=co&format=json&limit=6&addressdetails=1`;
-      if (userCoords) {
-        url += `&lat=${userCoords.latitude}&lon=${userCoords.longitude}`;
-      }
-      const res = await fetch(url, {
-        signal: abortRef.current.signal,
-        headers: { 'User-Agent': 'ParlAndo/1.0' },
-      });
-      setResults(await res.json());
+      const searchResults = await tomtomService.searchLocations(q, userCoords ?? undefined);
+      setResults(searchResults);
     } catch (e: any) {
-      if (e?.name !== 'AbortError') setResults([]);
+      if (e?.name !== 'AbortError') {
+        setResults([]);
+      }
     } finally {
       setSearching(false);
     }
@@ -166,9 +115,12 @@ export function LocationPickerModal({ visible, title, onConfirm, onClose, initia
 
   // ── Handlers ──
 
-  const handleSelectSuggestion = (r: NominatimResult) => {
-    const { primary } = bestName(r);
-    onConfirm({ latitude: parseFloat(r.lat), longitude: parseFloat(r.lon), name: primary });
+  const handleSelectSuggestion = (result: LocationSearchResult) => {
+    onConfirm({
+      latitude: result.latitude,
+      longitude: result.longitude,
+      name: result.name,
+    });
   };
 
   const handleUseMyLocation = async () => {
@@ -187,7 +139,7 @@ export function LocationPickerModal({ visible, title, onConfirm, onClose, initia
         coords = { latitude: loc.coords.latitude, longitude: loc.coords.longitude };
         setUserCoords(coords);
       }
-      const name = await reverseGeocode(coords.latitude, coords.longitude);
+      const name = await tomtomService.reverseGeocode(coords.latitude, coords.longitude);
       onConfirm({ ...coords, name });
     } catch {
       Alert.alert('Error', 'No se pudo obtener tu ubicación');
@@ -206,7 +158,7 @@ export function LocationPickerModal({ visible, title, onConfirm, onClose, initia
     setMarker(coord);
     setMapName('');
     setReverseGeocoding(true);
-    const name = await reverseGeocode(coord.latitude, coord.longitude);
+    const name = await tomtomService.reverseGeocode(coord.latitude, coord.longitude);
     setMapName(name);
     setReverseGeocoding(false);
   };
@@ -225,11 +177,34 @@ export function LocationPickerModal({ visible, title, onConfirm, onClose, initia
   };
 
   // Map starts at device location, fallback to previous selection, fallback to Colombia
+  // Zoom levels: 0.05 = very close (street level), 0.2 = neighborhood, 0.5 = city, 8 = country
   const mapInitialRegion: Region = userCoords
-    ? { ...userCoords, latitudeDelta: 0.08, longitudeDelta: 0.08 }
+    ? { ...userCoords, latitudeDelta: 0.05, longitudeDelta: 0.05 } // Close zoom to device location
     : initial
-    ? { latitude: initial.latitude, longitude: initial.longitude, latitudeDelta: 0.5, longitudeDelta: 0.5 }
-    : COLOMBIA_REGION;
+      ? {
+        latitude: initial.latitude,
+        longitude: initial.longitude,
+        latitudeDelta: 0.05,
+        longitudeDelta: 0.05,
+      }
+      : COLOMBIA_REGION;
+
+  // Center map on user location when map opens
+  useEffect(() => {
+    if (mapVisible && mapRef.current && userCoords) {
+      setTimeout(() => {
+        mapRef.current?.animateToRegion(
+          {
+            latitude: userCoords.latitude,
+            longitude: userCoords.longitude,
+            latitudeDelta: 0.05,
+            longitudeDelta: 0.05,
+          },
+          500 // Animation duration in ms
+        );
+      }, 300); // Small delay to ensure map is rendered
+    }
+  }, [mapVisible, userCoords]);
 
   // ── Render ──
 
@@ -282,7 +257,7 @@ export function LocationPickerModal({ visible, title, onConfirm, onClose, initia
           {/* Quick actions + suggestions list */}
           <FlatList
             data={results}
-            keyExtractor={(r) => r.place_id}
+            keyExtractor={(r) => r.id}
             keyboardShouldPersistTaps="handled"
             contentContainerStyle={{ paddingBottom: 32 }}
             ListHeaderComponent={
@@ -315,27 +290,30 @@ export function LocationPickerModal({ visible, title, onConfirm, onClose, initia
                 </TouchableOpacity>
 
                 {results.length > 0 && (
-                  <Text style={styles.sectionLabel}>Sugerencias</Text>
+                  <Text style={styles.sectionLabel}>
+                    {results[0].source === 'tomtom' ? 'TomTom' : 'OpenStreetMap'}
+                  </Text>
                 )}
               </View>
             }
-            renderItem={({ item }) => {
-              const { primary, secondary } = bestName(item);
-              return (
-                <TouchableOpacity
-                  style={styles.listRow}
-                  onPress={() => handleSelectSuggestion(item)}
-                >
-                  <View style={[styles.iconCircle, { backgroundColor: Colors.neutral[100] }]}>
-                    <MapPin size={18} color={Colors.neutral[500]} />
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.rowPrimary} numberOfLines={1}>{primary}</Text>
-                    <Text style={styles.rowSecondary} numberOfLines={1}>{secondary}</Text>
-                  </View>
-                </TouchableOpacity>
-              );
-            }}
+            renderItem={({ item }) => (
+              <TouchableOpacity
+                style={styles.listRow}
+                onPress={() => handleSelectSuggestion(item)}
+              >
+                <View style={[styles.iconCircle, { backgroundColor: Colors.neutral[100] }]}>
+                  <MapPin size={18} color={Colors.neutral[500]} />
+                </View>
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.rowPrimary} numberOfLines={1}>
+                    {item.name}
+                  </Text>
+                  <Text style={styles.rowSecondary} numberOfLines={1}>
+                    {item.address}
+                  </Text>
+                </View>
+              </TouchableOpacity>
+            )}
           />
         </KeyboardAvoidingView>
       ) : (
@@ -363,6 +341,9 @@ export function LocationPickerModal({ visible, title, onConfirm, onClose, initia
             onPress={handleMapPress}
             showsUserLocation
             showsMyLocationButton
+            zoomEnabled
+            scrollEnabled
+            zoomControlEnabled
           >
             {marker && <Marker coordinate={marker} pinColor={Colors.primary[500]} />}
           </MapView>
@@ -477,6 +458,23 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingTop: 16,
     paddingBottom: 4,
+  },
+  tomtomBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginHorizontal: 16,
+    marginTop: 12,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    backgroundColor: Colors.primary[50],
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: Colors.primary[200],
+  },
+  tomtomText: {
+    fontSize: 12,
+    fontWeight: '500',
+    color: Colors.primary[600],
   },
   hintBar: {
     backgroundColor: Colors.primary[50],
