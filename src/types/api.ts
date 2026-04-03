@@ -216,6 +216,19 @@ export interface WaypointRequest {
   estimatedArrival?: string;
 }
 
+export interface RouteWaypointResponse {
+  id: string;
+  tripId: string;
+  latitude: number;
+  longitude: number;
+  orderIndex: number;
+  name: string;
+  isPickupPoint: boolean;
+  estimatedArrival?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface CreateTripRequest {
   tripType: TripType;
   originName: string;
@@ -225,6 +238,7 @@ export interface CreateTripRequest {
   destinationLatitude: number;
   destinationLongitude: number;
   departureAt: string;
+  arrivedAt?: string;
   availableSeats: number;
   pricePerSeat: number;
   currency: string;
@@ -234,7 +248,7 @@ export interface CreateTripRequest {
   universityId?: string;
   isRecurring?: boolean;
   recurrencePattern?: string;
-  waypoints?: WaypointRequest[];
+  waypoints?: WaypointRequest[]; // Array de puntos intermedios de la ruta
 }
 
 export interface UpdateTripRequest {

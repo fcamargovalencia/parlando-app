@@ -1,5 +1,5 @@
 import { api } from './client';
-import type { ApiResponse, PageResponse, CreateTripRequest, UpdateTripRequest, TripResponse, SearchTripsParams } from '@/types/api';
+import type { ApiResponse, PageResponse, CreateTripRequest, UpdateTripRequest, TripResponse, SearchTripsParams, RouteWaypointResponse } from '@/types/api';
 
 export const tripsApi = {
   create: (data: CreateTripRequest) =>
@@ -19,6 +19,9 @@ export const tripsApi = {
 
   getDetails: (id: string) =>
     api.get<ApiResponse<TripResponse>>(`/v1/trips/${encodeURIComponent(id)}/details`),
+
+  getWaypoints: (id: string) =>
+    api.get<ApiResponse<RouteWaypointResponse[]>>(`/v1/trips/${encodeURIComponent(id)}/waypoints`),
 
   start: (id: string) =>
     api.patch<ApiResponse<TripResponse>>(`/v1/trips/${encodeURIComponent(id)}/start`),

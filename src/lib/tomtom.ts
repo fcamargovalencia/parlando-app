@@ -147,6 +147,13 @@ export interface TomTomRoutePoint {
   longitude: number;
 }
 
+export interface TomTomRouteResult {
+  points: TomTomRoutePoint[];
+  travelTimeInSeconds: number;
+  distanceKm: number;
+  hasTolls: boolean;
+}
+
 // ── Public API ──
 
 const TOMTOM_BASE = 'https://api.tomtom.com/search/2';
@@ -190,14 +197,14 @@ export const tomtomService = {
   },
 
   /**
-   * Calculate a route between ordered stops and return the polyline points.
+   * Calculate a route between ordered stops and return the polyline points and travel time.
    * Downsamples to `maxPoints` (default 60) to keep the payload manageable.
    * Throws if TomTom is not configured or the request fails.
    */
   async calculateRoute(
     stops: Array<{ latitude: number; longitude: number }>,
     options?: { maxPoints?: number },
-  ): Promise<TomTomRoutePoint[]> {
+  ): Promise<TomTomRouteResult> {
     if (!Config.TOMTOM_API_KEY) throw new Error('TomTom API key not configured');
     return tomtomCalculateRoute(stops, options?.maxPoints ?? 60);
   },
@@ -215,13 +222,14 @@ export const tomtomService = {
 async function tomtomCalculateRoute(
   stops: Array<{ latitude: number; longitude: number }>,
   maxPoints: number,
-): Promise<TomTomRoutePoint[]> {
+): Promise<TomTomRouteResult> {
   const locations = stops.map((p) => `${p.latitude},${p.longitude}`).join(':');
   const params = new URLSearchParams({
     key: Config.TOMTOM_API_KEY,
     routeRepresentation: 'polyline',
     routeType: 'fastest',
     traffic: 'false',
+    sectionType: 'tollRoad',
   });
 
   const response = await fetch(
@@ -231,21 +239,25 @@ async function tomtomCalculateRoute(
 
   if (!response.ok) throw new Error(`TomTom Routing API error: ${response.status}`);
 
-  const data: { routes: Array<{ legs: Array<{ points: TomTomRoutePoint[] }> }> } =
+  const data: { routes: Array<{ summary: { travelTimeInSeconds: number; lengthInMeters: number }; sections?: Array<{ sectionType: string }>; legs: Array<{ points: TomTomRoutePoint[] }> }> } =
     await response.json();
 
-  if (!data.routes?.length) return [];
+  if (!data.routes?.length) return { points: [], travelTimeInSeconds: 0, distanceKm: 0, hasTolls: false };
 
   const all: TomTomRoutePoint[] = data.routes[0].legs.flatMap((leg) => leg.points);
+  const { travelTimeInSeconds, lengthInMeters } = data.routes[0].summary;
+  const sections = data.routes[0].sections ?? [];
+  const hasTolls = sections.some((s) => s.sectionType === 'TOLL_ROAD' || s.sectionType === 'tollRoad');
+  const distanceKm = lengthInMeters / 1000;
 
-  if (all.length <= maxPoints) return all;
+  if (all.length <= maxPoints) return { points: all, travelTimeInSeconds, distanceKm, hasTolls };
 
   const step = Math.ceil(all.length / maxPoints);
   const sampled: TomTomRoutePoint[] = [];
   for (let i = 0; i < all.length; i += step) sampled.push(all[i]);
   const last = all[all.length - 1];
   if (sampled[sampled.length - 1] !== last) sampled.push(last);
-  return sampled;
+  return { points: sampled, travelTimeInSeconds, distanceKm, hasTolls };
 }
 
 function formatTomTomResult(result: TomTomSearchResult, type: 'address' | 'poi'): LocationSearchResult {

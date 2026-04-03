@@ -166,7 +166,7 @@ type RouteAlternative = {
   distanceKm: number;
   durationMin: number;
   hasTolls: boolean;
-  tollCount: number;
+  travelTimeInSeconds?: number;
 };
 
 function routeDistanceKm(points: { latitude: number; longitude: number; }[]) {
@@ -213,7 +213,6 @@ function buildRouteAlternatives(origin: SelectedLocation, destination: SelectedL
       id: 'DIRECT',
       title: 'Ruta directa',
       speedKmh: 72,
-      tollCount: 2,
       points: [
         { latitude: origin.latitude, longitude: origin.longitude },
         ...waypointPoints,
@@ -224,7 +223,6 @@ function buildRouteAlternatives(origin: SelectedLocation, destination: SelectedL
       id: 'NORTH',
       title: 'Alternativa A',
       speedKmh: 60,
-      tollCount: 1,
       points: [
         { latitude: origin.latitude, longitude: origin.longitude },
         ...waypointPoints,
@@ -236,7 +234,6 @@ function buildRouteAlternatives(origin: SelectedLocation, destination: SelectedL
       id: 'SOUTH',
       title: 'Alternativa B',
       speedKmh: 56,
-      tollCount: 0,
       points: [
         { latitude: origin.latitude, longitude: origin.longitude },
         ...waypointPoints,
@@ -255,8 +252,7 @@ function buildRouteAlternatives(origin: SelectedLocation, destination: SelectedL
       points: route.points,
       distanceKm: distance,
       durationMin: duration,
-      hasTolls: route.tollCount > 0,
-      tollCount: route.tollCount,
+      hasTolls: false,
     };
   });
 }
@@ -465,6 +461,22 @@ export default function PublishScreen() {
     setRouteAlternatives(alternatives);
     const hasDirect = alternatives.some((r) => r.id === 'DIRECT');
     setSelectedRouteId(hasDirect ? 'DIRECT' : alternatives[0]?.id ?? 'DIRECT');
+
+    if (tomtomService.isConfigured()) {
+      alternatives.forEach((alt) => {
+        tomtomService.calculateRoute(alt.points)
+          .then(({ points, travelTimeInSeconds, distanceKm, hasTolls }) => {
+            setRouteAlternatives((prev) =>
+              prev.map((r) =>
+                r.id === alt.id
+                  ? { ...r, points, durationMin: Math.round(travelTimeInSeconds / 60), travelTimeInSeconds, distanceKm, hasTolls }
+                  : r,
+              ),
+            );
+          })
+          .catch(() => {});
+      });
+    }
   }, [step, form.origin, form.destination, waypoints]);
 
   useEffect(() => {
@@ -724,13 +736,15 @@ export default function PublishScreen() {
       // Build waypoints from TomTom route: cities added by user → isPickupPoint true,
       // all other route geometry points → false.
       let routeWaypoints: WaypointRequest[] = [];
+      let travelTimeInSeconds: number | null = selectedRoute?.travelTimeInSeconds ?? null;
       try {
         const stops = [
           { latitude: form.origin.latitude, longitude: form.origin.longitude },
           ...waypoints.map((w) => ({ latitude: w.latitude, longitude: w.longitude })),
           { latitude: form.destination.latitude, longitude: form.destination.longitude },
         ];
-        const routePoints = await tomtomService.calculateRoute(stops);
+        const { points: routePoints, travelTimeInSeconds: routeDuration } = await tomtomService.calculateRoute(stops);
+        if (travelTimeInSeconds === null) travelTimeInSeconds = routeDuration;
         const PICKUP_THRESHOLD_KM = 0.5;
 
         // First: add all user waypoints as pickup points
@@ -778,7 +792,11 @@ export default function PublishScreen() {
         }));
       }
 
-      const { data: createRes } = await tripsApi.create({
+      const arrivedAt = travelTimeInSeconds !== null
+        ? new Date(form.departureAt.getTime() + travelTimeInSeconds * 1000).toISOString()
+        : undefined;
+
+      const createTripBody = {
         tripType,
         originName: form.origin.name,
         originLatitude: form.origin.latitude,
@@ -787,6 +805,7 @@ export default function PublishScreen() {
         destinationLatitude: form.destination.latitude,
         destinationLongitude: form.destination.longitude,
         departureAt: form.departureAt.toISOString(),
+        arrivedAt,
         availableSeats: parseInt(form.availableSeats, 10),
         pricePerSeat: parseFloat(form.pricePerSeat),
         currency: 'COP',
@@ -794,7 +813,8 @@ export default function PublishScreen() {
         allowsLuggage: form.allowsLuggage,
         studentsOnly: tripType === 'ROUTINE' ? form.studentsOnly : false,
         waypoints: routeWaypoints,
-      });
+      };
+      const { data: createRes } = await tripsApi.create(createTripBody);
 
       if (!createRes.data) throw new Error('Error al crear viaje');
       await tripsApi.publish(createRes.data.id);
@@ -1089,7 +1109,7 @@ export default function PublishScreen() {
                     <View className="mx-2 flex-1">
                       <Text className="text-base font-semibold text-neutral-900 text-center">{selectedAlt.title}</Text>
                       <Text className="text-xs text-neutral-500 text-center mt-1">
-                        {selectedAlt.distanceKm.toFixed(1)} km · {fmtDuration(selectedAlt.durationMin)} · {selectedAlt.hasTolls ? `${selectedAlt.tollCount} peajes` : 'Sin peajes'}
+                        {selectedAlt.distanceKm.toFixed(1)} km · {fmtDuration(selectedAlt.durationMin)} · {selectedAlt.hasTolls ? 'Con peajes' : 'Sin peajes'}
                       </Text>
                     </View>
 
