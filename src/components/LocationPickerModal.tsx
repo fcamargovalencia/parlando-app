@@ -26,6 +26,12 @@ export interface SelectedLocation {
   latitude: number;
   longitude: number;
   name: string;
+  /** City/municipality the location belongs to (e.g. "Medellín"). */
+  city?: string;
+  /** State or department (e.g. "Antioquia"). */
+  state?: string;
+  /** Country (e.g. "Colombia"). */
+  country?: string;
 }
 
 interface Props {
@@ -64,6 +70,9 @@ export function LocationPickerModal({ visible, title, onConfirm, onClose, initia
   const [centerCoord, setCenterCoord] = useState<{ latitude: number; longitude: number; } | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [mapName, setMapName] = useState('');
+  const [mapCity, setMapCity] = useState<string | undefined>(undefined);
+  const [mapState, setMapState] = useState<string | undefined>(undefined);
+  const [mapCountry, setMapCountry] = useState<string | undefined>(undefined);
   const [reverseGeocoding, setReverseGeocoding] = useState(false);
   const [municipalityCenter, setMunicipalityCenter] = useState<{ latitude: number; longitude: number; name: string; } | null>(null);
   const mapRef = useRef<MapView>(null);
@@ -119,6 +128,9 @@ export function LocationPickerModal({ visible, title, onConfirm, onClose, initia
     setCenterCoord(initial ? { latitude: initial.latitude, longitude: initial.longitude } : null);
     setIsDragging(false);
     setMapName(initial?.name ?? '');
+    setMapCity(initial?.city);
+    setMapState(initial?.state);
+    setMapCountry(initial?.country);
     setMunicipalityCenter(municipalityFocus ?? null);
 
     (async () => {
@@ -178,6 +190,9 @@ export function LocationPickerModal({ visible, title, onConfirm, onClose, initia
         latitude: result.latitude,
         longitude: result.longitude,
         name: result.name,
+        city: result.city,
+        state: result.state,
+        country: result.country,
       });
     }
   };
@@ -198,8 +213,8 @@ export function LocationPickerModal({ visible, title, onConfirm, onClose, initia
         coords = { latitude: loc.coords.latitude, longitude: loc.coords.longitude };
         setUserCoords(coords);
       }
-      const name = await tomtomService.reverseGeocode(coords.latitude, coords.longitude);
-      onConfirm({ ...coords, name });
+      const result = await tomtomService.reverseGeocode(coords.latitude, coords.longitude);
+      onConfirm({ ...coords, name: result.name, city: result.city, state: result.state, country: result.country });
     } catch {
       Alert.alert('Error', 'No se pudo obtener tu ubicación');
     } finally {
@@ -242,9 +257,12 @@ export function LocationPickerModal({ visible, title, onConfirm, onClose, initia
     reverseDebounceRef.current = setTimeout(async () => {
       setReverseGeocoding(true);
       try {
-        const name = await tomtomService.reverseGeocode(coord.latitude, coord.longitude);
+        const result = await tomtomService.reverseGeocode(coord.latitude, coord.longitude);
         if (reverseSeqRef.current === seq) {
-          setMapName(name);
+          setMapName(result.name);
+          setMapCity(result.city);
+          setMapState(result.state);
+          setMapCountry(result.country);
           lastGeocodedCoordRef.current = coord;
         }
       } catch { }
@@ -258,6 +276,9 @@ export function LocationPickerModal({ visible, title, onConfirm, onClose, initia
       latitude: centerCoord.latitude,
       longitude: centerCoord.longitude,
       name: mapName.trim() || 'Ubicación seleccionada',
+      city: mapCity,
+      state: mapState,
+      country: mapCountry,
     });
     setMapVisible(false);
   };

@@ -20,6 +20,8 @@ import {
   Car,
   ArrowLeft,
   ChevronRight,
+  ChevronUp,
+  ChevronDown,
   GraduationCap,
   Bus,
   Building2,
@@ -190,7 +192,11 @@ function fmtDuration(min: number) {
   return `${h} h ${m} min`;
 }
 
-function buildRouteAlternatives(origin: SelectedLocation, destination: SelectedLocation): RouteAlternative[] {
+function locationSubtitle(loc: SelectedLocation): string {
+  return [loc.city, loc.state, loc.country].filter(Boolean).join(', ');
+}
+
+function buildRouteAlternatives(origin: SelectedLocation, destination: SelectedLocation, waypoints: SelectedLocation[] = []): RouteAlternative[] {
   const midLat = (origin.latitude + destination.latitude) / 2;
   const midLng = (origin.longitude + destination.longitude) / 2;
   const dLat = destination.latitude - origin.latitude;
@@ -200,6 +206,8 @@ function buildRouteAlternatives(origin: SelectedLocation, destination: SelectedL
   const perpLat = -(dLng / norm) * offset;
   const perpLng = (dLat / norm) * offset;
 
+  const waypointPoints = waypoints.map((w) => ({ latitude: w.latitude, longitude: w.longitude }));
+
   const baseRoutes = [
     {
       id: 'DIRECT',
@@ -208,6 +216,7 @@ function buildRouteAlternatives(origin: SelectedLocation, destination: SelectedL
       tollCount: 2,
       points: [
         { latitude: origin.latitude, longitude: origin.longitude },
+        ...waypointPoints,
         { latitude: destination.latitude, longitude: destination.longitude },
       ],
     },
@@ -218,6 +227,7 @@ function buildRouteAlternatives(origin: SelectedLocation, destination: SelectedL
       tollCount: 1,
       points: [
         { latitude: origin.latitude, longitude: origin.longitude },
+        ...waypointPoints,
         { latitude: midLat + perpLat, longitude: midLng + perpLng },
         { latitude: destination.latitude, longitude: destination.longitude },
       ],
@@ -229,6 +239,7 @@ function buildRouteAlternatives(origin: SelectedLocation, destination: SelectedL
       tollCount: 0,
       points: [
         { latitude: origin.latitude, longitude: origin.longitude },
+        ...waypointPoints,
         { latitude: midLat - perpLat, longitude: midLng - perpLng },
         { latitude: destination.latitude, longitude: destination.longitude },
       ],
@@ -293,8 +304,8 @@ export default function PublishScreen() {
     'Tipo de viaje',
     'Lugar de origen',
     'Lugar de destino',
-    'Selección de ruta',
     'Ciudades intermedias',
+    'Selección de ruta',
     'Día y hora de salida',
     'Asientos y precio',
     'Selección de vehículo',
@@ -448,17 +459,17 @@ export default function PublishScreen() {
       setRouteAlternatives([]);
       return;
     }
-    if (step !== 4) return;
+    if (step !== 5) return;
 
-    const alternatives = buildRouteAlternatives(form.origin, form.destination);
+    const alternatives = buildRouteAlternatives(form.origin, form.destination, waypoints);
     setRouteAlternatives(alternatives);
     const hasDirect = alternatives.some((r) => r.id === 'DIRECT');
     setSelectedRouteId(hasDirect ? 'DIRECT' : alternatives[0]?.id ?? 'DIRECT');
-  }, [step, form.origin, form.destination]);
+  }, [step, form.origin, form.destination, waypoints]);
 
   useEffect(() => {
     const selected = routeAlternatives.find((r) => r.id === selectedRouteId) ?? routeAlternatives[0];
-    if (step !== 4 || !selected || selected.points.length < 2 || !routeMapRef.current) return;
+    if (step !== 5 || !selected || selected.points.length < 2 || !routeMapRef.current) return;
 
     const timer = setTimeout(() => {
       routeMapRef.current?.fitToCoordinates(selected.points, {
@@ -581,6 +592,31 @@ export default function PublishScreen() {
         latitude: item.latitude,
         longitude: item.longitude,
         name: item.name,
+        city: item.city,
+        state: item.state,
+        country: item.country,
+      });
+    }
+  };
+
+  // Destination-specific: if the suggestion is a municipality, open the map so the
+  // user can pin the exact arrival/meeting point. For addresses and POIs, confirm immediately.
+  const handleDestinationSuggestionSelect = (item: LocationSearchResult) => {
+    if (item.locationType === 'municipality') {
+      setDestinationResults([]);
+      setLocationPicker({
+        visible: true,
+        target: 'destination',
+        municipalityFocus: { latitude: item.latitude, longitude: item.longitude, name: item.name },
+      });
+    } else {
+      handleInlineLocationSelect('destination', {
+        latitude: item.latitude,
+        longitude: item.longitude,
+        name: item.name,
+        city: item.city,
+        state: item.state,
+        country: item.country,
       });
     }
   };
@@ -621,6 +657,24 @@ export default function PublishScreen() {
       return;
     }
     setLocationPicker({ visible: true, target: 'waypoint' });
+  };
+
+  const moveWaypointUp = (idx: number) => {
+    if (idx === 0) return;
+    setWaypoints((prev) => {
+      const next = [...prev];
+      [next[idx - 1], next[idx]] = [next[idx], next[idx - 1]];
+      return next;
+    });
+  };
+
+  const moveWaypointDown = (idx: number) => {
+    setWaypoints((prev) => {
+      if (idx >= prev.length - 1) return prev;
+      const next = [...prev];
+      [next[idx], next[idx + 1]] = [next[idx + 1], next[idx]];
+      return next;
+    });
   };
 
   const handleLocationConfirm = (loc: SelectedLocation) => {
@@ -726,7 +780,8 @@ export default function PublishScreen() {
       const near = distanceKm(form.origin, form.destination) < 1;
       return !sameCity && !near;
     }
-    if (current === 4) return routeAlternatives.length > 0 && !!selectedRouteId;
+    if (current === 4) return true;
+    if (current === 5) return routeAlternatives.length > 0 && !!selectedRouteId;
     if (current === 6) return form.departureAt > new Date();
     if (current === 7) {
       return (
@@ -745,7 +800,7 @@ export default function PublishScreen() {
     if (!isStepValid(step)) {
       if (step === 2) Alert.alert('Falta el origen', 'Selecciona el lugar de origen.');
       if (step === 3) Alert.alert('Destino inválido', 'El destino no puede ser la misma ciudad de origen.');
-      if (step === 4) Alert.alert('Ruta requerida', 'Selecciona una alternativa de ruta en el mapa.');
+      if (step === 5) Alert.alert('Ruta requerida', 'Selecciona una alternativa de ruta en el mapa.');
       if (step === 6) Alert.alert('Fecha inválida', 'Selecciona una fecha y hora futura.');
       if (step === 7) Alert.alert('Datos incompletos', 'Completa asientos y precio.');
       if (step === 8) Alert.alert('Vehículo requerido', 'Selecciona el vehículo para este viaje.');
@@ -831,9 +886,14 @@ export default function PublishScreen() {
           )}
 
           {form.origin && (
-            <View className="flex-row items-center px-3 py-3 rounded-xl border border-primary-200 bg-primary-50 mt-2">
-              <View className="w-2.5 h-2.5 rounded-full bg-primary-500 mr-2" />
-              <Text className="text-sm font-medium text-neutral-900 flex-1" numberOfLines={1}>{form.origin.name}</Text>
+            <View className="px-3 py-3 rounded-xl border border-primary-200 bg-primary-50 mt-2">
+              <View className="flex-row items-center">
+                <View className="w-2.5 h-2.5 rounded-full bg-primary-500 mr-2" />
+                <Text className="text-sm font-medium text-neutral-900 flex-1" numberOfLines={1}>{form.origin.name}</Text>
+              </View>
+              {locationSubtitle(form.origin) ? (
+                <Text className="text-xs text-neutral-500 mt-0.5 ml-4" numberOfLines={1}>{locationSubtitle(form.origin)}</Text>
+              ) : null}
             </View>
           )}
         </>
@@ -876,11 +936,7 @@ export default function PublishScreen() {
               {destinationResults.map((item) => (
                 <TouchableOpacity
                   key={item.id}
-                  onPress={() => handleInlineLocationSelect('destination', {
-                    latitude: item.latitude,
-                    longitude: item.longitude,
-                    name: item.name,
-                  })}
+                  onPress={() => handleDestinationSuggestionSelect(item)}
                   className="px-3 py-3 border-b border-neutral-100"
                 >
                   <Text className="text-sm font-medium text-neutral-900" numberOfLines={1}>{item.name}</Text>
@@ -892,13 +948,18 @@ export default function PublishScreen() {
 
           {form.destination && (
             <View
-              className={`flex-row items-center px-3 py-3 rounded-xl border mt-2 ${invalidDestination
+              className={`px-3 py-3 rounded-xl border mt-2 ${invalidDestination
                 ? 'border-red-300 bg-red-50'
                 : 'border-accent-200 bg-accent-50'
                 }`}
             >
-              <View className={`w-2.5 h-2.5 rounded-full mr-2 ${invalidDestination ? 'bg-red-500' : 'bg-accent-500'}`} />
-              <Text className="text-sm font-medium text-neutral-900 flex-1" numberOfLines={1}>{form.destination.name}</Text>
+              <View className="flex-row items-center">
+                <View className={`w-2.5 h-2.5 rounded-full mr-2 ${invalidDestination ? 'bg-red-500' : 'bg-accent-500'}`} />
+                <Text className="text-sm font-medium text-neutral-900 flex-1" numberOfLines={1}>{form.destination.name}</Text>
+              </View>
+              {!invalidDestination && locationSubtitle(form.destination) ? (
+                <Text className="text-xs text-neutral-500 mt-0.5 ml-4" numberOfLines={1}>{locationSubtitle(form.destination)}</Text>
+              ) : null}
             </View>
           )}
           {invalidDestination && (
@@ -910,7 +971,7 @@ export default function PublishScreen() {
       );
     }
 
-    if (step === 4) {
+    if (step === 5) {
       const selectedAlt = selectedRoute;
       const selectedIndex = Math.max(0, routeAlternatives.findIndex((r) => r.id === selectedRouteId));
 
@@ -940,6 +1001,14 @@ export default function PublishScreen() {
                   } as Region}
                 >
                   <Marker coordinate={{ latitude: form.origin.latitude, longitude: form.origin.longitude }} title="Origen" />
+                  {waypoints.map((w, idx) => (
+                    <Marker
+                      key={`wp-${idx}`}
+                      coordinate={{ latitude: w.latitude, longitude: w.longitude }}
+                      title={`Parada ${idx + 1}: ${w.name}`}
+                      pinColor="#F59E0B"
+                    />
+                  ))}
                   <Marker coordinate={{ latitude: form.destination.latitude, longitude: form.destination.longitude }} title="Destino" pinColor={Colors.accent[500]} />
                   {selectedAlt && (
                     <Polyline
@@ -996,10 +1065,10 @@ export default function PublishScreen() {
       );
     }
 
-    if (step === 5) {
+    if (step === 4) {
       return (
         <>
-          <View className="flex-row items-center justify-between mb-2">
+          <View className="flex-row items-center justify-between mb-3">
             <Text className="text-sm font-semibold text-neutral-700">Ciudades intermedias</Text>
             <TouchableOpacity onPress={addWaypoint} className="flex-row items-center">
               <Plus size={16} color={Colors.primary[600]} />
@@ -1007,30 +1076,76 @@ export default function PublishScreen() {
             </TouchableOpacity>
           </View>
 
+          {/* Origin anchor */}
+          <View className="flex-row items-start px-3 py-2.5 rounded-xl border border-primary-200 bg-primary-50 mb-2">
+            <View className="w-2.5 h-2.5 rounded-full bg-primary-500 mr-2" />
+            <View className="flex-1">
+              <Text className="text-[10px] text-primary-600 font-medium">ORIGEN</Text>
+              <Text className="text-sm font-medium text-neutral-900" numberOfLines={1}>{form.origin?.name}</Text>
+              {form.origin && locationSubtitle(form.origin) ? (
+                <Text className="text-xs text-neutral-500 mt-0.5" numberOfLines={1}>{locationSubtitle(form.origin)}</Text>
+              ) : null}
+            </View>
+          </View>
+
           {waypoints.length === 0 ? (
-            <Card>
-              <Text className="text-sm text-neutral-500">
-                No has agregado paradas. Puedes continuar sin ciudades intermedias.
+            <View className="items-center py-4 mb-2">
+              <Text className="text-sm text-neutral-400 text-center">
+                No hay paradas. Puedes continuar sin ciudades intermedias.
               </Text>
-            </Card>
+            </View>
           ) : (
-            <View className="gap-2">
+            <View className="gap-2 mb-2">
               {waypoints.map((w, idx) => (
                 <View
                   key={`${w.latitude}-${w.longitude}-${idx}`}
-                  className="flex-row items-center justify-between rounded-xl border border-neutral-200 bg-white px-3 py-3"
+                  className="flex-row items-center rounded-xl border border-neutral-200 bg-white px-3 py-2.5"
                 >
                   <View className="flex-1 mr-2">
-                    <Text className="text-xs text-neutral-400">Parada {idx + 1}</Text>
+                    <Text className="text-[10px] text-neutral-400 font-medium">PARADA {idx + 1}</Text>
                     <Text className="text-sm font-medium text-neutral-900" numberOfLines={1}>{w.name}</Text>
+                    {locationSubtitle(w) ? (
+                      <Text className="text-xs text-neutral-400 mt-0.5" numberOfLines={1}>{locationSubtitle(w)}</Text>
+                    ) : null}
                   </View>
-                  <TouchableOpacity onPress={() => setWaypoints((prev) => prev.filter((_, i) => i !== idx))}>
-                    <X size={16} color={Colors.neutral[500]} />
-                  </TouchableOpacity>
+                  <View className="flex-row items-center gap-1">
+                    <TouchableOpacity
+                      onPress={() => moveWaypointUp(idx)}
+                      disabled={idx === 0}
+                      className={`w-7 h-7 rounded-lg border items-center justify-center ${idx === 0 ? 'border-neutral-100 opacity-30' : 'border-neutral-200'}`}
+                    >
+                      <ChevronUp size={14} color={Colors.neutral[600]} />
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      onPress={() => moveWaypointDown(idx)}
+                      disabled={idx === waypoints.length - 1}
+                      className={`w-7 h-7 rounded-lg border items-center justify-center ${idx === waypoints.length - 1 ? 'border-neutral-100 opacity-30' : 'border-neutral-200'}`}
+                    >
+                      <ChevronDown size={14} color={Colors.neutral[600]} />
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      onPress={() => setWaypoints((prev) => prev.filter((_, i) => i !== idx))}
+                      className="w-7 h-7 rounded-lg border border-neutral-200 items-center justify-center"
+                    >
+                      <X size={14} color={Colors.neutral[500]} />
+                    </TouchableOpacity>
+                  </View>
                 </View>
               ))}
             </View>
           )}
+
+          {/* Destination anchor */}
+          <View className="flex-row items-start px-3 py-2.5 rounded-xl border border-accent-200 bg-accent-50">
+            <View className="w-2.5 h-2.5 rounded-full bg-accent-500 mr-2" />
+            <View className="flex-1">
+              <Text className="text-[10px] text-accent-600 font-medium">DESTINO</Text>
+              <Text className="text-sm font-medium text-neutral-900" numberOfLines={1}>{form.destination?.name}</Text>
+              {form.destination && locationSubtitle(form.destination) ? (
+                <Text className="text-xs text-neutral-500 mt-0.5" numberOfLines={1}>{locationSubtitle(form.destination)}</Text>
+              ) : null}
+            </View>
+          </View>
         </>
       );
     }
@@ -1237,18 +1352,24 @@ export default function PublishScreen() {
 
           <Card>
             <View className="flex-row gap-3">
-              <View className="flex-1 flex-row items-center">
-                <Map size={18} color={Colors.neutral[700]} />
+              <View className="flex-1 flex-row items-start">
+                <Map size={18} color={Colors.neutral[700]} className="mt-0.5" />
                 <View className="ml-2 flex-1">
                   <Text className="text-xs text-neutral-500">Origen</Text>
                   <Text className="text-base font-semibold text-neutral-900" numberOfLines={1}>{form.origin?.name ?? 'Sin definir'}</Text>
+                  {form.origin && locationSubtitle(form.origin) ? (
+                    <Text className="text-xs text-neutral-400 mt-0.5" numberOfLines={1}>{locationSubtitle(form.origin)}</Text>
+                  ) : null}
                 </View>
               </View>
-              <View className="flex-1 flex-row items-center">
-                <Map size={18} color={Colors.accent[600]} />
+              <View className="flex-1 flex-row items-start">
+                <Map size={18} color={Colors.accent[600]} className="mt-0.5" />
                 <View className="ml-2 flex-1">
                   <Text className="text-xs text-neutral-500">Destino</Text>
                   <Text className="text-base font-semibold text-neutral-900" numberOfLines={1}>{form.destination?.name ?? 'Sin definir'}</Text>
+                  {form.destination && locationSubtitle(form.destination) ? (
+                    <Text className="text-xs text-neutral-400 mt-0.5" numberOfLines={1}>{locationSubtitle(form.destination)}</Text>
+                  ) : null}
                 </View>
               </View>
             </View>
@@ -1458,7 +1579,7 @@ export default function PublishScreen() {
         mode={locationPicker.target === 'waypoint' ? 'full' : 'map-only'}
         mapHintText={
           locationPicker.target === 'destination'
-            ? undefined
+            ? 'Selecciona el lugar de finalizacion del viaje'
             : 'Selecciona el lugar de encuentro para iniciar el viaje'
         }
         municipalityFocus={locationPicker.municipalityFocus}

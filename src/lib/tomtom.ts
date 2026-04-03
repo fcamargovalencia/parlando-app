@@ -135,6 +135,9 @@ export interface LocationSearchResult {
    * 'specific'     → street address or POI; can be confirmed directly.
    */
   locationType: 'municipality' | 'specific';
+  city?: string;
+  state?: string;
+  country?: string;
 }
 
 // ── Public API ──
@@ -166,7 +169,7 @@ export const tomtomService = {
    * Get human-readable address from coordinates
    * Priority: TomTom (if key available) → Nominatim fallback
    */
-  async reverseGeocode(latitude: number, longitude: number): Promise<string> {
+  async reverseGeocode(latitude: number, longitude: number): Promise<{ name: string; city?: string; state?: string; country?: string; }> {
     if (Config.TOMTOM_API_KEY) {
       try {
         return await tomtomReverseGeocode(latitude, longitude);
@@ -241,6 +244,9 @@ function formatTomTomResult(result: TomTomSearchResult, type: 'address' | 'poi')
     longitude: result.position.lon,
     source: 'tomtom' as const,
     locationType: isSpecific ? 'specific' : 'municipality',
+    city: addr.municipality || undefined,
+    state: addr.countrySubdivision || undefined,
+    country: addr.country || undefined,
   };
 }
 
@@ -288,6 +294,9 @@ function formatTomTomPoiResult(result: any): LocationSearchResult {
     longitude: poi.position.lon,
     source: 'tomtom' as const,
     locationType: 'specific', // POIs are always a precise point
+    city: poi.address?.municipality || undefined,
+    state: poi.address?.countrySubdivision || undefined,
+    country: poi.address?.country || undefined,
   };
 }
 
@@ -358,7 +367,7 @@ async function tomtomSearch(query: string, options?: { latitude?: number; longit
   }
 }
 
-async function tomtomReverseGeocode(latitude: number, longitude: number): Promise<string> {
+async function tomtomReverseGeocode(latitude: number, longitude: number): Promise<{ name: string; city?: string; state?: string; country?: string; }> {
   const params = new URLSearchParams({
     key: Config.TOMTOM_API_KEY,
     language: 'es-ES',
@@ -380,23 +389,27 @@ async function tomtomReverseGeocode(latitude: number, longitude: number): Promis
       const addr = data.addresses[0].address;
 
       // Priority: Full address details > freeformAddress > municipality
-      // Build address from components if available
       const street = addr.street ? `${addr.buildingNumber ? addr.buildingNumber + ' ' : ''}${addr.street}` : '';
-      const neighbourhood = addr.neighbourhood ? addr.neighbourhood : '';
-      const municipality = addr.municipality ? addr.municipality : '';
+      const neighbourhood = addr.neighbourhood ?? '';
+      const municipality = addr.municipality ?? '';
 
-      // Return most detailed address available
-      return (
+      const name =
         street ||
         neighbourhood ||
         addr.freeformAddress.split(',')[0].trim() ||
         municipality ||
         addr.localName ||
-        'Ubicación'
-      );
+        'Ubicación';
+
+      return {
+        name,
+        city: municipality || addr.localName || undefined,
+        state: addr.countrySubdivisionName || addr.countrySubdivision || undefined,
+        country: addr.country || undefined,
+      };
     }
 
-    return 'Ubicación';
+    return { name: 'Ubicación' };
   } catch (error: any) {
     // 429 is expected under rapid movement — log as warn, not error
     if (error?.message?.includes('429')) {
@@ -445,6 +458,9 @@ async function nominatimSearch(query: string, options?: { latitude?: number; lon
         longitude: parseFloat(result.lon),
         source: 'nominatim' as const,
         locationType: hasStreet ? 'specific' : 'municipality',
+        city: addr.city || addr.town || addr.village || addr.municipality || undefined,
+        state: addr.state || addr.county || undefined,
+        country: 'Colombia',
       };
     });
   } catch (error) {
@@ -453,7 +469,7 @@ async function nominatimSearch(query: string, options?: { latitude?: number; lon
   }
 }
 
-async function nominatimReverseGeocode(latitude: number, longitude: number): Promise<string> {
+async function nominatimReverseGeocode(latitude: number, longitude: number): Promise<{ name: string; city?: string; state?: string; country?: string; }> {
   try {
     const response = await fetch(
       `${NOMINATIM_BASE}/reverse?lat=${latitude}&lon=${longitude}&format=json&addressdetails=1&language=es`,
@@ -462,20 +478,19 @@ async function nominatimReverseGeocode(latitude: number, longitude: number): Pro
 
     const data: any = await response.json();
     const addr = data.address ?? {};
+    const city: string | undefined = addr.city || addr.town || addr.village || addr.municipality || undefined;
+    const state: string | undefined = addr.state || addr.county || undefined;
 
-    // Priority: street > neighbourhood > city > display name
-    return (
+    const name =
       (addr.road ? `${addr.house_number ? addr.house_number + ' ' : ''}${addr.road}` : '') ||
       addr.neighbourhood ||
-      addr.city ||
-      addr.town ||
-      addr.village ||
-      addr.municipality ||
+      city ||
       data.display_name?.split(',')[0]?.trim() ||
-      'Ubicación'
-    );
+      'Ubicación';
+
+    return { name, city, state, country: 'Colombia' };
   } catch (error) {
     console.error('[Nominatim] Reverse geocode error:', error);
-    return 'Ubicación';
+    return { name: 'Ubicación' };
   }
 }
