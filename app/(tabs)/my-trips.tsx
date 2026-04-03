@@ -162,7 +162,7 @@ function TripCard({ trip, cancelling, onPress, onCancel }: TripCardProps) {
           <View className="flex-row items-center gap-1">
             <Users size={13} color={Colors.neutral[400]} />
             <Text className="text-xs text-neutral-500">
-              {trip.availableSeats}/{trip.totalSeats} asientos
+              {trip.availableSeats} asientos
             </Text>
           </View>
           <View className="flex-row items-center gap-1">
