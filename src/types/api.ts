@@ -256,6 +256,16 @@ export interface UpdateTripRequest {
   waypoints?: WaypointRequest[];
 }
 
+export interface RouteWaypoint {
+  id?: string;
+  latitude: number;
+  longitude: number;
+  orderIndex: number;
+  name: string;
+  isPickupPoint: boolean;
+  estimatedArrival?: string;
+}
+
 export interface TripResponse {
   id: string;
   driverId: string;
@@ -269,6 +279,7 @@ export interface TripResponse {
   destinationLatitude: number;
   destinationLongitude: number;
   departureAt: string;
+  estimatedArrivalTime?: string;
   availableSeats: number;
   totalSeats: number;
   pricePerSeat: number;
@@ -278,6 +289,7 @@ export interface TripResponse {
   universityId?: string | null;
   isRecurring: boolean;
   recurrencePattern?: string | null;
+  waypoints?: RouteWaypoint[];
   createdAt: string;
   updatedAt: string;
   driver?: {

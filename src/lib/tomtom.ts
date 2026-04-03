@@ -140,9 +140,17 @@ export interface LocationSearchResult {
   country?: string;
 }
 
+// ── Route Types ──
+
+export interface TomTomRoutePoint {
+  latitude: number;
+  longitude: number;
+}
+
 // ── Public API ──
 
 const TOMTOM_BASE = 'https://api.tomtom.com/search/2';
+const TOMTOM_ROUTING_BASE = 'https://api.tomtom.com/routing/1';
 const NOMINATIM_BASE = 'https://nominatim.openstreetmap.org';
 
 export const tomtomService = {
@@ -182,6 +190,19 @@ export const tomtomService = {
   },
 
   /**
+   * Calculate a route between ordered stops and return the polyline points.
+   * Downsamples to `maxPoints` (default 60) to keep the payload manageable.
+   * Throws if TomTom is not configured or the request fails.
+   */
+  async calculateRoute(
+    stops: Array<{ latitude: number; longitude: number }>,
+    options?: { maxPoints?: number },
+  ): Promise<TomTomRoutePoint[]> {
+    if (!Config.TOMTOM_API_KEY) throw new Error('TomTom API key not configured');
+    return tomtomCalculateRoute(stops, options?.maxPoints ?? 60);
+  },
+
+  /**
    * Check if TomTom is configured
    */
   isConfigured(): boolean {
@@ -190,6 +211,42 @@ export const tomtomService = {
 };
 
 // ── TomTom Implementation ──
+
+async function tomtomCalculateRoute(
+  stops: Array<{ latitude: number; longitude: number }>,
+  maxPoints: number,
+): Promise<TomTomRoutePoint[]> {
+  const locations = stops.map((p) => `${p.latitude},${p.longitude}`).join(':');
+  const params = new URLSearchParams({
+    key: Config.TOMTOM_API_KEY,
+    routeRepresentation: 'polyline',
+    routeType: 'fastest',
+    traffic: 'false',
+  });
+
+  const response = await fetch(
+    `${TOMTOM_ROUTING_BASE}/calculateRoute/${locations}/json?${params}`,
+    { method: 'GET', headers: { 'Content-Type': 'application/json' } },
+  );
+
+  if (!response.ok) throw new Error(`TomTom Routing API error: ${response.status}`);
+
+  const data: { routes: Array<{ legs: Array<{ points: TomTomRoutePoint[] }> }> } =
+    await response.json();
+
+  if (!data.routes?.length) return [];
+
+  const all: TomTomRoutePoint[] = data.routes[0].legs.flatMap((leg) => leg.points);
+
+  if (all.length <= maxPoints) return all;
+
+  const step = Math.ceil(all.length / maxPoints);
+  const sampled: TomTomRoutePoint[] = [];
+  for (let i = 0; i < all.length; i += step) sampled.push(all[i]);
+  const last = all[all.length - 1];
+  if (sampled[sampled.length - 1] !== last) sampled.push(last);
+  return sampled;
+}
 
 function formatTomTomResult(result: TomTomSearchResult, type: 'address' | 'poi'): LocationSearchResult {
   const addr = result.address;

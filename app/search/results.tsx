@@ -45,6 +45,10 @@ function fmtDeparture(iso: string) {
   return d.format('D MMM, h:mm A');
 }
 
+function fmtArrival(iso: string) {
+  return dayjs(iso).format('h:mm A');
+}
+
 // ── Trip card ──
 
 function TripCard({ trip, onPress }: { trip: TripResponse; onPress: () => void }) {
@@ -53,8 +57,8 @@ function TripCard({ trip, onPress }: { trip: TripResponse; onPress: () => void }
   return (
     <TouchableOpacity onPress={onPress} activeOpacity={0.75} disabled={noSeats}>
       <Card className="mb-3" style={noSeats ? { opacity: 0.55 } : undefined}>
-        {/* Header row */}
-        <View className="flex-row items-center justify-between mb-3">
+        {/* Header: Trip type and badges */}
+        <View className="flex-row items-center justify-between mb-2">
           <View className="flex-row items-center gap-1.5">
             <TripTypeIcon type={trip.tripType} />
             <Text className="text-xs font-medium text-neutral-500">
@@ -67,36 +71,91 @@ function TripCard({ trip, onPress }: { trip: TripResponse; onPress: () => void }
           </View>
         </View>
 
-        {/* Route */}
+        {/* Driver info - prominent at top */}
+        {trip.driver && (
+          <View className="flex-row items-center gap-2 mb-2 pb-2 border-b border-neutral-100">
+            <View className="w-7 h-7 rounded-full bg-primary-100 items-center justify-center">
+              <Text className="text-xs font-bold text-primary-700">
+                {trip.driver.firstName.charAt(0)}{trip.driver.lastName.charAt(0)}
+              </Text>
+            </View>
+            <View className="flex-1">
+              <Text className="text-xs text-neutral-700 font-semibold">
+                {trip.driver.firstName} {trip.driver.lastName}
+              </Text>
+            </View>
+            <View className="flex-row items-center gap-0.5">
+              <Text className="text-xs">⭐</Text>
+              <Text className="text-xs font-medium text-neutral-600">{trip.driver.trustScore.toFixed(1)}</Text>
+            </View>
+          </View>
+        )}
+
+        {/* Route with locations */}
         <View className="flex-row items-start mb-3">
           <View className="items-center mr-3 pt-1">
             <View className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: Colors.primary[500] }} />
-            <View className="w-0.5 h-5 my-1" style={{ backgroundColor: Colors.neutral[200] }} />
+            <View className="w-0.5 h-12 my-1" style={{ backgroundColor: Colors.neutral[200] }} />
             <View className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: Colors.accent[500] }} />
           </View>
-          <View className="flex-1 gap-1">
-            <Text className="text-sm font-semibold text-neutral-900" numberOfLines={1}>
-              {trip.originName}
-            </Text>
-            <Text className="text-sm font-semibold text-neutral-900" numberOfLines={1}>
-              {trip.destinationName}
-            </Text>
+          <View className="flex-1 gap-2">
+            {/* Origin */}
+            <View>
+              <Text className="text-sm font-semibold text-neutral-900" numberOfLines={1}>
+                {trip.originName}
+              </Text>
+              <Text className="text-xs text-neutral-500" numberOfLines={1}>
+                {[trip.originName?.split(',').pop()?.trim(), trip.originName?.includes(',') ? undefined : undefined].filter(Boolean).join(', ') ||
+                 'Colombia'}
+              </Text>
+            </View>
+            {/* Destination */}
+            <View>
+              <Text className="text-sm font-semibold text-neutral-900" numberOfLines={1}>
+                {trip.destinationName}
+              </Text>
+              <Text className="text-xs text-neutral-500" numberOfLines={1}>
+                {[trip.destinationName?.split(',').pop()?.trim(), trip.destinationName?.includes(',') ? undefined : undefined].filter(Boolean).join(', ') ||
+                 'Colombia'}
+              </Text>
+            </View>
           </View>
           <ChevronRight size={18} color={Colors.neutral[300]} />
         </View>
 
-        {/* Meta */}
-        <View className="flex-row flex-wrap gap-x-4 gap-y-1.5">
+        {/* Time and basic info */}
+        <View className="flex-row flex-wrap gap-x-4 gap-y-1.5 mb-2">
           <View className="flex-row items-center gap-1">
             <Clock size={13} color={Colors.neutral[400]} />
             <Text className="text-xs text-neutral-500">{fmtDeparture(trip.departureAt)}</Text>
           </View>
+          {trip.estimatedArrivalTime && (
+            <View className="flex-row items-center gap-1">
+              <Clock size={13} color={Colors.accent[400]} />
+              <Text className="text-xs text-neutral-500">
+                Llega: {fmtArrival(trip.estimatedArrivalTime)}
+              </Text>
+            </View>
+          )}
           <View className="flex-row items-center gap-1">
             <Users size={13} color={Colors.neutral[400]} />
             <Text className="text-xs text-neutral-500">
               {trip.availableSeats} {trip.availableSeats === 1 ? 'cupo' : 'cupos'}
             </Text>
           </View>
+        </View>
+
+        {/* Stops, price, luggage row */}
+        <View className="flex-row flex-wrap gap-x-4 gap-y-1.5">
+          {trip.waypoints && trip.waypoints.length > 0 && (
+            <View className="flex-row items-center gap-1">
+              <MapPin size={13} color={Colors.neutral[400]} />
+              <Text className="text-xs text-neutral-500">
+                {trip.waypoints.filter((w) => w.isPickupPoint).length}{' '}
+                {trip.waypoints.filter((w) => w.isPickupPoint).length === 1 ? 'parada' : 'paradas'}
+              </Text>
+            </View>
+          )}
           <View className="flex-row items-center gap-1">
             <DollarSign size={13} color={Colors.neutral[400]} />
             <Text className="text-xs font-semibold text-neutral-700">
@@ -110,24 +169,6 @@ function TripCard({ trip, onPress }: { trip: TripResponse; onPress: () => void }
             </View>
           )}
         </View>
-
-        {/* Driver info if available */}
-        {trip.driver && (
-          <View className="flex-row items-center mt-3 pt-3 border-t border-neutral-100 gap-2">
-            <View className="w-6 h-6 rounded-full bg-primary-100 items-center justify-center">
-              <Text className="text-xs font-bold text-primary-700">
-                {trip.driver.firstName.charAt(0)}{trip.driver.lastName.charAt(0)}
-              </Text>
-            </View>
-            <Text className="text-xs text-neutral-600 font-medium">
-              {trip.driver.firstName} {trip.driver.lastName}
-            </Text>
-            <View className="flex-row items-center gap-0.5 ml-1">
-              <Text className="text-xs">⭐</Text>
-              <Text className="text-xs text-neutral-500">{trip.driver.trustScore.toFixed(1)}</Text>
-            </View>
-          </View>
-        )}
       </Card>
     </TouchableOpacity>
   );

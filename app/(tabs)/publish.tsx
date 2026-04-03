@@ -42,7 +42,7 @@ import {
 import { Colors } from '@/constants/colors';
 import { vehiclesApi } from '@/api/vehicles';
 import { tripsApi } from '@/api/trips';
-import type { TripType, VehicleResponse } from '@/types/api';
+import type { TripType, VehicleResponse, WaypointRequest } from '@/types/api';
 import { tomtomService, type LocationSearchResult } from '@/lib/tomtom';
 import Toast from 'react-native-toast-message';
 
@@ -721,6 +721,63 @@ export default function PublishScreen() {
 
     setSubmitting(true);
     try {
+      // Build waypoints from TomTom route: cities added by user → isPickupPoint true,
+      // all other route geometry points → false.
+      let routeWaypoints: WaypointRequest[] = [];
+      try {
+        const stops = [
+          { latitude: form.origin.latitude, longitude: form.origin.longitude },
+          ...waypoints.map((w) => ({ latitude: w.latitude, longitude: w.longitude })),
+          { latitude: form.destination.latitude, longitude: form.destination.longitude },
+        ];
+        const routePoints = await tomtomService.calculateRoute(stops);
+        const PICKUP_THRESHOLD_KM = 0.5;
+
+        // First: add all user waypoints as pickup points
+        const pickupPoints: WaypointRequest[] = waypoints.map((w, idx) => ({
+          latitude: w.latitude,
+          longitude: w.longitude,
+          orderIndex: idx,
+          name: w.name,
+          isPickupPoint: true,
+        }));
+
+        // Then: add route points that aren't close to any pickup point
+        const otherPoints: WaypointRequest[] = [];
+        routePoints.forEach((point) => {
+          const isNearPickup = waypoints.some(
+            (city) => distanceKm(
+              city,
+              { latitude: point.latitude, longitude: point.longitude, name: '' },
+            ) < PICKUP_THRESHOLD_KM,
+          );
+          if (!isNearPickup) {
+            otherPoints.push({
+              latitude: point.latitude,
+              longitude: point.longitude,
+              orderIndex: 0, // Will be fixed later
+              name: `${point.latitude.toFixed(5)},${point.longitude.toFixed(5)}`,
+              isPickupPoint: false,
+            });
+          }
+        });
+
+        // Combine and assign final indices
+        routeWaypoints = [...pickupPoints, ...otherPoints].map((wp, idx) => ({
+          ...wp,
+          orderIndex: idx,
+        }));
+      } catch (routeErr) {
+        console.warn('[TomTom] Route calculation failed, using user waypoints only:', routeErr);
+        routeWaypoints = waypoints.map((w, idx) => ({
+          latitude: w.latitude,
+          longitude: w.longitude,
+          orderIndex: idx,
+          name: w.name,
+          isPickupPoint: true,
+        }));
+      }
+
       const { data: createRes } = await tripsApi.create({
         tripType,
         originName: form.origin.name,
@@ -736,13 +793,7 @@ export default function PublishScreen() {
         vehicleId: form.vehicleId,
         allowsLuggage: form.allowsLuggage,
         studentsOnly: tripType === 'ROUTINE' ? form.studentsOnly : false,
-        waypoints: waypoints.map((w, idx) => ({
-          latitude: w.latitude,
-          longitude: w.longitude,
-          orderIndex: idx,
-          name: w.name,
-          isPickupPoint: true,
-        })),
+        waypoints: routeWaypoints,
       });
 
       if (!createRes.data) throw new Error('Error al crear viaje');

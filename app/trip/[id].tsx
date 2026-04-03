@@ -32,6 +32,7 @@ import {
   Check,
   X,
   UserX,
+  MapPin,
 } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Badge, Card, Spinner, Button, Avatar } from '@/components/ui';
@@ -848,14 +849,83 @@ export default function TripDetailScreen() {
             </View>
           )}
 
+          {/* ── Complete Route ── */}
+          <Card>
+            <View className="flex-row items-center gap-2 mb-3">
+              <MapPin size={16} color={Colors.primary[600]} />
+              <Text className="text-sm font-semibold text-neutral-700">Ruta</Text>
+            </View>
+            <View className="gap-3">
+              {/* Origin */}
+              <View className="flex-row items-start gap-3">
+                <View className="items-center pt-1">
+                  <View className="w-3 h-3 rounded-full" style={{ backgroundColor: Colors.primary[500] }} />
+                </View>
+                <View className="flex-1">
+                  <Text className="text-sm font-semibold text-neutral-900">{trip.originName}</Text>
+                  <Text className="text-xs text-neutral-500 mt-0.5">Colombia</Text>
+                </View>
+              </View>
+
+              {/* Intermediate cities with connecting line */}
+              {trip.waypoints &&
+                trip.waypoints
+                  .filter((w) => w.isPickupPoint)
+                  .sort((a, b) => a.orderIndex - b.orderIndex)
+                  .map((waypoint, idx) => (
+                    <View key={waypoint.id || idx}>
+                      <View className="ml-1.5 h-4 w-0.5 bg-neutral-200" />
+                      <View className="flex-row items-start gap-3">
+                        <View className="items-center pt-1">
+                          <View className="w-3 h-3 rounded-full bg-primary-400" />
+                        </View>
+                        <View className="flex-1">
+                          <Text className="text-sm font-semibold text-neutral-900">{waypoint.name}</Text>
+                          <Text className="text-xs text-neutral-500 mt-0.5">Parada {idx + 1}</Text>
+                        </View>
+                      </View>
+                    </View>
+                  ))}
+
+              {/* Destination */}
+              {trip.waypoints && trip.waypoints.some((w) => w.isPickupPoint) && (
+                <View className="ml-1.5 h-4 w-0.5 bg-neutral-200" />
+              )}
+              <View className="flex-row items-start gap-3">
+                <View className="items-center pt-1">
+                  <View className="w-3 h-3 rounded-full" style={{ backgroundColor: Colors.accent[500] }} />
+                </View>
+                <View className="flex-1">
+                  <Text className="text-sm font-semibold text-neutral-900">{trip.destinationName}</Text>
+                  <Text className="text-xs text-neutral-500 mt-0.5">Colombia</Text>
+                </View>
+              </View>
+            </View>
+          </Card>
+
           {/* ── Trip details ── */}
           <Card>
-            <Text className="text-sm font-semibold text-neutral-700 mb-1">Detalles del viaje</Text>
+            <Text className="text-sm font-semibold text-neutral-700 mb-3">Detalles del viaje</Text>
             <DetailRow icon={<Clock size={16} color={Colors.neutral[400]} />} label="Salida" value={fmtDeparture(trip.departureAt)} />
+            {trip.estimatedArrivalTime && (
+              <DetailRow icon={<Clock size={16} color={Colors.accent[500]} />} label="Llegada estimada" value={fmtDeparture(trip.estimatedArrivalTime)} />
+            )}
             <DetailRow icon={<Users size={16} color={Colors.neutral[400]} />} label="Asientos" value={`${trip.availableSeats} disponibles de ${trip.totalSeats}`} />
-            <DetailRow icon={<DollarSign size={16} color={Colors.neutral[400]} />} label="Precio por asiento" value={formatCurrency(trip.pricePerSeat, trip.currency)} />
-            <DetailRow icon={<Luggage size={16} color={Colors.neutral[400]} />} label="Equipaje" value={trip.allowsLuggage ? 'Permitido' : 'No permitido'} />
-            <DetailRow icon={<GraduationCap size={16} color={Colors.neutral[400]} />} label="Solo estudiantes" value={trip.studentsOnly ? 'Sí' : 'No'} />
+            <View className="flex-row items-start gap-3 py-2.5 border-b border-neutral-100">
+              <View className="mt-0.5">
+                <DollarSign size={16} color={Colors.neutral[400]} />
+              </View>
+              <View className="flex-1">
+                <Text className="text-xs text-neutral-400 mb-0.5">Precio y equipaje</Text>
+                <Text className="text-sm font-medium text-neutral-900">
+                  {formatCurrency(trip.pricePerSeat, trip.currency)}
+                  {trip.allowsLuggage ? ' • Equipaje permitido' : ' • Sin equipaje'}
+                </Text>
+              </View>
+            </View>
+            {trip.tripType === 'ROUTINE' && (
+              <DetailRow icon={<GraduationCap size={16} color={Colors.neutral[400]} />} label="Solo estudiantes" value={trip.studentsOnly ? 'Sí' : 'No'} />
+            )}
           </Card>
 
           {/* ── Vehicle ── */}
@@ -869,9 +939,6 @@ export default function TripDetailScreen() {
                 {vehicle.brand} {vehicle.model} {vehicle.year}
               </Text>
               <Text className="text-sm text-neutral-500 mt-0.5">{vehicle.color}</Text>
-              <View className="bg-primary-50 rounded px-2 py-1 self-start mt-2">
-                <Text className="text-xs font-bold text-primary-700">{vehicle.plateNumber}</Text>
-              </View>
             </Card>
           )}
 
