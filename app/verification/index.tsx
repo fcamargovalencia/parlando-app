@@ -15,7 +15,14 @@ export default function VerificationsScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const user = useAuthStore((s) => s.user);
-  const { verifications, initialized, loading, refreshing, fetchVerifications } = useVerifications();
+  const {
+    verifications,
+    initialized,
+    loading,
+    refreshing,
+    error,
+    fetchVerifications,
+  } = useVerifications();
 
   useFocusEffect(
     useCallback(() => {
@@ -52,6 +59,13 @@ export default function VerificationsScreen() {
 
       {loading && !initialized ? (
         <Spinner fullScreen message="Cargando verificaciones..." />
+      ) : error && verifications.length === 0 ? (
+        <View className="flex-1 items-center justify-center px-6 gap-3">
+          <Text className="text-sm text-neutral-500 text-center">{error}</Text>
+          <TouchableOpacity onPress={() => void fetchVerifications()}>
+            <Text className="text-sm font-semibold text-primary-600">Reintentar</Text>
+          </TouchableOpacity>
+        </View>
       ) : (
         <FlatList
           data={verifications}

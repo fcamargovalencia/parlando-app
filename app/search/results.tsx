@@ -15,35 +15,19 @@ import {
   Users,
   DollarSign,
   Luggage,
-  GraduationCap,
-  Bus,
-  Building2,
   ChevronRight,
   Search,
 } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Badge, Card, Spinner } from '@/components/ui';
+import { TripTypeIcon } from '@/components/TripTypeIcon';
 import { Colors, Shadows } from '@/constants/colors';
 import { tripsApi } from '@/api/trips';
-import { formatCurrency, getTripTypeLabel } from '@/lib/utils';
+import { formatCurrency, getTripTypeLabel, formatDeparture } from '@/lib/utils';
 import type { TripResponse } from '@/types/api';
 import dayjs from 'dayjs';
 
 // ── Helpers ──
-
-function TripTypeIcon({ type, size = 16 }: { type: string; size?: number; }) {
-  if (type === 'INTERCITY') return <Bus size={size} color={Colors.primary[600]} />;
-  if (type === 'URBAN') return <Building2 size={size} color={Colors.accent[600]} />;
-  return <GraduationCap size={size} color="#3B82F6" />;
-}
-
-function fmtDeparture(iso: string) {
-  const d = dayjs(iso);
-  const today = dayjs();
-  if (d.isSame(today, 'day')) return `Hoy, ${d.format('h:mm A')}`;
-  if (d.isSame(today.add(1, 'day'), 'day')) return `Mañana, ${d.format('h:mm A')}`;
-  return d.format('D MMM, h:mm A');
-}
 
 function fmtArrival(iso: string) {
   return dayjs(iso).format('h:mm A');
@@ -125,7 +109,7 @@ function TripCard({ trip, onPress }: { trip: TripResponse; onPress: () => void; 
         <View className="flex-row flex-wrap gap-x-4 gap-y-1.5 mb-2">
           <View className="flex-row items-center gap-1">
             <Clock size={13} color={Colors.neutral[400]} />
-            <Text className="text-xs text-neutral-500">{fmtDeparture(trip.departureAt)}</Text>
+            <Text className="text-xs text-neutral-500">{formatDeparture(trip.departureAt)}</Text>
           </View>
           {trip.estimatedArrivalTime && (
             <View className="flex-row items-center gap-1">

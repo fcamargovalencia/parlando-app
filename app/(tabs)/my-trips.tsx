@@ -7,26 +7,24 @@ import {
   Alert,
   RefreshControl,
 } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import {
   Route,
   Clock,
   Users,
   DollarSign,
-  ChevronRight,
-  Bus,
-  Building2,
-  GraduationCap,
+  MapPin,
   Luggage,
   GraduationCap as StudentsIcon,
 } from 'lucide-react-native';
-import { Screen, Badge, Card, EmptyState, Spinner } from '@/components/ui';
+import { Screen, Badge, Card, EmptyState, Spinner, FilterTabs } from '@/components/ui';
+import { TripTypeIcon } from '@/components/TripTypeIcon';
 import { Colors } from '@/constants/colors';
+import { TRIP_STATUS_BADGE } from '@/constants/trips';
 import { tripsApi } from '@/api/trips';
-import { formatCurrency, getTripTypeLabel } from '@/lib/utils';
+import { formatCurrency, getTripTypeLabel, formatDeparture } from '@/lib/utils';
 import type { TripResponse, TripStatus } from '@/types/api';
 import Toast from 'react-native-toast-message';
-import dayjs from 'dayjs';
 
 // ── Filters ──
 
@@ -84,29 +82,7 @@ function reducer(state: State, action: Action): State {
   }
 }
 
-// ── Helpers ──
 
-const TRIP_TYPE_ICON: Record<string, React.ReactNode> = {
-  INTERCITY: <Bus size={16} color={Colors.primary[600]} />,
-  URBAN: <Building2 size={16} color={Colors.accent[600]} />,
-  ROUTINE: <GraduationCap size={16} color="#3B82F6" />,
-};
-
-const STATUS_BADGE: Record<TripStatus, { label: string; variant: 'success' | 'warning' | 'info' | 'error' | 'neutral'; }> = {
-  DRAFT: { label: 'Borrador', variant: 'neutral' },
-  PUBLISHED: { label: 'Publicado', variant: 'success' },
-  IN_PROGRESS: { label: 'En curso', variant: 'info' },
-  COMPLETED: { label: 'Completado', variant: 'success' },
-  CANCELLED: { label: 'Cancelado', variant: 'error' },
-};
-
-function fmtDeparture(iso: string) {
-  const d = dayjs(iso);
-  const today = dayjs();
-  if (d.isSame(today, 'day')) return `Hoy, ${d.format('h:mm A')}`;
-  if (d.isSame(today.add(1, 'day'), 'day')) return `Mañana, ${d.format('h:mm A')}`;
-  return d.format('D MMM, h:mm A');
-}
 
 // ── Trip Card ──
 
@@ -118,8 +94,9 @@ interface TripCardProps {
 }
 
 function TripCard({ trip, cancelling, onPress, onCancel }: TripCardProps) {
-  const badge = STATUS_BADGE[trip.status] ?? { label: trip.status, variant: 'neutral' as const };
+  const badge = TRIP_STATUS_BADGE[trip.status] ?? { label: trip.status, variant: 'neutral' as const };
   const canCancel = trip.status === 'DRAFT' || trip.status === 'PUBLISHED';
+  const stopCount = trip.waypoints?.filter((w) => w.isPickupPoint).length ?? 0;
 
   return (
     <TouchableOpacity onPress={onPress} activeOpacity={0.7}>
@@ -127,8 +104,8 @@ function TripCard({ trip, cancelling, onPress, onCancel }: TripCardProps) {
         {/* Top row: type + badge */}
         <View className="flex-row items-center justify-between mb-3">
           <View className="flex-row items-center gap-1.5">
-            {TRIP_TYPE_ICON[trip.tripType]}
-            <Text className="text-xs font-medium text-neutral-500">
+            <TripTypeIcon type={trip.tripType} size={16} />
+            <Text className="text-sm font-medium text-neutral-600">
               {getTripTypeLabel(trip.tripType)}
             </Text>
           </View>
@@ -139,48 +116,69 @@ function TripCard({ trip, cancelling, onPress, onCancel }: TripCardProps) {
         <View className="flex-row items-start mb-3">
           <View className="items-center mr-3 pt-1">
             <View className="w-2.5 h-2.5 rounded-full bg-primary-500" />
-            <View className="w-0.5 h-5 bg-neutral-200 my-1" />
+            <View className="w-0.5 h-8 bg-neutral-200 my-1" />
             <View className="w-2.5 h-2.5 rounded-full bg-accent-500" />
           </View>
-          <View className="flex-1 gap-1">
-            <Text className="text-sm font-semibold text-neutral-900" numberOfLines={1}>
-              {trip.originName}
-            </Text>
-            <Text className="text-sm font-semibold text-neutral-900" numberOfLines={1}>
-              {trip.destinationName}
-            </Text>
+          <View className="flex-1 gap-3">
+            <View>
+              <Text className="text-base font-semibold text-neutral-900" numberOfLines={1}>
+                {trip.originName}
+              </Text>
+              {!!trip.originSubtitle && (
+                <Text className="text-sm text-neutral-500" numberOfLines={1}>
+                  {trip.originSubtitle}
+                </Text>
+              )}
+            </View>
+            <View>
+              <Text className="text-base font-semibold text-neutral-900" numberOfLines={1}>
+                {trip.destinationName}
+              </Text>
+              {!!trip.destinationSubtitle && (
+                <Text className="text-sm text-neutral-500" numberOfLines={1}>
+                  {trip.destinationSubtitle}
+                </Text>
+              )}
+            </View>
           </View>
-          <ChevronRight size={18} color={Colors.neutral[300]} className="mt-1" />
         </View>
 
         {/* Meta row */}
-        <View className="flex-row flex-wrap gap-x-4 gap-y-1.5 mb-3">
-          <View className="flex-row items-center gap-1">
-            <Clock size={13} color={Colors.neutral[400]} />
-            <Text className="text-xs text-neutral-500">{fmtDeparture(trip.departureAt)}</Text>
+        <View className="flex-row flex-wrap mb-3 -mx-1">
+          <View className="w-1/2 px-1 mb-2 flex-row items-center gap-1">
+            <Clock size={14} color={Colors.neutral[400]} />
+            <Text className="text-sm text-neutral-600">{formatDeparture(trip.departureAt)}</Text>
           </View>
-          <View className="flex-row items-center gap-1">
-            <Users size={13} color={Colors.neutral[400]} />
-            <Text className="text-xs text-neutral-500">
+          <View className="w-1/2 px-1 mb-2 flex-row items-center gap-1">
+            <Users size={14} color={Colors.neutral[400]} />
+            <Text className="text-sm text-neutral-600">
               {trip.availableSeats} asientos
             </Text>
           </View>
-          <View className="flex-row items-center gap-1">
-            <DollarSign size={13} color={Colors.neutral[400]} />
-            <Text className="text-xs text-neutral-500">
+          <View className="w-1/2 px-1 mb-2 flex-row items-center gap-1">
+            <DollarSign size={14} color={Colors.neutral[400]} />
+            <Text className="text-sm text-neutral-600">
               {formatCurrency(trip.pricePerSeat, trip.currency)} / asiento
             </Text>
           </View>
+          {stopCount > 0 && (
+            <View className="w-1/2 px-1 mb-2 flex-row items-center gap-1">
+              <MapPin size={14} color={Colors.neutral[400]} />
+              <Text className="text-sm text-neutral-600">
+                {stopCount} {stopCount === 1 ? 'parada' : 'paradas'}
+              </Text>
+            </View>
+          )}
           {trip.allowsLuggage && (
-            <View className="flex-row items-center gap-1">
-              <Luggage size={13} color={Colors.neutral[400]} />
-              <Text className="text-xs text-neutral-500">Equipaje permitido</Text>
+            <View className="w-1/2 px-1 mb-2 flex-row items-center gap-1">
+              <Luggage size={14} color={Colors.neutral[400]} />
+              <Text className="text-sm text-neutral-600">Equipaje permitido</Text>
             </View>
           )}
           {trip.studentsOnly && (
-            <View className="flex-row items-center gap-1">
-              <StudentsIcon size={13} color="#3B82F6" />
-              <Text className="text-xs text-blue-500">Solo estudiantes</Text>
+            <View className="w-1/2 px-1 mb-2 flex-row items-center gap-1">
+              <StudentsIcon size={14} color="#3B82F6" />
+              <Text className="text-sm text-blue-500">Solo estudiantes</Text>
             </View>
           )}
         </View>
@@ -219,7 +217,37 @@ export default function MyTripsScreen() {
     dispatch({ type: 'FETCH_START', refreshing });
     try {
       const { data: res } = await tripsApi.getMine();
-      dispatch({ type: 'FETCH_SUCCESS', payload: res.data ?? [] });
+      const rawData = (res as any)?.data;
+      const baseTrips: TripResponse[] = Array.isArray(rawData)
+        ? rawData
+        : Array.isArray(rawData?.data)
+          ? rawData.data
+          : Array.isArray(rawData?.content)
+            ? rawData.content
+            : [];
+
+      // Some backends omit waypoints in /v1/trips/me, so hydrate them per trip.
+      const trips = await Promise.all(
+        baseTrips.map(async (trip) => {
+          if (Array.isArray(trip.waypoints)) return trip;
+          try {
+            const { data: wpRes } = await tripsApi.getWaypoints(trip.id);
+            const rawWp = (wpRes as any)?.data;
+            const waypoints = Array.isArray(rawWp)
+              ? rawWp
+              : Array.isArray(rawWp?.data)
+                ? rawWp.data
+                : Array.isArray(rawWp?.content)
+                  ? rawWp.content
+                  : [];
+            return { ...trip, waypoints };
+          } catch {
+            return trip;
+          }
+        }),
+      );
+
+      dispatch({ type: 'FETCH_SUCCESS', payload: trips });
     } catch (err: any) {
       dispatch({
         type: 'FETCH_ERROR',
@@ -229,6 +257,12 @@ export default function MyTripsScreen() {
   }, []);
 
   useEffect(() => { load(); }, [load]);
+
+  useFocusEffect(
+    useCallback(() => {
+      void load(false);
+    }, [load]),
+  );
 
   const handleCancel = (trip: TripResponse) => {
     Alert.alert(
@@ -280,39 +314,15 @@ export default function MyTripsScreen() {
       </View>
 
       {/* Filter tabs */}
-      <View className="flex-row px-6 mt-3 mb-4 gap-2">
-        {FILTERS.map((f) => {
-          const count = state.trips.filter((t) => f.statuses.includes(t.status)).length;
-          return (
-            <TouchableOpacity
-              key={f.key}
-              onPress={() => setActiveFilter(f.key)}
-              className={`flex-row items-center px-4 py-2 rounded-full ${activeFilter === f.key ? 'bg-primary-500' : 'bg-neutral-100'
-                }`}
-            >
-              <Text
-                className={`text-sm font-medium ${activeFilter === f.key ? 'text-white' : 'text-neutral-600'
-                  }`}
-              >
-                {f.label}
-              </Text>
-              {count > 0 && (
-                <View
-                  className={`ml-1.5 w-5 h-5 rounded-full items-center justify-center ${activeFilter === f.key ? 'bg-white/30' : 'bg-neutral-200'
-                    }`}
-                >
-                  <Text
-                    className={`text-xs font-bold ${activeFilter === f.key ? 'text-white' : 'text-neutral-600'
-                      }`}
-                  >
-                    {count > 9 ? '9+' : count}
-                  </Text>
-                </View>
-              )}
-            </TouchableOpacity>
-          );
-        })}
-      </View>
+      <FilterTabs
+        tabs={FILTERS.map((f) => ({
+          key: f.key,
+          label: f.label,
+          count: state.trips.filter((t) => f.statuses.includes(t.status)).length,
+        }))}
+        active={activeFilter}
+        onSelect={setActiveFilter}
+      />
 
       {/* Content */}
       {state.loading ? (
@@ -330,7 +340,7 @@ export default function MyTripsScreen() {
         <FlatList
           data={sortedTrips}
           keyExtractor={(t) => t.id}
-          contentContainerClassName="px-6 pb-8"
+          contentContainerClassName="px-4 pb-8"
           showsVerticalScrollIndicator={false}
           refreshControl={
             <RefreshControl

@@ -209,8 +209,14 @@ export default function AddVehicleScreen() {
     const fetchLicenses = async () => {
       try {
         const { data: res } = await verificationsApi.getMine();
-        const licenses = (res.data ?? []).filter(
-          (v) => v.documentType === 'LICENCIA_CONDUCCION'
+        const rawData = (res as any)?.data;
+        const verifications: IdentityVerificationResponse[] = Array.isArray(rawData)
+          ? rawData
+          : Array.isArray(rawData?.data)
+            ? rawData.data
+            : [];
+        const licenses = verifications.filter(
+          (v: IdentityVerificationResponse) => v.documentType === 'LICENCIA_CONDUCCION'
             && v.status !== 'REJECTED'
             && v.status !== 'EXPIRED',
         );

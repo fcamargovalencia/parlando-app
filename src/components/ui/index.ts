@@ -8,3 +8,5 @@ export { Spinner } from './Spinner';
 export { EmptyState } from './EmptyState';
 export { Divider } from './Divider';
 export { DatePickerModal } from './DatePickerModal';
+export { Toggle } from './Toggle';
+export { FilterTabs, type FilterTab } from './FilterTabs';

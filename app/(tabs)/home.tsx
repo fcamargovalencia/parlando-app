@@ -15,44 +15,28 @@ import {
   Search,
   MapPin,
   Calendar,
-  Bus,
-  Building2,
-  GraduationCap,
   Bell,
   ChevronRight,
 } from 'lucide-react-native';
 import { Screen, Avatar, DatePickerModal } from '@/components/ui';
 import { LocationPickerModal, type SelectedLocation } from '@/components/LocationPickerModal';
+import { TripTypeIcon } from '@/components/TripTypeIcon';
+import { TRIP_TYPE_OPTIONS } from '@/constants/trips';
 import { useAuthStore } from '@/stores/auth-store';
 import { Colors } from '@/constants/colors';
 import dayjs from 'dayjs';
+import type { TripType } from '@/types/api';
 
 // Returns an ISO-8601 string with the local UTC offset (e.g. "2025-04-02T10:00:00-05:00")
 // instead of a UTC "Z" string, so the backend can interpret the time in the user's timezone.
 function toLocalISOString(date: Date): string {
-  const offsetMs  = date.getTimezoneOffset() * 60_000;
-  const local     = new Date(date.getTime() - offsetMs);
+  const offsetMs = date.getTimezoneOffset() * 60_000;
+  const local = new Date(date.getTime() - offsetMs);
   const offsetMin = -date.getTimezoneOffset();
-  const sign      = offsetMin >= 0 ? '+' : '-';
-  const hh        = String(Math.floor(Math.abs(offsetMin) / 60)).padStart(2, '0');
-  const mm        = String(Math.abs(offsetMin) % 60).padStart(2, '0');
+  const sign = offsetMin >= 0 ? '+' : '-';
+  const hh = String(Math.floor(Math.abs(offsetMin) / 60)).padStart(2, '0');
+  const mm = String(Math.abs(offsetMin) % 60).padStart(2, '0');
   return local.toISOString().slice(0, 19) + `${sign}${hh}:${mm}`;
-}
-
-// ── Trip type config ──
-
-type TripTypeKey = 'INTERCITY' | 'URBAN' | 'ROUTINE';
-
-const TRIP_TYPES: { key: TripTypeKey; label: string; subtitle: string }[] = [
-  { key: 'INTERCITY', label: 'Interurbano', subtitle: 'Ciudad a ciudad' },
-  { key: 'URBAN',     label: 'Urbano',       subtitle: 'Dentro de tu ciudad' },
-  { key: 'ROUTINE',   label: 'Rutinario',    subtitle: 'Universidad / Empresa' },
-];
-
-function TripTypeIcon({ type, size = 18 }: { type: TripTypeKey; size?: number }) {
-  if (type === 'INTERCITY') return <Bus size={size} color={Colors.primary[600]} />;
-  if (type === 'URBAN')     return <Building2 size={size} color={Colors.accent[600]} />;
-  return <GraduationCap size={size} color="#3B82F6" />;
 }
 
 // ── Location button ──
@@ -108,7 +92,7 @@ export default function HomeScreen() {
   const [origin, setOrigin] = useState<SelectedLocation | null>(null);
   const [destination, setDestination] = useState<SelectedLocation | null>(null);
   const [departureDate, setDepartureDate] = useState<Date>(new Date());
-  const [tripType, setTripType] = useState<TripTypeKey>('INTERCITY');
+  const [tripType, setTripType] = useState<TripType>('INTERCITY');
 
   // Modal state
   const [originPickerVisible, setOriginPickerVisible] = useState(false);
@@ -133,14 +117,14 @@ export default function HomeScreen() {
     router.push({
       pathname: '/search/results',
       params: {
-        originLat:   String(origin.latitude),
-        originLng:   String(origin.longitude),
-        originName:  origin.name,
-        destLat:     String(destination.latitude),
-        destLng:     String(destination.longitude),
-        destName:    destination.name,
+        originLat: String(origin.latitude),
+        originLng: String(origin.longitude),
+        originName: origin.name,
+        destLat: String(destination.latitude),
+        destLng: String(destination.longitude),
+        destName: destination.name,
         departureFrom: from,
-        departureTo:   to,
+        departureTo: to,
         tripType,
       },
     });
@@ -272,8 +256,8 @@ export default function HomeScreen() {
                     {dayjs(departureDate).isSame(dayjs(), 'day')
                       ? 'Hoy'
                       : dayjs(departureDate).isSame(dayjs().add(1, 'day'), 'day')
-                      ? 'Mañana'
-                      : dayjs(departureDate).format('D MMM')}
+                        ? 'Mañana'
+                        : dayjs(departureDate).format('D MMM')}
                   </Text>
                 </View>
               </TouchableOpacity>
@@ -289,7 +273,7 @@ export default function HomeScreen() {
                 <View className="ml-2 flex-1">
                   <Text className="text-xs font-medium" style={{ color: Colors.neutral[400] }}>Tipo</Text>
                   <Text className="text-sm font-semibold text-neutral-900">
-                    {TRIP_TYPES.find((t) => t.key === tripType)?.label}
+                    {TRIP_TYPE_OPTIONS.find((t) => t.type === tripType)?.label}
                   </Text>
                 </View>
                 <ChevronRight size={14} color={Colors.neutral[300]} />
@@ -318,22 +302,22 @@ export default function HomeScreen() {
         <View className="px-5 pt-6 pb-2">
           <Text className="text-base font-bold text-neutral-900 mb-3">Tipo de viaje</Text>
           <View className="flex-row gap-3">
-            {TRIP_TYPES.map((t) => (
+            {TRIP_TYPE_OPTIONS.map((t) => (
               <TouchableOpacity
-                key={t.key}
+                key={t.type}
                 onPress={() => {
-                  setTripType(t.key);
+                  setTripType(t.type);
                   setOriginPickerVisible(true);
                 }}
                 activeOpacity={0.8}
                 className="flex-1 rounded-2xl p-3.5 items-center"
                 style={{
-                  backgroundColor: tripType === t.key ? Colors.primary[50] : '#F8F9FA',
+                  backgroundColor: tripType === t.type ? Colors.primary[50] : '#F8F9FA',
                   borderWidth: 1.5,
-                  borderColor: tripType === t.key ? Colors.primary[300] : '#F0F0F0',
+                  borderColor: tripType === t.type ? Colors.primary[300] : '#F0F0F0',
                 }}
               >
-                <TripTypeIcon type={t.key} size={22} />
+                <TripTypeIcon type={t.type} size={22} />
                 <Text className="text-xs font-semibold mt-2 text-center" style={{ color: Colors.neutral[700] }}>
                   {t.label}
                 </Text>
@@ -394,12 +378,12 @@ export default function HomeScreen() {
           {/* Handle */}
           <View className="w-10 h-1 rounded-full bg-neutral-200 self-center mb-4" />
           <Text className="text-base font-bold text-neutral-900 mb-4">Tipo de viaje</Text>
-          {TRIP_TYPES.map((t) => {
-            const selected = tripType === t.key;
+          {TRIP_TYPE_OPTIONS.map((t) => {
+            const selected = tripType === t.type;
             return (
               <TouchableOpacity
-                key={t.key}
-                onPress={() => { setTripType(t.key); setTripTypeSheetVisible(false); }}
+                key={t.type}
+                onPress={() => { setTripType(t.type); setTripTypeSheetVisible(false); }}
                 activeOpacity={0.7}
                 className="flex-row items-center py-4 border-b border-neutral-100"
               >
@@ -407,7 +391,7 @@ export default function HomeScreen() {
                   className="w-11 h-11 rounded-2xl items-center justify-center mr-4"
                   style={{ backgroundColor: selected ? Colors.primary[50] : Colors.neutral[100] }}
                 >
-                  <TripTypeIcon type={t.key} size={20} />
+                  <TripTypeIcon type={t.type} size={20} />
                 </View>
                 <View className="flex-1">
                   <Text className="text-sm font-semibold text-neutral-900">{t.label}</Text>

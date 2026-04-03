@@ -13,30 +13,17 @@ import {
   Clock,
   DollarSign,
   ChevronRight,
-  Bus,
-  Building2,
-  GraduationCap,
-  MapPin,
 } from 'lucide-react-native';
-import { Screen, Badge, Card, EmptyState, Spinner } from '@/components/ui';
+import { Screen, Badge, Card, EmptyState, Spinner, FilterTabs } from '@/components/ui';
+import { TripTypeIcon } from '@/components/TripTypeIcon';
 import { Colors } from '@/constants/colors';
+import { BOOKING_STATUS_BADGE } from '@/constants/trips';
 import { bookingsApi } from '@/api/bookings';
-import { formatCurrency, getTripTypeLabel } from '@/lib/utils';
+import { formatCurrency, getTripTypeLabel, formatDeparture } from '@/lib/utils';
 import type { BookingResponse, BookingStatus } from '@/types/api';
 import Toast from 'react-native-toast-message';
-import dayjs from 'dayjs';
 
-// ── Helpers ──
 
-const STATUS_CONFIG: Record<BookingStatus, { label: string; variant: 'success' | 'warning' | 'info' | 'error' | 'neutral'; }> = {
-  PENDING: { label: 'Pendiente', variant: 'warning' },
-  ACCEPTED: { label: 'Aceptado', variant: 'success' },
-  REJECTED: { label: 'Rechazado', variant: 'error' },
-  BOARDED: { label: 'Abordo', variant: 'info' },
-  COMPLETED: { label: 'Completado', variant: 'success' },
-  CANCELLED: { label: 'Cancelado', variant: 'neutral' },
-  NO_SHOW: { label: 'No asistió', variant: 'error' },
-};
 
 type FilterKey = 'active' | 'past';
 
@@ -45,20 +32,6 @@ const FILTERS: { key: FilterKey; label: string; statuses: BookingStatus[]; }[] =
   { key: 'past', label: 'Pasadas', statuses: ['COMPLETED', 'CANCELLED', 'REJECTED', 'NO_SHOW'] },
 ];
 
-function TripTypeIcon({ type, size = 14 }: { type?: string; size?: number; }) {
-  if (type === 'INTERCITY') return <Bus size={size} color={Colors.primary[600]} />;
-  if (type === 'URBAN') return <Building2 size={size} color={Colors.accent[600]} />;
-  return <GraduationCap size={size} color="#3B82F6" />;
-}
-
-function fmtDeparture(iso?: string) {
-  if (!iso) return '–';
-  const d = dayjs(iso);
-  const today = dayjs();
-  if (d.isSame(today, 'day')) return `Hoy, ${d.format('h:mm A')}`;
-  if (d.isSame(today.add(1, 'day'), 'day')) return `Mañana, ${d.format('h:mm A')}`;
-  return d.format('D MMM, h:mm A');
-}
 
 // ── State ──
 
@@ -114,7 +87,7 @@ function BookingCard({
   onPress: () => void;
   onCancel: () => void;
 }) {
-  const config = STATUS_CONFIG[booking.status];
+  const config = BOOKING_STATUS_BADGE[booking.status];
   const trip = booking.trip;
   const canCancel = booking.status === 'PENDING' || booking.status === 'ACCEPTED';
 
@@ -124,7 +97,7 @@ function BookingCard({
         {/* Header */}
         <View className="flex-row items-center justify-between mb-3">
           <View className="flex-row items-center gap-1.5">
-            <TripTypeIcon type={trip?.tripType} />
+            <TripTypeIcon type={trip?.tripType} size={14} />
             <Text className="text-xs font-medium text-neutral-500">
               {trip ? getTripTypeLabel(trip.tripType) : 'Viaje'}
             </Text>
@@ -158,7 +131,7 @@ function BookingCard({
             <>
               <View className="flex-row items-center gap-1">
                 <Clock size={13} color={Colors.neutral[400]} />
-                <Text className="text-xs text-neutral-500">{fmtDeparture(trip.departureAt)}</Text>
+                <Text className="text-xs text-neutral-500">{formatDeparture(trip.departureAt)}</Text>
               </View>
               <View className="flex-row items-center gap-1">
                 <DollarSign size={13} color={Colors.neutral[400]} />
@@ -209,7 +182,15 @@ export default function MyBookingsScreen() {
     dispatch({ type: 'FETCH_START', refreshing });
     try {
       const { data: res } = await bookingsApi.getMine();
-      dispatch({ type: 'FETCH_SUCCESS', payload: res.data ?? [] });
+      const rawData = (res as any)?.data;
+      const bookings: BookingResponse[] = Array.isArray(rawData)
+        ? rawData
+        : Array.isArray(rawData?.data)
+          ? rawData.data
+          : Array.isArray(rawData?.content)
+            ? rawData.content
+            : [];
+      dispatch({ type: 'FETCH_SUCCESS', payload: bookings });
     } catch (err: any) {
       dispatch({ type: 'FETCH_ERROR', payload: err?.response?.data?.message ?? 'Error al cargar tus reservas' });
     }
@@ -261,29 +242,15 @@ export default function MyBookingsScreen() {
       </View>
 
       {/* Filter tabs */}
-      <View className="flex-row px-6 mt-3 mb-4 gap-2">
-        {FILTERS.map((f) => {
-          const count = state.bookings.filter((b) => f.statuses.includes(b.status)).length;
-          return (
-            <TouchableOpacity
-              key={f.key}
-              onPress={() => setActiveFilter(f.key)}
-              className={`flex-row items-center px-4 py-2 rounded-full ${activeFilter === f.key ? 'bg-primary-500' : 'bg-neutral-100'}`}
-            >
-              <Text className={`text-sm font-medium ${activeFilter === f.key ? 'text-white' : 'text-neutral-600'}`}>
-                {f.label}
-              </Text>
-              {count > 0 && (
-                <View className={`ml-1.5 w-5 h-5 rounded-full items-center justify-center ${activeFilter === f.key ? 'bg-white/30' : 'bg-neutral-200'}`}>
-                  <Text className={`text-xs font-bold ${activeFilter === f.key ? 'text-white' : 'text-neutral-600'}`}>
-                    {count > 9 ? '9+' : count}
-                  </Text>
-                </View>
-              )}
-            </TouchableOpacity>
-          );
-        })}
-      </View>
+      <FilterTabs
+        tabs={FILTERS.map((f) => ({
+          key: f.key,
+          label: f.label,
+          count: state.bookings.filter((b) => f.statuses.includes(b.status)).length,
+        }))}
+        active={activeFilter}
+        onSelect={setActiveFilter}
+      />
 
       {/* Content */}
       {state.loading ? (

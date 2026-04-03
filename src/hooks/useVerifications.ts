@@ -94,19 +94,24 @@ export function useVerifications() {
 
     try {
       const { data: res } = await verificationsApi.getMine();
-      const newVerifications = res.data ?? [];
+      const rawData = (res as any)?.data;
+      const newVerifications: IdentityVerificationResponse[] = Array.isArray(rawData)
+        ? rawData
+        : Array.isArray(rawData?.data)
+          ? rawData.data
+          : [];
       _moduleInitialized = true;
       dispatch({ type: 'FETCH_SUCCESS', payload: newVerifications });
 
       // Detect status changes from previous fetch
       const prev = prevStatusesRef.current;
       const hasStatusChanged = newVerifications.some(
-        (v) => prev[v.id] !== undefined && prev[v.id] !== v.status,
+        (v: IdentityVerificationResponse) => prev[v.id] !== undefined && prev[v.id] !== v.status,
       );
 
       // Update snapshot
       prevStatusesRef.current = Object.fromEntries(
-        newVerifications.map((v) => [v.id, v.status]),
+        newVerifications.map((v: IdentityVerificationResponse) => [v.id, v.status]),
       );
 
       // Sync profile when a verification status changed so verificationLevel reflects the update
@@ -119,9 +124,12 @@ export function useVerifications() {
         }
       }
     } catch (err: any) {
+      const backendMessage = err?.response?.data?.message
+        ?? err?.response?.data?.error
+        ?? err?.message;
       dispatch({
         type: 'FETCH_ERROR',
-        payload: err?.response?.data?.message ?? 'Error al cargar verificaciones',
+        payload: backendMessage ?? 'Error al cargar verificaciones',
       });
     }
   }, [setStoreUser]);
