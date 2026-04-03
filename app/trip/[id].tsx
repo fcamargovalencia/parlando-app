@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -22,6 +22,7 @@ import {
   Car,
   ChevronRight,
   Edit3,
+  Map,
   Play,
   CheckCircle,
   XCircle,
@@ -34,6 +35,7 @@ import {
   UserX,
 } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import MapView, { Polyline, Marker } from 'react-native-maps';
 import { Badge, Card, Spinner, Button, Avatar } from '@/components/ui';
 import { Colors, Shadows } from '@/constants/colors';
 import { tripsApi } from '@/api/trips';
@@ -48,34 +50,35 @@ import type {
   UpdateTripRequest,
   BookingResponse,
   BookingStatus,
+  RouteWaypointResponse,
 } from '@/types/api';
 import Toast from 'react-native-toast-message';
 import dayjs from 'dayjs';
 
 // ── Helpers ──
 
-const STATUS_BADGE: Record<TripStatus, { label: string; variant: 'success' | 'warning' | 'info' | 'error' | 'neutral' }> = {
-  DRAFT:       { label: 'Borrador',    variant: 'neutral' },
-  PUBLISHED:   { label: 'Publicado',   variant: 'success' },
-  IN_PROGRESS: { label: 'En curso',    variant: 'info' },
-  COMPLETED:   { label: 'Completado',  variant: 'success' },
-  CANCELLED:   { label: 'Cancelado',   variant: 'error' },
+const STATUS_BADGE: Record<TripStatus, { label: string; variant: 'success' | 'warning' | 'info' | 'error' | 'neutral'; }> = {
+  DRAFT: { label: 'Borrador', variant: 'neutral' },
+  PUBLISHED: { label: 'Publicado', variant: 'success' },
+  IN_PROGRESS: { label: 'En curso', variant: 'info' },
+  COMPLETED: { label: 'Completado', variant: 'success' },
+  CANCELLED: { label: 'Cancelado', variant: 'error' },
 };
 
-const BOOKING_BADGE: Record<BookingStatus, { label: string; variant: 'success' | 'warning' | 'info' | 'error' | 'neutral' }> = {
-  PENDING:   { label: 'Pendiente de aprobación', variant: 'warning' },
-  ACCEPTED:  { label: 'Cupo aceptado',            variant: 'success' },
-  REJECTED:  { label: 'Solicitud rechazada',      variant: 'error' },
-  BOARDED:   { label: 'Abordo',                   variant: 'info' },
-  COMPLETED: { label: 'Completado',               variant: 'success' },
-  CANCELLED: { label: 'Cancelado',                variant: 'neutral' },
-  NO_SHOW:   { label: 'No asististe',             variant: 'error' },
+const BOOKING_BADGE: Record<BookingStatus, { label: string; variant: 'success' | 'warning' | 'info' | 'error' | 'neutral'; }> = {
+  PENDING: { label: 'Pendiente de aprobación', variant: 'warning' },
+  ACCEPTED: { label: 'Cupo aceptado', variant: 'success' },
+  REJECTED: { label: 'Solicitud rechazada', variant: 'error' },
+  BOARDED: { label: 'Abordo', variant: 'info' },
+  COMPLETED: { label: 'Completado', variant: 'success' },
+  CANCELLED: { label: 'Cancelado', variant: 'neutral' },
+  NO_SHOW: { label: 'No asististe', variant: 'error' },
 };
 
 const TRIP_TYPE_ICON: Record<string, React.ReactNode> = {
   INTERCITY: <Bus size={18} color={Colors.primary[600]} />,
-  URBAN:     <Building2 size={18} color={Colors.accent[600]} />,
-  ROUTINE:   <GraduationCap size={18} color="#3B82F6" />,
+  URBAN: <Building2 size={18} color={Colors.accent[600]} />,
+  ROUTINE: <GraduationCap size={18} color="#3B82F6" />,
 };
 
 function fmtDeparture(iso: string) {
@@ -409,7 +412,7 @@ function ToggleRow({
   );
 }
 
-function DetailRow({ icon, label, value }: { icon: React.ReactNode; label: string; value: string }) {
+function DetailRow({ icon, label, value }: { icon: React.ReactNode; label: string; value: string; }) {
   return (
     <View className="flex-row items-start gap-3 py-2.5 border-b border-neutral-100">
       <View className="mt-0.5">{icon}</View>
@@ -534,10 +537,169 @@ function BookingRow({
   );
 }
 
+// ── Route Map Modal ──
+
+interface RouteMapModalProps {
+  trip: TripResponse;
+  visible: boolean;
+  onClose: () => void;
+  waypoints: RouteWaypointResponse[];
+  loading: boolean;
+}
+
+function RouteMapModal({ trip, visible, onClose, waypoints, loading }: RouteMapModalProps) {
+  const mapRef = useRef<MapView>(null);
+
+  const sortedWaypoints = waypoints.slice().sort((a, b) => a.orderIndex - b.orderIndex);
+  const allPoints = [
+    { latitude: trip.originLatitude, longitude: trip.originLongitude },
+    ...sortedWaypoints.map((w) => ({ latitude: w.latitude, longitude: w.longitude })),
+    { latitude: trip.destinationLatitude, longitude: trip.destinationLongitude },
+  ];
+  const pickupWaypoints = sortedWaypoints.filter((w) => w.isPickupPoint);
+
+  useEffect(() => {
+    if (!visible || loading || allPoints.length < 2) return;
+    const timer = setTimeout(() => {
+      mapRef.current?.fitToCoordinates(allPoints, {
+        edgePadding: { top: 80, right: 48, bottom: 220, left: 48 },
+        animated: true,
+      });
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [visible, loading, waypoints]);
+
+  return (
+    <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
+      <View style={{ flex: 1, backgroundColor: '#0f172a' }}>
+        {/* Header */}
+        <View style={{ flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 16, paddingTop: 16, paddingBottom: 12 }}>
+          <TouchableOpacity onPress={onClose} style={{ width: 36, height: 36, alignItems: 'center', justifyContent: 'center' }}>
+            <ArrowLeft size={22} color="#fff" />
+          </TouchableOpacity>
+          <Text style={{ fontSize: 15, fontWeight: '600', color: '#fff' }}>Ruta del viaje</Text>
+          <View style={{ width: 36 }} />
+        </View>
+
+        {loading ? (
+          <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
+            <ActivityIndicator size="large" color="#fff" />
+            <Text style={{ color: '#94a3b8', marginTop: 12, fontSize: 13 }}>Cargando ruta…</Text>
+          </View>
+        ) : (
+          <View style={{ flex: 1 }}>
+            <MapView
+              ref={mapRef}
+              style={{ flex: 1 }}
+              initialRegion={{
+                latitude: (trip.originLatitude + trip.destinationLatitude) / 2,
+                longitude: (trip.originLongitude + trip.destinationLongitude) / 2,
+                latitudeDelta: Math.abs(trip.originLatitude - trip.destinationLatitude) * 2.5 + 0.5,
+                longitudeDelta: Math.abs(trip.originLongitude - trip.destinationLongitude) * 2.5 + 0.5,
+              }}
+            >
+              {/* Route polyline */}
+              {allPoints.length >= 2 && (
+                <Polyline
+                  coordinates={allPoints}
+                  strokeColor={Colors.primary[500]}
+                  strokeWidth={3.5}
+                />
+              )}
+
+              {/* Origin marker */}
+              <Marker
+                coordinate={{ latitude: trip.originLatitude, longitude: trip.originLongitude }}
+                title={trip.originName}
+                description={trip.originSubtitle}
+                pinColor={Colors.primary[600]}
+              />
+
+              {/* Pickup waypoint markers */}
+              {pickupWaypoints.map((w, idx) => (
+                <Marker
+                  key={w.id ?? idx}
+                  coordinate={{ latitude: w.latitude, longitude: w.longitude }}
+                  title={w.name}
+                  description={w.subtitle}
+                  pinColor={Colors.primary[400]}
+                />
+              ))}
+
+              {/* Destination marker */}
+              <Marker
+                coordinate={{ latitude: trip.destinationLatitude, longitude: trip.destinationLongitude }}
+                title={trip.destinationName}
+                description={trip.destinationSubtitle}
+                pinColor={Colors.accent[600]}
+              />
+            </MapView>
+
+            {/* Legend overlay */}
+            <View
+              style={{
+                position: 'absolute',
+                bottom: Platform.OS === 'ios' ? 40 : 24,
+                left: 16,
+                right: 16,
+                backgroundColor: '#fff',
+                borderRadius: 16,
+                padding: 16,
+                ...Shadows.lg,
+              }}
+            >
+              {/* Origin row */}
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: Colors.primary[500] }} />
+                <Text style={{ fontSize: 12, fontWeight: '600', color: '#1e293b', flex: 1 }} numberOfLines={1}>
+                  {trip.originName}
+                </Text>
+                {!!trip.originSubtitle && (
+                  <Text style={{ fontSize: 11, color: '#94a3b8' }} numberOfLines={1}>
+                    {trip.originSubtitle}
+                  </Text>
+                )}
+              </View>
+
+              {/* Pickup stop rows */}
+              {pickupWaypoints.map((w, idx) => (
+                <View key={w.id ?? idx} style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                  <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: Colors.primary[300] }} />
+                  <Text style={{ fontSize: 12, fontWeight: '500', color: '#334155', flex: 1 }} numberOfLines={1}>
+                    {w.name}
+                  </Text>
+                  {!!w.subtitle && (
+                    <Text style={{ fontSize: 11, color: '#94a3b8' }} numberOfLines={1}>
+                      {w.subtitle}
+                    </Text>
+                  )}
+                </View>
+              ))}
+
+              {/* Destination row */}
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: Colors.accent[500] }} />
+                <Text style={{ fontSize: 12, fontWeight: '600', color: '#1e293b', flex: 1 }} numberOfLines={1}>
+                  {trip.destinationName}
+                </Text>
+                {!!trip.destinationSubtitle && (
+                  <Text style={{ fontSize: 11, color: '#94a3b8' }} numberOfLines={1}>
+                    {trip.destinationSubtitle}
+                  </Text>
+                )}
+              </View>
+            </View>
+          </View>
+        )}
+      </View>
+    </Modal>
+  );
+}
+
 // ── Main Screen ──
 
 export default function TripDetailScreen() {
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const { id } = useLocalSearchParams<{ id: string; }>();
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const user = useAuthStore((s) => s.user);
@@ -551,6 +713,9 @@ export default function TripDetailScreen() {
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   const [editVisible, setEditVisible] = useState(false);
   const [bookVisible, setBookVisible] = useState(false);
+  const [mapVisible, setMapVisible] = useState(false);
+  const [waypointsFull, setWaypointsFull] = useState<RouteWaypointResponse[]>([]);
+  const [loadingWaypoints, setLoadingWaypoints] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -565,7 +730,7 @@ export default function TripDetailScreen() {
       try {
         const { data: vRes } = await vehiclesApi.getById(t.vehicleId);
         if (vRes.data) setVehicle(vRes.data);
-      } catch {}
+      } catch { }
 
       const isDriver = user?.id === t.driverId;
 
@@ -574,7 +739,7 @@ export default function TripDetailScreen() {
         try {
           const { data: bRes } = await bookingsApi.getByTrip(t.id);
           setBookings(bRes.data ?? []);
-        } catch {}
+        } catch { }
       } else {
         // Check if current user has already booked
         try {
@@ -665,16 +830,67 @@ export default function TripDetailScreen() {
     ]);
   };
 
+  const openMap = async () => {
+    setMapVisible(true);
+    if (waypointsFull.length > 0) return;
+    setLoadingWaypoints(true);
+    try {
+      const { data: res } = await tripsApi.getWaypoints(id);
+      const fetched = res.data ?? [];
+      if (fetched.length > 0) {
+        setWaypointsFull(fetched);
+      } else if (trip?.waypoints && trip.waypoints.length > 0) {
+        // Fallback: use waypoints embedded in the trip response
+        setWaypointsFull(
+          trip.waypoints.map((w) => ({
+            id: w.id ?? '',
+            tripId: trip.id,
+            latitude: w.latitude,
+            longitude: w.longitude,
+            orderIndex: w.orderIndex,
+            name: w.name,
+            subtitle: w.subtitle,
+            isPickupPoint: w.isPickupPoint,
+            estimatedArrival: w.estimatedArrival,
+            createdAt: trip.createdAt,
+            updatedAt: trip.updatedAt,
+          })),
+        );
+      }
+    } catch {
+      // Fallback: use waypoints embedded in the trip response
+      if (trip?.waypoints && trip.waypoints.length > 0) {
+        setWaypointsFull(
+          trip.waypoints.map((w) => ({
+            id: w.id ?? '',
+            tripId: trip.id,
+            latitude: w.latitude,
+            longitude: w.longitude,
+            orderIndex: w.orderIndex,
+            name: w.name,
+            subtitle: w.subtitle,
+            isPickupPoint: w.isPickupPoint,
+            estimatedArrival: w.estimatedArrival,
+            createdAt: trip.createdAt,
+            updatedAt: trip.updatedAt,
+          })),
+        );
+      }
+    } finally {
+      setLoadingWaypoints(false);
+    }
+  };
+
   // Driver booking actions
   const handleBookingAction = async (bookingId: string, action: 'accept' | 'reject' | 'board' | 'noshow') => {
     const label = `${bookingId}-${action}`;
     setActionLoading(label);
     try {
       let updated: BookingResponse | undefined;
-      if (action === 'accept')  { const { data: r } = await bookingsApi.accept(bookingId);  updated = r.data ?? undefined; }
-      if (action === 'reject')  { const { data: r } = await bookingsApi.reject(bookingId);  updated = r.data ?? undefined; }
-      if (action === 'board')   { const { data: r } = await bookingsApi.board(bookingId);   updated = r.data ?? undefined; }
-      if (action === 'noshow')  { const { data: r } = await bookingsApi.noShow(bookingId);  updated = r.data ?? undefined; }
+      if (action === 'accept') { const { data: r } = await bookingsApi.accept(bookingId); updated = r.data ?? undefined; }
+      if (action === 'reject') { const { data: r } = await bookingsApi.reject(bookingId); updated = r.data ?? undefined; }
+      if (action === 'board') { const { data: r } = await bookingsApi.board(bookingId); updated = r.data ?? undefined; }
+      if (action === 'noshow') { const { data: r } = await bookingsApi.noShow(bookingId); updated = r.data ?? undefined; }
 
       if (updated) {
         setBookings((prev) => prev.map((b) => b.id === bookingId ? updated! : b));
@@ -751,6 +967,9 @@ export default function TripDetailScreen() {
                 </View>
                 <View className="flex-1">
                   <Text className="text-sm font-semibold text-neutral-900">{trip.originName}</Text>
+                  {!!trip.originSubtitle && (
+                    <Text className="text-xs text-neutral-400 mt-0.5">{trip.originSubtitle}</Text>
+                  )}
                 </View>
               </View>
 
@@ -768,6 +987,9 @@ export default function TripDetailScreen() {
                         </View>
                         <View className="flex-1">
                           <Text className="text-sm font-semibold text-neutral-900">{waypoint.name}</Text>
+                          {!!waypoint.subtitle && (
+                            <Text className="text-xs text-neutral-400 mt-0.5">{waypoint.subtitle}</Text>
+                          )}
                         </View>
                       </View>
                     </View>
@@ -783,9 +1005,24 @@ export default function TripDetailScreen() {
                 </View>
                 <View className="flex-1">
                   <Text className="text-sm font-semibold text-neutral-900">{trip.destinationName}</Text>
+                  {!!trip.destinationSubtitle && (
+                    <Text className="text-xs text-neutral-400 mt-0.5">{trip.destinationSubtitle}</Text>
+                  )}
                 </View>
               </View>
             </View>
+
+            {/* Ver ruta en el mapa */}
+            <TouchableOpacity
+              onPress={openMap}
+              className="flex-row items-center justify-between mt-4 pt-3 border-t border-neutral-100"
+            >
+              <View className="flex-row items-center gap-2">
+                <Map size={16} color={Colors.primary[600]} />
+                <Text className="text-sm font-medium text-primary-600">Ver ruta en el mapa</Text>
+              </View>
+              <ChevronRight size={16} color={Colors.primary[400]} />
+            </TouchableOpacity>
           </Card>
 
           {/* ── Passenger: My booking status ── */}
@@ -974,6 +1211,15 @@ export default function TripDetailScreen() {
           visible={bookVisible}
           onClose={() => setBookVisible(false)}
           onBooked={(booking) => setMyBooking(booking)}
+        />
+      )}
+      {trip && (
+        <RouteMapModal
+          trip={trip}
+          visible={mapVisible}
+          onClose={() => setMapVisible(false)}
+          waypoints={waypointsFull}
+          loading={loadingWaypoints}
         />
       )}
     </View>

@@ -32,9 +32,9 @@ import dayjs from 'dayjs';
 
 type FilterKey = 'active' | 'past' | 'cancelled';
 
-const FILTERS: { key: FilterKey; label: string; statuses: TripStatus[] }[] = [
-  { key: 'active',    label: 'Activos',    statuses: ['DRAFT', 'PUBLISHED', 'IN_PROGRESS'] },
-  { key: 'past',      label: 'Pasados',    statuses: ['COMPLETED'] },
+const FILTERS: { key: FilterKey; label: string; statuses: TripStatus[]; }[] = [
+  { key: 'active', label: 'Activos', statuses: ['DRAFT', 'PUBLISHED', 'IN_PROGRESS'] },
+  { key: 'past', label: 'Pasados', statuses: ['COMPLETED'] },
   { key: 'cancelled', label: 'Cancelados', statuses: ['CANCELLED'] },
 ];
 
@@ -49,12 +49,12 @@ interface State {
 }
 
 type Action =
-  | { type: 'FETCH_START'; refreshing?: boolean }
-  | { type: 'FETCH_SUCCESS'; payload: TripResponse[] }
-  | { type: 'FETCH_ERROR'; payload: string }
-  | { type: 'CANCEL_START'; id: string }
-  | { type: 'CANCEL_SUCCESS'; id: string }
-  | { type: 'CANCEL_ERROR' };
+  | { type: 'FETCH_START'; refreshing?: boolean; }
+  | { type: 'FETCH_SUCCESS'; payload: TripResponse[]; }
+  | { type: 'FETCH_ERROR'; payload: string; }
+  | { type: 'CANCEL_START'; id: string; }
+  | { type: 'CANCEL_SUCCESS'; id: string; }
+  | { type: 'CANCEL_ERROR'; };
 
 function reducer(state: State, action: Action): State {
   switch (action.type) {
@@ -88,16 +88,16 @@ function reducer(state: State, action: Action): State {
 
 const TRIP_TYPE_ICON: Record<string, React.ReactNode> = {
   INTERCITY: <Bus size={16} color={Colors.primary[600]} />,
-  URBAN:     <Building2 size={16} color={Colors.accent[600]} />,
-  ROUTINE:   <GraduationCap size={16} color="#3B82F6" />,
+  URBAN: <Building2 size={16} color={Colors.accent[600]} />,
+  ROUTINE: <GraduationCap size={16} color="#3B82F6" />,
 };
 
-const STATUS_BADGE: Record<TripStatus, { label: string; variant: 'success' | 'warning' | 'info' | 'error' | 'neutral' }> = {
-  DRAFT:       { label: 'Borrador',    variant: 'neutral' },
-  PUBLISHED:   { label: 'Publicado',   variant: 'success' },
-  IN_PROGRESS: { label: 'En curso',    variant: 'info' },
-  COMPLETED:   { label: 'Completado',  variant: 'success' },
-  CANCELLED:   { label: 'Cancelado',   variant: 'error' },
+const STATUS_BADGE: Record<TripStatus, { label: string; variant: 'success' | 'warning' | 'info' | 'error' | 'neutral'; }> = {
+  DRAFT: { label: 'Borrador', variant: 'neutral' },
+  PUBLISHED: { label: 'Publicado', variant: 'success' },
+  IN_PROGRESS: { label: 'En curso', variant: 'info' },
+  COMPLETED: { label: 'Completado', variant: 'success' },
+  CANCELLED: { label: 'Cancelado', variant: 'error' },
 };
 
 function fmtDeparture(iso: string) {
@@ -270,7 +270,7 @@ export default function MyTripsScreen() {
   });
 
   return (
-    <Screen>
+    <Screen edges={['top', 'left', 'right']}>
       {/* Header */}
       <View className="px-6 pt-4 pb-2">
         <Text className="text-2xl font-bold text-neutral-900">Mis viajes</Text>
@@ -287,27 +287,23 @@ export default function MyTripsScreen() {
             <TouchableOpacity
               key={f.key}
               onPress={() => setActiveFilter(f.key)}
-              className={`flex-row items-center px-4 py-2 rounded-full ${
-                activeFilter === f.key ? 'bg-primary-500' : 'bg-neutral-100'
-              }`}
+              className={`flex-row items-center px-4 py-2 rounded-full ${activeFilter === f.key ? 'bg-primary-500' : 'bg-neutral-100'
+                }`}
             >
               <Text
-                className={`text-sm font-medium ${
-                  activeFilter === f.key ? 'text-white' : 'text-neutral-600'
-                }`}
+                className={`text-sm font-medium ${activeFilter === f.key ? 'text-white' : 'text-neutral-600'
+                  }`}
               >
                 {f.label}
               </Text>
               {count > 0 && (
                 <View
-                  className={`ml-1.5 w-5 h-5 rounded-full items-center justify-center ${
-                    activeFilter === f.key ? 'bg-white/30' : 'bg-neutral-200'
-                  }`}
+                  className={`ml-1.5 w-5 h-5 rounded-full items-center justify-center ${activeFilter === f.key ? 'bg-white/30' : 'bg-neutral-200'
+                    }`}
                 >
                   <Text
-                    className={`text-xs font-bold ${
-                      activeFilter === f.key ? 'text-white' : 'text-neutral-600'
-                    }`}
+                    className={`text-xs font-bold ${activeFilter === f.key ? 'text-white' : 'text-neutral-600'
+                      }`}
                   >
                     {count > 9 ? '9+' : count}
                   </Text>
@@ -350,8 +346,8 @@ export default function MyTripsScreen() {
                 activeFilter === 'active'
                   ? 'Sin viajes activos'
                   : activeFilter === 'past'
-                  ? 'Sin viajes completados'
-                  : 'Sin viajes cancelados'
+                    ? 'Sin viajes completados'
+                    : 'Sin viajes cancelados'
               }
               description={
                 activeFilter === 'active'

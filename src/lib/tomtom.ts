@@ -154,6 +154,16 @@ export interface TomTomRouteResult {
   hasTolls: boolean;
 }
 
+export interface TomTomRouteAlternative {
+  id: string;
+  title: string;
+  points: TomTomRoutePoint[];
+  travelTimeInSeconds: number;
+  distanceKm: number;
+  durationMin: number;
+  hasTolls: boolean;
+}
+
 // ── Public API ──
 
 const TOMTOM_BASE = 'https://api.tomtom.com/search/2';
@@ -202,11 +212,27 @@ export const tomtomService = {
    * Throws if TomTom is not configured or the request fails.
    */
   async calculateRoute(
-    stops: Array<{ latitude: number; longitude: number }>,
-    options?: { maxPoints?: number },
+    stops: Array<{ latitude: number; longitude: number; }>,
+    options?: { maxPoints?: number; },
   ): Promise<TomTomRouteResult> {
     if (!Config.TOMTOM_API_KEY) throw new Error('TomTom API key not configured');
     return tomtomCalculateRoute(stops, options?.maxPoints ?? 60);
+  },
+
+  /**
+   * Calculate a route with up to `maxAlternatives` real road-based alternatives.
+   * Returns an array of routes (main + alternatives) each with full polyline.
+   */
+  async calculateRouteAlternatives(
+    stops: Array<{ latitude: number; longitude: number; }>,
+    options?: { maxPoints?: number; maxAlternatives?: number; },
+  ): Promise<TomTomRouteAlternative[]> {
+    if (!Config.TOMTOM_API_KEY) throw new Error('TomTom API key not configured');
+    return tomtomCalculateRouteAlternatives(
+      stops,
+      options?.maxPoints ?? 80,
+      options?.maxAlternatives ?? 2,
+    );
   },
 
   /**
@@ -220,7 +246,7 @@ export const tomtomService = {
 // ── TomTom Implementation ──
 
 async function tomtomCalculateRoute(
-  stops: Array<{ latitude: number; longitude: number }>,
+  stops: Array<{ latitude: number; longitude: number; }>,
   maxPoints: number,
 ): Promise<TomTomRouteResult> {
   const locations = stops.map((p) => `${p.latitude},${p.longitude}`).join(':');
@@ -239,7 +265,7 @@ async function tomtomCalculateRoute(
 
   if (!response.ok) throw new Error(`TomTom Routing API error: ${response.status}`);
 
-  const data: { routes: Array<{ summary: { travelTimeInSeconds: number; lengthInMeters: number }; sections?: Array<{ sectionType: string }>; legs: Array<{ points: TomTomRoutePoint[] }> }> } =
+  const data: { routes: Array<{ summary: { travelTimeInSeconds: number; lengthInMeters: number; }; sections?: Array<{ sectionType: string; }>; legs: Array<{ points: TomTomRoutePoint[]; }>; }>; } =
     await response.json();
 
   if (!data.routes?.length) return { points: [], travelTimeInSeconds: 0, distanceKm: 0, hasTolls: false };
@@ -258,6 +284,70 @@ async function tomtomCalculateRoute(
   const last = all[all.length - 1];
   if (sampled[sampled.length - 1] !== last) sampled.push(last);
   return { points: sampled, travelTimeInSeconds, distanceKm, hasTolls };
+}
+
+const ROUTE_ALT_TITLES = ['Ruta recomendada', 'Alternativa A', 'Alternativa B'];
+const ROUTE_ALT_IDS = ['DIRECT', 'ALT_A', 'ALT_B'];
+
+function downsamplePoints(all: TomTomRoutePoint[], maxPoints: number): TomTomRoutePoint[] {
+  if (all.length <= maxPoints) return all;
+  const step = Math.ceil(all.length / maxPoints);
+  const sampled: TomTomRoutePoint[] = [];
+  for (let i = 0; i < all.length; i += step) sampled.push(all[i]);
+  const last = all[all.length - 1];
+  if (sampled[sampled.length - 1] !== last) sampled.push(last);
+  return sampled;
+}
+
+async function tomtomCalculateRouteAlternatives(
+  stops: Array<{ latitude: number; longitude: number; }>,
+  maxPoints: number,
+  maxAlternatives: number,
+): Promise<TomTomRouteAlternative[]> {
+  const locations = stops.map((p) => `${p.latitude},${p.longitude}`).join(':');
+  const params = new URLSearchParams({
+    key: Config.TOMTOM_API_KEY,
+    routeRepresentation: 'polyline',
+    routeType: 'fastest',
+    traffic: 'false',
+    sectionType: 'tollRoad',
+    maxAlternatives: String(maxAlternatives),
+    alternativeType: 'anyRoute',
+  });
+
+  const response = await fetch(
+    `${TOMTOM_ROUTING_BASE}/calculateRoute/${locations}/json?${params}`,
+    { method: 'GET', headers: { 'Content-Type': 'application/json' } },
+  );
+
+  if (!response.ok) throw new Error(`TomTom Routing API error: ${response.status}`);
+
+  const data: {
+    routes: Array<{
+      summary: { travelTimeInSeconds: number; lengthInMeters: number; };
+      sections?: Array<{ sectionType: string; }>;
+      legs: Array<{ points: TomTomRoutePoint[]; }>;
+    }>;
+  } = await response.json();
+
+  if (!data.routes?.length) return [];
+
+  return data.routes.map((route, idx) => {
+    const all = route.legs.flatMap((leg) => leg.points);
+    const { travelTimeInSeconds, lengthInMeters } = route.summary;
+    const sections = route.sections ?? [];
+    const hasTolls = sections.some((s) => s.sectionType === 'TOLL_ROAD' || s.sectionType === 'tollRoad');
+    const distanceKm = lengthInMeters / 1000;
+    return {
+      id: ROUTE_ALT_IDS[idx] ?? `ALT_${idx}`,
+      title: ROUTE_ALT_TITLES[idx] ?? `Alternativa ${idx}`,
+      points: downsamplePoints(all, maxPoints),
+      travelTimeInSeconds,
+      distanceKm,
+      durationMin: Math.round(travelTimeInSeconds / 60),
+      hasTolls,
+    };
+  });
 }
 
 function formatTomTomResult(result: TomTomSearchResult, type: 'address' | 'poi'): LocationSearchResult {

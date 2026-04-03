@@ -88,10 +88,10 @@ export default function ProfileScreen() {
   };
 
   return (
-    <Screen>
+    <Screen edges={['top', 'left', 'right']}>
       <ScrollView
         className="flex-1"
-        contentContainerClassName="px-6 pt-4 pb-8"
+        contentContainerClassName="px-6 pt-4 pb-4"
         showsVerticalScrollIndicator={false}
       >
         {/* Header */}

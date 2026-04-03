@@ -43,7 +43,7 @@ import { Colors } from '@/constants/colors';
 import { vehiclesApi } from '@/api/vehicles';
 import { tripsApi } from '@/api/trips';
 import type { TripType, VehicleResponse, WaypointRequest } from '@/types/api';
-import { tomtomService, type LocationSearchResult } from '@/lib/tomtom';
+import { tomtomService, type LocationSearchResult, type TomTomRouteAlternative } from '@/lib/tomtom';
 import Toast from 'react-native-toast-message';
 
 // ── Form State ──
@@ -196,65 +196,22 @@ function locationSubtitle(loc: SelectedLocation): string {
   return [loc.city, loc.state, loc.country].filter(Boolean).join(', ');
 }
 
-function buildRouteAlternatives(origin: SelectedLocation, destination: SelectedLocation, waypoints: SelectedLocation[] = []): RouteAlternative[] {
-  const midLat = (origin.latitude + destination.latitude) / 2;
-  const midLng = (origin.longitude + destination.longitude) / 2;
-  const dLat = destination.latitude - origin.latitude;
-  const dLng = destination.longitude - origin.longitude;
-  const norm = Math.sqrt(dLat * dLat + dLng * dLng) || 1;
-  const offset = 0.25;
-  const perpLat = -(dLng / norm) * offset;
-  const perpLng = (dLat / norm) * offset;
-
+function buildRouteAlternativesFallback(origin: SelectedLocation, destination: SelectedLocation, waypoints: SelectedLocation[] = []): RouteAlternative[] {
   const waypointPoints = waypoints.map((w) => ({ latitude: w.latitude, longitude: w.longitude }));
-
-  const baseRoutes = [
-    {
-      id: 'DIRECT',
-      title: 'Ruta directa',
-      speedKmh: 72,
-      points: [
-        { latitude: origin.latitude, longitude: origin.longitude },
-        ...waypointPoints,
-        { latitude: destination.latitude, longitude: destination.longitude },
-      ],
-    },
-    {
-      id: 'NORTH',
-      title: 'Alternativa A',
-      speedKmh: 60,
-      points: [
-        { latitude: origin.latitude, longitude: origin.longitude },
-        ...waypointPoints,
-        { latitude: midLat + perpLat, longitude: midLng + perpLng },
-        { latitude: destination.latitude, longitude: destination.longitude },
-      ],
-    },
-    {
-      id: 'SOUTH',
-      title: 'Alternativa B',
-      speedKmh: 56,
-      points: [
-        { latitude: origin.latitude, longitude: origin.longitude },
-        ...waypointPoints,
-        { latitude: midLat - perpLat, longitude: midLng - perpLng },
-        { latitude: destination.latitude, longitude: destination.longitude },
-      ],
-    },
+  const points = [
+    { latitude: origin.latitude, longitude: origin.longitude },
+    ...waypointPoints,
+    { latitude: destination.latitude, longitude: destination.longitude },
   ];
-
-  return baseRoutes.map((route) => {
-    const distance = routeDistanceKm(route.points);
-    const duration = estimateDurationMin(distance, route.speedKmh);
-    return {
-      id: route.id,
-      title: route.title,
-      points: route.points,
-      distanceKm: distance,
-      durationMin: duration,
-      hasTolls: false,
-    };
-  });
+  const distance = routeDistanceKm(points);
+  return [{
+    id: 'DIRECT',
+    title: 'Ruta directa',
+    points,
+    distanceKm: distance,
+    durationMin: estimateDurationMin(distance, 72),
+    hasTolls: false,
+  }];
 }
 
 // ── Toggle UI ──
@@ -423,10 +380,11 @@ export default function PublishScreen() {
   }, []);
 
   useEffect(() => {
-    if (selectedRouteId === 'DIRECT') setRouteMode('DIRECT');
-    if (selectedRouteId === 'NORTH') setRouteMode('FLEXIBLE');
-    if (selectedRouteId === 'SOUTH') setRouteMode('WITH_STOPS');
-  }, [selectedRouteId]);
+    const idx = routeAlternatives.findIndex((r) => r.id === selectedRouteId);
+    if (idx <= 0) setRouteMode('DIRECT');
+    else if (idx === 1) setRouteMode('FLEXIBLE');
+    else setRouteMode('WITH_STOPS');
+  }, [selectedRouteId, routeAlternatives]);
 
   useEffect(() => {
     stepAnim.setValue(0);
@@ -457,25 +415,25 @@ export default function PublishScreen() {
     }
     if (step !== 5) return;
 
-    const alternatives = buildRouteAlternatives(form.origin, form.destination, waypoints);
-    setRouteAlternatives(alternatives);
-    const hasDirect = alternatives.some((r) => r.id === 'DIRECT');
-    setSelectedRouteId(hasDirect ? 'DIRECT' : alternatives[0]?.id ?? 'DIRECT');
+    // Show a geometric fallback immediately while TomTom loads
+    const fallback = buildRouteAlternativesFallback(form.origin, form.destination, waypoints);
+    setRouteAlternatives(fallback);
+    setSelectedRouteId(fallback[0]?.id ?? 'DIRECT');
 
     if (tomtomService.isConfigured()) {
-      alternatives.forEach((alt) => {
-        tomtomService.calculateRoute(alt.points)
-          .then(({ points, travelTimeInSeconds, distanceKm, hasTolls }) => {
-            setRouteAlternatives((prev) =>
-              prev.map((r) =>
-                r.id === alt.id
-                  ? { ...r, points, durationMin: Math.round(travelTimeInSeconds / 60), travelTimeInSeconds, distanceKm, hasTolls }
-                  : r,
-              ),
-            );
-          })
-          .catch(() => { });
-      });
+      const stops = [
+        { latitude: form.origin.latitude, longitude: form.origin.longitude },
+        ...waypoints.map((w) => ({ latitude: w.latitude, longitude: w.longitude })),
+        { latitude: form.destination.latitude, longitude: form.destination.longitude },
+      ];
+      tomtomService.calculateRouteAlternatives(stops, { maxPoints: 80, maxAlternatives: 2 })
+        .then((alts) => {
+          if (alts.length > 0) {
+            setRouteAlternatives(alts);
+            setSelectedRouteId(alts[0].id);
+          }
+        })
+        .catch(() => { /* keep fallback */ });
     }
   }, [step, form.origin, form.destination, waypoints]);
 
@@ -485,7 +443,7 @@ export default function PublishScreen() {
 
     const timer = setTimeout(() => {
       routeMapRef.current?.fitToCoordinates(selected.points, {
-        edgePadding: { top: 64, right: 48, bottom: 64, left: 48 },
+        edgePadding: { top: 64, right: 48, bottom: 100, left: 48 },
         animated: true,
       });
     }, 120);
@@ -745,40 +703,49 @@ export default function PublishScreen() {
         ];
         const { points: routePoints, travelTimeInSeconds: routeDuration } = await tomtomService.calculateRoute(stops);
         if (travelTimeInSeconds === null) travelTimeInSeconds = routeDuration;
-        const PICKUP_THRESHOLD_KM = 0.5;
 
-        // First: add all user waypoints as pickup points
-        const pickupPoints: WaypointRequest[] = waypoints.map((w, idx) => ({
-          latitude: w.latitude,
-          longitude: w.longitude,
-          orderIndex: idx,
-          name: w.name,
-          subtitle: locationSubtitle(w) || undefined,
-          isPickupPoint: true,
+        // Build all geometry waypoints from the TomTom route in order.
+        const orderedWaypoints: WaypointRequest[] = routePoints.map((point) => ({
+          latitude: point.latitude,
+          longitude: point.longitude,
+          orderIndex: 0, // assigned below
+          name: `${point.latitude.toFixed(5)},${point.longitude.toFixed(5)}`,
+          isPickupPoint: false,
         }));
 
-        // Then: add route points that aren't close to any pickup point
-        const otherPoints: WaypointRequest[] = [];
-        routePoints.forEach((point) => {
-          const isNearPickup = waypoints.some(
-            (city) => distanceKm(
+        // For each user-added city, find the nearest geometry point and replace
+        // it with the pickup waypoint. This keeps the city in its correct
+        // position along the route instead of appending it at the end.
+        const usedIndices = new Set<number>();
+        for (const city of waypoints) {
+          let minDist = Infinity;
+          let minIdx = -1;
+          for (let i = 0; i < orderedWaypoints.length; i++) {
+            if (usedIndices.has(i)) continue;
+            const d = distanceKm(
               city,
-              { latitude: point.latitude, longitude: point.longitude, name: '' },
-            ) < PICKUP_THRESHOLD_KM,
-          );
-          if (!isNearPickup) {
-            otherPoints.push({
-              latitude: point.latitude,
-              longitude: point.longitude,
-              orderIndex: 0, // Will be fixed later
-              name: `${point.latitude.toFixed(5)},${point.longitude.toFixed(5)}`,
-              isPickupPoint: false,
-            });
+              { latitude: orderedWaypoints[i].latitude, longitude: orderedWaypoints[i].longitude, name: '' },
+            );
+            if (d < minDist) {
+              minDist = d;
+              minIdx = i;
+            }
           }
-        });
+          if (minIdx >= 0) {
+            usedIndices.add(minIdx);
+            orderedWaypoints[minIdx] = {
+              latitude: city.latitude,
+              longitude: city.longitude,
+              orderIndex: 0,
+              name: city.name,
+              subtitle: locationSubtitle(city) || undefined,
+              isPickupPoint: true,
+            };
+          }
+        }
 
-        // Combine and assign final indices
-        routeWaypoints = [...pickupPoints, ...otherPoints].map((wp, idx) => ({
+        // Assign final sequential indices
+        routeWaypoints = orderedWaypoints.map((wp, idx) => ({
           ...wp,
           orderIndex: idx,
         }));
@@ -1059,7 +1026,7 @@ export default function PublishScreen() {
             </Card>
           ) : (
             <>
-              <View className="rounded-2xl overflow-hidden border border-neutral-200 bg-white mb-3" style={{ height: 320 }}>
+              <View className="rounded-2xl overflow-hidden border border-neutral-200 bg-white" style={{ height: 520 }}>
                 <MapView
                   ref={routeMapRef}
                   style={{ flex: 1 }}
@@ -1095,45 +1062,75 @@ export default function PublishScreen() {
                     />
                   )}
                 </MapView>
-              </View>
 
-              {routeAlternatives.length > 0 && selectedAlt && (
-                <View className="rounded-xl border border-neutral-200 bg-white px-3 py-3">
-                  <View className="flex-row items-center justify-between">
-                    <TouchableOpacity
-                      onPress={() => {
-                        applyRouteSelectionByOffset(-1);
-                      }}
-                      disabled={isRouteSwitchLocked || routeAlternatives.length < 2}
-                      className={`w-9 h-9 rounded-full border items-center justify-center ${isRouteSwitchLocked || routeAlternatives.length < 2 ? 'border-neutral-100 opacity-50' : 'border-neutral-200 opacity-100'}`}
-                    >
-                      <ArrowLeft size={16} color={Colors.neutral[700]} />
-                    </TouchableOpacity>
+                {/* Route selector overlay */}
+                {routeAlternatives.length > 0 && selectedAlt && (
+                  <View
+                    style={{
+                      position: 'absolute',
+                      bottom: 12,
+                      left: 12,
+                      right: 12,
+                      backgroundColor: 'rgba(255,255,255,0.95)',
+                      borderRadius: 14,
+                      paddingHorizontal: 12,
+                      paddingVertical: 10,
+                      ...({ shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.12, shadowRadius: 8, elevation: 4 }),
+                    }}
+                  >
+                    <View className="flex-row items-center justify-between">
+                      <TouchableOpacity
+                        onPress={() => applyRouteSelectionByOffset(-1)}
+                        disabled={isRouteSwitchLocked || routeAlternatives.length < 2}
+                        style={{
+                          width: 36, height: 36, borderRadius: 18,
+                          backgroundColor: isRouteSwitchLocked || routeAlternatives.length < 2 ? '#f5f5f5' : '#fff',
+                          borderWidth: 1, borderColor: '#e5e5e5',
+                          alignItems: 'center', justifyContent: 'center',
+                          opacity: isRouteSwitchLocked || routeAlternatives.length < 2 ? 0.5 : 1,
+                        }}
+                      >
+                        <ArrowLeft size={16} color={Colors.neutral[700]} />
+                      </TouchableOpacity>
 
-                    <View className="mx-2 flex-1">
-                      <Text className="text-base font-semibold text-neutral-900 text-center">{selectedAlt.title}</Text>
-                      <Text className="text-xs text-neutral-500 text-center mt-1">
-                        {selectedAlt.distanceKm.toFixed(1)} km · {fmtDuration(selectedAlt.durationMin)} · {selectedAlt.hasTolls ? 'Con peajes' : 'Sin peajes'}
-                      </Text>
+                      <View style={{ flex: 1, marginHorizontal: 8 }}>
+                        <Text className="text-sm font-semibold text-neutral-900 text-center">{selectedAlt.title}</Text>
+                        <Text className="text-xs text-neutral-500 text-center mt-0.5">
+                          {selectedAlt.distanceKm.toFixed(1)} km · {fmtDuration(selectedAlt.durationMin)} · {selectedAlt.hasTolls ? 'Con peajes' : 'Sin peajes'}
+                        </Text>
+                      </View>
+
+                      <TouchableOpacity
+                        onPress={() => applyRouteSelectionByOffset(1)}
+                        disabled={isRouteSwitchLocked || routeAlternatives.length < 2}
+                        style={{
+                          width: 36, height: 36, borderRadius: 18,
+                          backgroundColor: isRouteSwitchLocked || routeAlternatives.length < 2 ? '#f5f5f5' : '#fff',
+                          borderWidth: 1, borderColor: '#e5e5e5',
+                          alignItems: 'center', justifyContent: 'center',
+                          opacity: isRouteSwitchLocked || routeAlternatives.length < 2 ? 0.5 : 1,
+                        }}
+                      >
+                        <ChevronRight size={16} color={Colors.neutral[700]} />
+                      </TouchableOpacity>
+
+                      <TouchableOpacity
+                        onPress={goNext}
+                        disabled={submitting}
+                        activeOpacity={0.85}
+                        style={{
+                          width: 40, height: 40, borderRadius: 20,
+                          backgroundColor: Colors.primary[500],
+                          alignItems: 'center', justifyContent: 'center',
+                          marginLeft: 8,
+                        }}
+                      >
+                        <ChevronRight size={20} color="white" />
+                      </TouchableOpacity>
                     </View>
-
-                    <TouchableOpacity
-                      onPress={() => {
-                        applyRouteSelectionByOffset(1);
-                      }}
-                      disabled={isRouteSwitchLocked || routeAlternatives.length < 2}
-                      className={`w-9 h-9 rounded-full border items-center justify-center ${isRouteSwitchLocked || routeAlternatives.length < 2 ? 'border-neutral-100 opacity-50' : 'border-neutral-200 opacity-100'}`}
-                    >
-                      <ChevronRight size={16} color={Colors.neutral[700]} />
-                    </TouchableOpacity>
                   </View>
-                  <View className="h-4 mt-2 items-center justify-center">
-                    <Text className="text-[11px] text-neutral-400 text-center">
-                      {isRouteSwitchLocked ? 'Cambiando ruta...' : ' '}
-                    </Text>
-                  </View>
-                </View>
-              )}
+                )}
+              </View>
             </>
           )}
         </>
@@ -1614,7 +1611,7 @@ export default function PublishScreen() {
           />
 
           <View className={step < TOTAL_STEPS ? 'items-end' : 'items-center'}>
-            {step < TOTAL_STEPS ? (
+            {step === 5 ? null : step < TOTAL_STEPS ? (
               <TouchableOpacity
                 onPress={goNext}
                 disabled={submitting}

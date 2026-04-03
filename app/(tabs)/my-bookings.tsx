@@ -28,26 +28,26 @@ import dayjs from 'dayjs';
 
 // ── Helpers ──
 
-const STATUS_CONFIG: Record<BookingStatus, { label: string; variant: 'success' | 'warning' | 'info' | 'error' | 'neutral' }> = {
-  PENDING:   { label: 'Pendiente',  variant: 'warning' },
-  ACCEPTED:  { label: 'Aceptado',   variant: 'success' },
-  REJECTED:  { label: 'Rechazado',  variant: 'error' },
-  BOARDED:   { label: 'Abordo',     variant: 'info' },
+const STATUS_CONFIG: Record<BookingStatus, { label: string; variant: 'success' | 'warning' | 'info' | 'error' | 'neutral'; }> = {
+  PENDING: { label: 'Pendiente', variant: 'warning' },
+  ACCEPTED: { label: 'Aceptado', variant: 'success' },
+  REJECTED: { label: 'Rechazado', variant: 'error' },
+  BOARDED: { label: 'Abordo', variant: 'info' },
   COMPLETED: { label: 'Completado', variant: 'success' },
-  CANCELLED: { label: 'Cancelado',  variant: 'neutral' },
-  NO_SHOW:   { label: 'No asistió', variant: 'error' },
+  CANCELLED: { label: 'Cancelado', variant: 'neutral' },
+  NO_SHOW: { label: 'No asistió', variant: 'error' },
 };
 
 type FilterKey = 'active' | 'past';
 
-const FILTERS: { key: FilterKey; label: string; statuses: BookingStatus[] }[] = [
-  { key: 'active', label: 'Activas',  statuses: ['PENDING', 'ACCEPTED', 'BOARDED'] },
-  { key: 'past',   label: 'Pasadas',  statuses: ['COMPLETED', 'CANCELLED', 'REJECTED', 'NO_SHOW'] },
+const FILTERS: { key: FilterKey; label: string; statuses: BookingStatus[]; }[] = [
+  { key: 'active', label: 'Activas', statuses: ['PENDING', 'ACCEPTED', 'BOARDED'] },
+  { key: 'past', label: 'Pasadas', statuses: ['COMPLETED', 'CANCELLED', 'REJECTED', 'NO_SHOW'] },
 ];
 
-function TripTypeIcon({ type, size = 14 }: { type?: string; size?: number }) {
+function TripTypeIcon({ type, size = 14 }: { type?: string; size?: number; }) {
   if (type === 'INTERCITY') return <Bus size={size} color={Colors.primary[600]} />;
-  if (type === 'URBAN')     return <Building2 size={size} color={Colors.accent[600]} />;
+  if (type === 'URBAN') return <Building2 size={size} color={Colors.accent[600]} />;
   return <GraduationCap size={size} color="#3B82F6" />;
 }
 
@@ -71,12 +71,12 @@ interface State {
 }
 
 type Action =
-  | { type: 'FETCH_START'; refreshing?: boolean }
-  | { type: 'FETCH_SUCCESS'; payload: BookingResponse[] }
-  | { type: 'FETCH_ERROR'; payload: string }
-  | { type: 'CANCEL_START'; id: string }
-  | { type: 'CANCEL_SUCCESS'; id: string }
-  | { type: 'CANCEL_ERROR' };
+  | { type: 'FETCH_START'; refreshing?: boolean; }
+  | { type: 'FETCH_SUCCESS'; payload: BookingResponse[]; }
+  | { type: 'FETCH_ERROR'; payload: string; }
+  | { type: 'CANCEL_START'; id: string; }
+  | { type: 'CANCEL_SUCCESS'; id: string; }
+  | { type: 'CANCEL_ERROR'; };
 
 function reducer(state: State, action: Action): State {
   switch (action.type) {
@@ -219,7 +219,7 @@ export default function MyBookingsScreen() {
 
   const handleCancel = (booking: BookingResponse) => {
     const origin = booking.trip?.originName ?? '–';
-    const dest   = booking.trip?.destinationName ?? '–';
+    const dest = booking.trip?.destinationName ?? '–';
     Alert.alert(
       'Cancelar reserva',
       `¿Seguro que quieres cancelar tu reserva de ${origin} a ${dest}?`,
@@ -253,7 +253,7 @@ export default function MyBookingsScreen() {
     });
 
   return (
-    <Screen>
+    <Screen edges={['top', 'left', 'right']}>
       {/* Header */}
       <View className="px-6 pt-4 pb-2">
         <Text className="text-2xl font-bold text-neutral-900">Mis reservas</Text>
