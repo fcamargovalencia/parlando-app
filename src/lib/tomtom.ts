@@ -206,16 +206,32 @@ function formatTomTomResult(result: TomTomSearchResult, type: 'address' | 'poi')
     .filter((v, i, a) => a.indexOf(v) === i) // Remove duplicates
     .join(', ');
 
-  // A result is "specific" only when there is strong evidence of a precise, pinnable location:
-  //   • TomTom 'Point Address' type — has both street name and building number
-  //   • 'Street' type with a building number — e.g. "Carrera 5 #12-34"
-  //   • Explicit street AND building number in the address fields
-  // Everything else (Geography, Municipality, Street without number, etc.) is treated as
-  // 'municipality' so the user is always asked to pin the exact point on the map.
+  // Classify as municipality ONLY when the result represents a broad geographic area.
+  // Everything else (street-level address, POI-like address result, intersections, etc.)
+  // should be selectable directly without forcing map pinning.
+  const broadGeographyEntityTypes = new Set([
+    'Country',
+    'CountrySubdivision',
+    'CountrySecondarySubdivision',
+    'CountryTertiarySubdivision',
+    'Municipality',
+    'MunicipalitySubdivision',
+    'Neighbourhood',
+    'PostalCodeArea',
+  ]);
+
+  const isBroadGeography =
+    result.type === 'Geography' &&
+    !!result.entityType &&
+    broadGeographyEntityTypes.has(result.entityType);
+
   const isSpecific =
+    !isBroadGeography ||
     result.type === 'Point Address' ||
-    (result.type === 'Street' && !!addr.buildingNumber) ||
-    (!!addr.street && !!addr.buildingNumber);
+    result.type === 'Street' ||
+    result.type === 'Cross Street' ||
+    !!addr.street ||
+    !!addr.buildingNumber;
 
   return {
     id: `addr_${result.id}`, // Prefix to ensure uniqueness with POI results

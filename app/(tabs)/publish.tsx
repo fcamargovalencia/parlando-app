@@ -1456,6 +1456,11 @@ export default function PublishScreen() {
         onClose={() => setLocationPicker((p) => ({ ...p, visible: false, municipalityFocus: undefined }))}
         initial={locationPicker.target === 'origin' ? form.origin : form.destination}
         mode={locationPicker.target === 'waypoint' ? 'full' : 'map-only'}
+        mapHintText={
+          locationPicker.target === 'destination'
+            ? undefined
+            : 'Selecciona el lugar de encuentro para iniciar el viaje'
+        }
         municipalityFocus={locationPicker.municipalityFocus}
       />
     </Screen>

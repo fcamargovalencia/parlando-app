@@ -35,6 +35,7 @@ interface Props {
   onClose: () => void;
   initial?: SelectedLocation | null;
   mode?: 'full' | 'map-only';
+  mapHintText?: string;
   /** When set, the map opens centred on this municipality at city-level zoom. */
   municipalityFocus?: { latitude: number; longitude: number; name: string; };
 }
@@ -48,7 +49,7 @@ const COLOMBIA_REGION: Region = {
   longitudeDelta: 8,
 };
 
-export function LocationPickerModal({ visible, title, onConfirm, onClose, initial, mode = 'full', municipalityFocus }: Props) {
+export function LocationPickerModal({ visible, title, onConfirm, onClose, initial, mode = 'full', mapHintText, municipalityFocus }: Props) {
   // ── Search state ──
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<LocationSearchResult[]>([]);
@@ -270,9 +271,9 @@ export function LocationPickerModal({ visible, title, onConfirm, onClose, initia
         ? { latitude: initial.latitude, longitude: initial.longitude, latitudeDelta: 0.003, longitudeDelta: 0.003 }
         : COLOMBIA_REGION;
 
-  // On map open: municipality → city zoom; no municipality → high-accuracy GPS + max zoom.
-  // animateWhenReady queues the region so it fires as soon as onMapReady is called,
-  // avoiding the race where animateToRegion is called before the MapView is mounted.
+  // On map open: municipality → city zoom; no municipality → GPS street-level zoom.
+  // Strategy: use getLastKnownPositionAsync immediately (fast, ~0 ms) so the user
+  // never sees Colombia, then refine with getCurrentPositionAsync (high accuracy).
   useEffect(() => {
     if (!mapVisible) {
       mapReadyRef.current = false;
@@ -285,19 +286,36 @@ export function LocationPickerModal({ visible, title, onConfirm, onClose, initia
       return;
     }
 
-    // Request fresh high-accuracy GPS and animate to it with maximum zoom
     (async () => {
       try {
         const { status } = await Location.requestForegroundPermissionsAsync();
         if (status !== 'granted') {
-          const fallback = userCoords ?? (initial ? { latitude: initial.latitude, longitude: initial.longitude } : null);
+          // No permission — use previous selection or stay at Colombia
+          const fallback = initial ? { latitude: initial.latitude, longitude: initial.longitude } : null;
           if (fallback) animateWhenReady({ ...fallback, latitudeDelta: 0.003, longitudeDelta: 0.003 });
           return;
         }
-        const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.High });
-        const coords = { latitude: loc.coords.latitude, longitude: loc.coords.longitude };
-        setUserCoords(coords);
-        animateWhenReady({ ...coords, latitudeDelta: 0.003, longitudeDelta: 0.003 });
+
+        // ── Step 1: last known position (instant) ──
+        const last = await Location.getLastKnownPositionAsync({ maxAge: 60_000 });
+        if (last) {
+          const coords = { latitude: last.coords.latitude, longitude: last.coords.longitude };
+          setUserCoords(coords);
+          animateWhenReady({ ...coords, latitudeDelta: 0.003, longitudeDelta: 0.003 });
+        }
+
+        // ── Step 2: high-accuracy fix (refine if moved) ──
+        const fresh = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+        const freshCoords = { latitude: fresh.coords.latitude, longitude: fresh.coords.longitude };
+        setUserCoords(freshCoords);
+        // Only re-animate if meaningfully different from the last-known pan
+        const prev = last ? { latitude: last.coords.latitude, longitude: last.coords.longitude } : null;
+        const moved = !prev
+          || Math.abs(freshCoords.latitude - prev.latitude) > 0.0005
+          || Math.abs(freshCoords.longitude - prev.longitude) > 0.0005;
+        if (moved) {
+          animateWhenReady({ ...freshCoords, latitudeDelta: 0.003, longitudeDelta: 0.003 });
+        }
       } catch {
         const fallback = userCoords ?? (initial ? { latitude: initial.latitude, longitude: initial.longitude } : null);
         if (fallback) animateWhenReady({ ...fallback, latitudeDelta: 0.003, longitudeDelta: 0.003 });
@@ -430,9 +448,11 @@ export function LocationPickerModal({ visible, title, onConfirm, onClose, initia
           {/* Hint */}
           <View style={styles.hintBar}>
             <Text style={styles.hintText}>
-              {municipalityCenter
-                ? `Mueve el mapa para elegir el punto exacto en ${municipalityCenter.name}`
-                : 'Mueve el mapa para posicionar el pin en el punto exacto'}
+              {mapHintText
+                ? mapHintText
+                : municipalityCenter
+                  ? `Mueve el mapa para elegir el punto exacto en ${municipalityCenter.name}`
+                  : 'Mueve el mapa para posicionar el pin en el punto exacto'}
             </Text>
           </View>
 
@@ -451,16 +471,14 @@ export function LocationPickerModal({ visible, title, onConfirm, onClose, initia
               scrollEnabled
               zoomControlEnabled
             />
-            {/* Crosshair pin — tip aligns with the map centre coordinate */}
+            {/* Fixed thumbtack: needle tip is aligned to the exact map center */}
             <View style={styles.crosshairContainer} pointerEvents="none">
-              <View style={styles.crosshairPin}>
-                <MapPin
-                  size={40}
-                  color={isDragging ? Colors.neutral[400] : Colors.primary[600]}
-                  fill={isDragging ? Colors.neutral[100] : Colors.primary[100]}
-                />
+              <View style={[styles.crosshairPin, isDragging && styles.crosshairPinDragging]}>
+                <View style={[styles.pinHead, isDragging && styles.pinHeadDragging]}>
+                  <View style={styles.pinHeadDot} />
+                </View>
+                <View style={[styles.pinNeedle, isDragging && styles.pinNeedleDragging]} />
               </View>
-              <View style={[styles.pinShadow, isDragging && styles.pinShadowLifted]} />
             </View>
           </View>
 
@@ -609,20 +627,44 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     pointerEvents: 'none',
   },
-  // marginBottom: 40 shifts the icon UP so its tip (bottom edge) aligns with the view centre
-  crosshairPin: { marginBottom: 40 },
-  pinShadow: {
-    width: 8,
-    height: 4,
-    borderRadius: 4,
-    backgroundColor: 'rgba(0,0,0,0.25)',
-    marginTop: -4,
+  // Shift up exactly half of pin+needle height so the needle tip sits on map center.
+  crosshairPin: {
+    alignItems: 'center',
+    transform: [{ translateY: -16 }],
   },
-  pinShadowLifted: {
-    width: 12,
+  crosshairPinDragging: {
+    transform: [{ translateY: -18 }],
+  },
+  pinHead: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: '#E11D48',
+    borderWidth: 2,
+    borderColor: '#9F1239',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  pinHeadDragging: {
+    backgroundColor: '#FB7185',
+    borderColor: '#E11D48',
+  },
+  pinHeadDot: {
+    width: 5,
     height: 5,
-    opacity: 0.12,
-    marginTop: -2,
+    borderRadius: 3,
+    backgroundColor: '#FFE4E6',
+  },
+  pinNeedle: {
+    width: 2,
+    height: 14,
+    marginTop: -1,
+    backgroundColor: '#7F1D1D',
+    borderRadius: 1,
+  },
+  pinNeedleDragging: {
+    height: 16,
+    backgroundColor: '#9F1239',
   },
   bottomPanel: {
     backgroundColor: Colors.white,
