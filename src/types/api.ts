@@ -212,6 +212,7 @@ export interface WaypointRequest {
   longitude: number;
   orderIndex: number;
   name: string;
+  subtitle?: string;
   isPickupPoint: boolean;
   estimatedArrival?: string;
 }
@@ -223,6 +224,7 @@ export interface RouteWaypointResponse {
   longitude: number;
   orderIndex: number;
   name: string;
+  subtitle?: string;
   isPickupPoint: boolean;
   estimatedArrival?: string;
   createdAt: string;
@@ -232,9 +234,11 @@ export interface RouteWaypointResponse {
 export interface CreateTripRequest {
   tripType: TripType;
   originName: string;
+  originSubtitle?: string;
   originLatitude: number;
   originLongitude: number;
   destinationName: string;
+  destinationSubtitle?: string;
   destinationLatitude: number;
   destinationLongitude: number;
   departureAt: string;
@@ -254,9 +258,11 @@ export interface CreateTripRequest {
 export interface UpdateTripRequest {
   tripType?: TripType;
   originName?: string;
+  originSubtitle?: string;
   originLatitude?: number;
   originLongitude?: number;
   destinationName?: string;
+  destinationSubtitle?: string;
   destinationLatitude?: number;
   destinationLongitude?: number;
   departureAt?: string;
@@ -276,6 +282,7 @@ export interface RouteWaypoint {
   longitude: number;
   orderIndex: number;
   name: string;
+  subtitle?: string;
   isPickupPoint: boolean;
   estimatedArrival?: string;
 }
@@ -287,9 +294,11 @@ export interface TripResponse {
   tripType: TripType;
   status: TripStatus;
   originName: string;
+  originSubtitle?: string;
   originLatitude: number;
   originLongitude: number;
   destinationName: string;
+  destinationSubtitle?: string;
   destinationLatitude: number;
   destinationLongitude: number;
   departureAt: string;

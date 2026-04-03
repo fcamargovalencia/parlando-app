@@ -474,7 +474,7 @@ export default function PublishScreen() {
               ),
             );
           })
-          .catch(() => {});
+          .catch(() => { });
       });
     }
   }, [step, form.origin, form.destination, waypoints]);
@@ -753,6 +753,7 @@ export default function PublishScreen() {
           longitude: w.longitude,
           orderIndex: idx,
           name: w.name,
+          subtitle: locationSubtitle(w) || undefined,
           isPickupPoint: true,
         }));
 
@@ -788,6 +789,7 @@ export default function PublishScreen() {
           longitude: w.longitude,
           orderIndex: idx,
           name: w.name,
+          subtitle: locationSubtitle(w) || undefined,
           isPickupPoint: true,
         }));
       }
@@ -799,9 +801,11 @@ export default function PublishScreen() {
       const createTripBody = {
         tripType,
         originName: form.origin.name,
+        originSubtitle: locationSubtitle(form.origin) || undefined,
         originLatitude: form.origin.latitude,
         originLongitude: form.origin.longitude,
         destinationName: form.destination.name,
+        destinationSubtitle: locationSubtitle(form.destination) || undefined,
         destinationLatitude: form.destination.latitude,
         destinationLongitude: form.destination.longitude,
         departureAt: form.departureAt.toISOString(),

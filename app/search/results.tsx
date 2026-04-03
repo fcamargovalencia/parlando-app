@@ -31,9 +31,9 @@ import dayjs from 'dayjs';
 
 // ── Helpers ──
 
-function TripTypeIcon({ type, size = 16 }: { type: string; size?: number }) {
+function TripTypeIcon({ type, size = 16 }: { type: string; size?: number; }) {
   if (type === 'INTERCITY') return <Bus size={size} color={Colors.primary[600]} />;
-  if (type === 'URBAN')     return <Building2 size={size} color={Colors.accent[600]} />;
+  if (type === 'URBAN') return <Building2 size={size} color={Colors.accent[600]} />;
   return <GraduationCap size={size} color="#3B82F6" />;
 }
 
@@ -51,7 +51,7 @@ function fmtArrival(iso: string) {
 
 // ── Trip card ──
 
-function TripCard({ trip, onPress }: { trip: TripResponse; onPress: () => void }) {
+function TripCard({ trip, onPress }: { trip: TripResponse; onPress: () => void; }) {
   const noSeats = trip.availableSeats === 0;
 
   return (
@@ -105,8 +105,7 @@ function TripCard({ trip, onPress }: { trip: TripResponse; onPress: () => void }
                 {trip.originName}
               </Text>
               <Text className="text-xs text-neutral-500" numberOfLines={1}>
-                {[trip.originName?.split(',').pop()?.trim(), trip.originName?.includes(',') ? undefined : undefined].filter(Boolean).join(', ') ||
-                 'Colombia'}
+                {trip.originSubtitle}
               </Text>
             </View>
             {/* Destination */}
@@ -115,8 +114,7 @@ function TripCard({ trip, onPress }: { trip: TripResponse; onPress: () => void }
                 {trip.destinationName}
               </Text>
               <Text className="text-xs text-neutral-500" numberOfLines={1}>
-                {[trip.destinationName?.split(',').pop()?.trim(), trip.destinationName?.includes(',') ? undefined : undefined].filter(Boolean).join(', ') ||
-                 'Colombia'}
+                {trip.destinationSubtitle}
               </Text>
             </View>
           </View>
@@ -176,7 +174,7 @@ function TripCard({ trip, onPress }: { trip: TripResponse; onPress: () => void }
 
 // ── Empty state ──
 
-function EmptyResults({ onBack }: { onBack: () => void }) {
+function EmptyResults({ onBack }: { onBack: () => void; }) {
   return (
     <View className="flex-1 items-center justify-center px-8 py-16 gap-4">
       <View className="w-20 h-20 rounded-full bg-neutral-100 items-center justify-center mb-2">
@@ -218,13 +216,13 @@ export default function SearchResultsScreen() {
   // Extract primitives once so useCallback/useEffect deps are stable.
   // useLocalSearchParams() returns a new object reference every render,
   // which would otherwise cause an infinite fetch loop.
-  const originLat    = params.originLat;
-  const originLng    = params.originLng;
-  const destLat      = params.destLat;
-  const destLng      = params.destLng;
+  const originLat = params.originLat;
+  const originLng = params.originLng;
+  const destLat = params.destLat;
+  const destLng = params.destLng;
   const departureFrom = params.departureFrom;
-  const departureTo  = params.departureTo;
-  const tripType     = params.tripType;
+  const departureTo = params.departureTo;
+  const tripType = params.tripType;
 
   const [trips, setTrips] = useState<TripResponse[]>([]);
   const [loading, setLoading] = useState(true);
@@ -240,16 +238,16 @@ export default function SearchResultsScreen() {
   const fetchPage = useCallback(async (p: number, replace = false) => {
     try {
       const { data: res } = await tripsApi.search({
-        originLat:     parseFloat(originLat),
-        originLng:     parseFloat(originLng),
-        destLat:       parseFloat(destLat),
-        destLng:       parseFloat(destLng),
+        originLat: parseFloat(originLat),
+        originLng: parseFloat(originLng),
+        destLat: parseFloat(destLat),
+        destLng: parseFloat(destLng),
         departureFrom,
         departureTo,
-        tripType:      tripType as any,
-        radiusKm:      RADIUS_KM,
-        page:          p,
-        size:          PAGE_SIZE,
+        tripType: tripType as any,
+        radiusKm: RADIUS_KM,
+        page: p,
+        size: PAGE_SIZE,
       });
       const result = res.data;
       if (!result) throw new Error('Sin datos');
@@ -288,8 +286,8 @@ export default function SearchResultsScreen() {
   const dateLabel = departure.isSame(dayjs(), 'day')
     ? 'Hoy'
     : departure.isSame(dayjs().add(1, 'day'), 'day')
-    ? 'Mañana'
-    : departure.format('D MMM');
+      ? 'Mañana'
+      : departure.format('D MMM');
 
   return (
     <View className="flex-1 bg-neutral-50">
