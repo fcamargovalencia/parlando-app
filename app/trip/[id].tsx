@@ -32,7 +32,6 @@ import {
   Check,
   X,
   UserX,
-  MapPin,
 } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Badge, Card, Spinner, Button, Avatar } from '@/components/ui';
@@ -102,7 +101,7 @@ interface EditModalProps {
 
 function EditModal({ trip, visible, onClose, onSaved }: EditModalProps) {
   const [form, setForm] = useState<EditFormState>({
-    availableSeats: String(trip.totalSeats),
+    availableSeats: String(trip.availableSeats),
     pricePerSeat: String(Math.round(trip.pricePerSeat)),
     departureAt: new Date(trip.departureAt),
     allowsLuggage: trip.allowsLuggage,
@@ -734,24 +733,57 @@ export default function TripDetailScreen() {
           contentContainerStyle={{ paddingHorizontal: 16, paddingVertical: 16, gap: 16 }}
           showsVerticalScrollIndicator={false}
         >
-          {/* Status & Route */}
+          {/* Status, Type & Full Route — unified */}
           <Card>
-            <View className="flex-row items-center justify-between">
+            <View className="flex-row items-center justify-between mb-4">
               <View className="flex-row items-center gap-2">
                 {TRIP_TYPE_ICON[trip.tripType]}
                 <Text className="text-sm font-medium text-neutral-600">{getTripTypeLabel(trip.tripType)}</Text>
               </View>
               <Badge label={STATUS_BADGE[trip.status].label} variant={STATUS_BADGE[trip.status].variant} />
             </View>
-            <View className="flex-row items-center mt-4 gap-3">
-              <View className="items-center">
-                <View className="w-3 h-3 rounded-full bg-primary-500" />
-                <View className="w-0.5 flex-1 bg-neutral-200 my-1" style={{ minHeight: 20 }} />
-                <View className="w-3 h-3 rounded-full bg-accent-500" />
+
+            <View className="gap-3">
+              {/* Origin */}
+              <View className="flex-row items-start gap-3">
+                <View className="items-center pt-1">
+                  <View className="w-3 h-3 rounded-full" style={{ backgroundColor: Colors.primary[500] }} />
+                </View>
+                <View className="flex-1">
+                  <Text className="text-sm font-semibold text-neutral-900">{trip.originName}</Text>
+                </View>
               </View>
-              <View className="flex-1 gap-1">
-                <Text className="text-base font-bold text-neutral-900" numberOfLines={1}>{trip.originName}</Text>
-                <Text className="text-base font-bold text-neutral-900" numberOfLines={1}>{trip.destinationName}</Text>
+
+              {/* Intermediate waypoints */}
+              {trip.waypoints &&
+                trip.waypoints
+                  .filter((w) => w.isPickupPoint)
+                  .sort((a, b) => a.orderIndex - b.orderIndex)
+                  .map((waypoint, idx) => (
+                    <View key={waypoint.id || idx}>
+                      <View className="ml-1.5 h-4 w-0.5 bg-neutral-200" />
+                      <View className="flex-row items-start gap-3">
+                        <View className="items-center pt-1">
+                          <View className="w-3 h-3 rounded-full bg-primary-400" />
+                        </View>
+                        <View className="flex-1">
+                          <Text className="text-sm font-semibold text-neutral-900">{waypoint.name}</Text>
+                        </View>
+                      </View>
+                    </View>
+                  ))}
+
+              {/* Connecting line before destination */}
+              <View className="ml-1.5 h-4 w-0.5 bg-neutral-200" />
+
+              {/* Destination */}
+              <View className="flex-row items-start gap-3">
+                <View className="items-center pt-1">
+                  <View className="w-3 h-3 rounded-full" style={{ backgroundColor: Colors.accent[500] }} />
+                </View>
+                <View className="flex-1">
+                  <Text className="text-sm font-semibold text-neutral-900">{trip.destinationName}</Text>
+                </View>
               </View>
             </View>
           </Card>
@@ -805,32 +837,6 @@ export default function TripDetailScreen() {
             </Card>
           )}
 
-          {/* ── Driver: Action buttons ── */}
-          {isDriver && (
-            <View className="gap-2">
-              {trip.status === 'DRAFT' && (
-                <Button onPress={handlePublish} loading={actionLoading === 'Publicar'} icon={<ChevronRight size={18} color="white" />}>
-                  Publicar viaje
-                </Button>
-              )}
-              {trip.status === 'PUBLISHED' && (
-                <Button onPress={handleStart} loading={actionLoading === 'Iniciar viaje'} icon={<Play size={16} color="white" />}>
-                  Iniciar viaje
-                </Button>
-              )}
-              {trip.status === 'IN_PROGRESS' && (
-                <Button onPress={handleComplete} loading={actionLoading === 'Completar'} icon={<CheckCircle size={16} color="white" />}>
-                  Completar viaje
-                </Button>
-              )}
-              {(trip.status === 'DRAFT' || trip.status === 'PUBLISHED') && (
-                <Button variant="danger" onPress={handleCancel} loading={actionLoading === 'Cancelar viaje'} icon={<XCircle size={16} color="white" />}>
-                  Cancelar viaje
-                </Button>
-              )}
-            </View>
-          )}
-
           {/* ── Passenger: Book button ── */}
           {!isDriver && canBook && (
             <Button
@@ -849,60 +855,6 @@ export default function TripDetailScreen() {
             </View>
           )}
 
-          {/* ── Complete Route ── */}
-          <Card>
-            <View className="flex-row items-center gap-2 mb-3">
-              <MapPin size={16} color={Colors.primary[600]} />
-              <Text className="text-sm font-semibold text-neutral-700">Ruta</Text>
-            </View>
-            <View className="gap-3">
-              {/* Origin */}
-              <View className="flex-row items-start gap-3">
-                <View className="items-center pt-1">
-                  <View className="w-3 h-3 rounded-full" style={{ backgroundColor: Colors.primary[500] }} />
-                </View>
-                <View className="flex-1">
-                  <Text className="text-sm font-semibold text-neutral-900">{trip.originName}</Text>
-                  <Text className="text-xs text-neutral-500 mt-0.5">Colombia</Text>
-                </View>
-              </View>
-
-              {/* Intermediate cities with connecting line */}
-              {trip.waypoints &&
-                trip.waypoints
-                  .filter((w) => w.isPickupPoint)
-                  .sort((a, b) => a.orderIndex - b.orderIndex)
-                  .map((waypoint, idx) => (
-                    <View key={waypoint.id || idx}>
-                      <View className="ml-1.5 h-4 w-0.5 bg-neutral-200" />
-                      <View className="flex-row items-start gap-3">
-                        <View className="items-center pt-1">
-                          <View className="w-3 h-3 rounded-full bg-primary-400" />
-                        </View>
-                        <View className="flex-1">
-                          <Text className="text-sm font-semibold text-neutral-900">{waypoint.name}</Text>
-                          <Text className="text-xs text-neutral-500 mt-0.5">Parada {idx + 1}</Text>
-                        </View>
-                      </View>
-                    </View>
-                  ))}
-
-              {/* Destination */}
-              {trip.waypoints && trip.waypoints.some((w) => w.isPickupPoint) && (
-                <View className="ml-1.5 h-4 w-0.5 bg-neutral-200" />
-              )}
-              <View className="flex-row items-start gap-3">
-                <View className="items-center pt-1">
-                  <View className="w-3 h-3 rounded-full" style={{ backgroundColor: Colors.accent[500] }} />
-                </View>
-                <View className="flex-1">
-                  <Text className="text-sm font-semibold text-neutral-900">{trip.destinationName}</Text>
-                  <Text className="text-xs text-neutral-500 mt-0.5">Colombia</Text>
-                </View>
-              </View>
-            </View>
-          </Card>
-
           {/* ── Trip details ── */}
           <Card>
             <Text className="text-sm font-semibold text-neutral-700 mb-3">Detalles del viaje</Text>
@@ -910,7 +862,7 @@ export default function TripDetailScreen() {
             {trip.estimatedArrivalTime && (
               <DetailRow icon={<Clock size={16} color={Colors.accent[500]} />} label="Llegada estimada" value={fmtDeparture(trip.estimatedArrivalTime)} />
             )}
-            <DetailRow icon={<Users size={16} color={Colors.neutral[400]} />} label="Asientos" value={`${trip.availableSeats} disponibles de ${trip.totalSeats}`} />
+            <DetailRow icon={<Users size={16} color={Colors.neutral[400]} />} label="Asientos" value={`${trip.availableSeats} disponibles`} />
             <View className="flex-row items-start gap-3 py-2.5 border-b border-neutral-100">
               <View className="mt-0.5">
                 <DollarSign size={16} color={Colors.neutral[400]} />
@@ -980,6 +932,32 @@ export default function TripDetailScreen() {
                 ))
               )}
             </Card>
+          )}
+
+          {/* ── Driver: Action buttons ── */}
+          {isDriver && (
+            <View className="gap-2">
+              {trip.status === 'DRAFT' && (
+                <Button onPress={handlePublish} loading={actionLoading === 'Publicar'} icon={<ChevronRight size={18} color="white" />}>
+                  Publicar viaje
+                </Button>
+              )}
+              {trip.status === 'PUBLISHED' && (
+                <Button onPress={handleStart} loading={actionLoading === 'Iniciar viaje'} icon={<Play size={16} color="white" />}>
+                  Iniciar viaje
+                </Button>
+              )}
+              {trip.status === 'IN_PROGRESS' && (
+                <Button onPress={handleComplete} loading={actionLoading === 'Completar'} icon={<CheckCircle size={16} color="white" />}>
+                  Completar viaje
+                </Button>
+              )}
+              {(trip.status === 'DRAFT' || trip.status === 'PUBLISHED') && (
+                <Button variant="danger" onPress={handleCancel} loading={actionLoading === 'Cancelar viaje'} icon={<XCircle size={16} color="white" />}>
+                  Cancelar viaje
+                </Button>
+              )}
+            </View>
           )}
 
           <View style={{ height: insets.bottom + 16 }} />

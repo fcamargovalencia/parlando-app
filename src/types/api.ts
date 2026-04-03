@@ -295,7 +295,6 @@ export interface TripResponse {
   departureAt: string;
   estimatedArrivalTime?: string;
   availableSeats: number;
-  totalSeats: number;
   pricePerSeat: number;
   currency: string;
   allowsLuggage: boolean;
