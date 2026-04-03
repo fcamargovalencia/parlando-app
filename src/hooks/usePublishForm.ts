@@ -194,7 +194,14 @@ export function usePublishForm() {
 
       setSubmitting(true);
       try {
-        let routeWaypoints: WaypointRequest[] = [];
+        const routeWaypoints: WaypointRequest[] = waypoints.map((w, idx) => ({
+          latitude: w.latitude,
+          longitude: w.longitude,
+          orderIndex: idx,
+          name: w.name,
+          subtitle: locationSubtitle(w) || undefined,
+          isPickupPoint: true,
+        }));
         let travelTimeInSeconds: number | null = selectedRoute?.travelTimeInSeconds ?? null;
 
         try {
@@ -203,57 +210,11 @@ export function usePublishForm() {
             ...waypoints.map((w) => ({ latitude: w.latitude, longitude: w.longitude })),
             { latitude: form.destination.latitude, longitude: form.destination.longitude },
           ];
-          const { points: routePoints, travelTimeInSeconds: routeDuration } =
+          const { travelTimeInSeconds: routeDuration } =
             await tomtomService.calculateRoute(stops);
           if (travelTimeInSeconds === null) travelTimeInSeconds = routeDuration;
-
-          const orderedWaypoints: WaypointRequest[] = routePoints.map((point) => ({
-            latitude: point.latitude,
-            longitude: point.longitude,
-            orderIndex: 0,
-            name: `${point.latitude.toFixed(5)},${point.longitude.toFixed(5)}`,
-            isPickupPoint: false,
-          }));
-
-          const usedIndices = new Set<number>();
-          for (const city of waypoints) {
-            let minDist = Infinity;
-            let minIdx = -1;
-            for (let i = 0; i < orderedWaypoints.length; i++) {
-              if (usedIndices.has(i)) continue;
-              const d = distanceKm(city, {
-                latitude: orderedWaypoints[i].latitude,
-                longitude: orderedWaypoints[i].longitude,
-              });
-              if (d < minDist) {
-                minDist = d;
-                minIdx = i;
-              }
-            }
-            if (minIdx >= 0) {
-              usedIndices.add(minIdx);
-              orderedWaypoints[minIdx] = {
-                latitude: city.latitude,
-                longitude: city.longitude,
-                orderIndex: 0,
-                name: city.name,
-                subtitle: locationSubtitle(city) || undefined,
-                isPickupPoint: true,
-              };
-            }
-          }
-
-          routeWaypoints = orderedWaypoints.map((wp, idx) => ({ ...wp, orderIndex: idx }));
         } catch (routeErr) {
-          console.warn('[TomTom] Route calculation failed, using user waypoints only:', routeErr);
-          routeWaypoints = waypoints.map((w, idx) => ({
-            latitude: w.latitude,
-            longitude: w.longitude,
-            orderIndex: idx,
-            name: w.name,
-            subtitle: locationSubtitle(w) || undefined,
-            isPickupPoint: true,
-          }));
+          console.warn('[TomTom] Route calculation failed, using estimated trip duration only from selected route:', routeErr);
         }
 
         const arrivedAt =

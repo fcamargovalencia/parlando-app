@@ -65,7 +65,7 @@ function DetailRow({
 
 const BOOKING_DETAIL_BADGE: Record<
   BookingStatus,
-  { label: string; variant: 'success' | 'warning' | 'info' | 'error' | 'neutral' }
+  { label: string; variant: 'success' | 'warning' | 'info' | 'error' | 'neutral'; }
 > = {
   PENDING: { label: 'Pendiente de aprobación', variant: 'warning' },
   ACCEPTED: { label: 'Cupo aceptado', variant: 'success' },
@@ -201,7 +201,7 @@ function BookingRow({
 // ── Main Screen ──
 
 export default function TripDetailScreen() {
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const { id } = useLocalSearchParams<{ id: string; }>();
   const router = useRouter();
   const insets = useSafeAreaInsets();
 
@@ -220,6 +220,8 @@ export default function TripDetailScreen() {
     canBook,
     waypointsFull,
     loadingWaypoints,
+    routePolyline,
+    loadingRoutePolyline,
     load,
     handlePublish,
     handleStart,
@@ -431,24 +433,23 @@ export default function TripDetailScreen() {
 
               {(myBooking.status === 'PENDING' ||
                 myBooking.status === 'ACCEPTED') && (
-                <TouchableOpacity
-                  onPress={handleCancelBooking}
-                  disabled={actionLoading === 'cancel-booking'}
-                  className="mt-4 pt-3 border-t border-neutral-100"
-                >
-                  <Text
-                    className={`text-sm font-medium text-center ${
-                      actionLoading === 'cancel-booking'
-                        ? 'text-neutral-400'
-                        : 'text-red-500'
-                    }`}
+                  <TouchableOpacity
+                    onPress={handleCancelBooking}
+                    disabled={actionLoading === 'cancel-booking'}
+                    className="mt-4 pt-3 border-t border-neutral-100"
                   >
-                    {actionLoading === 'cancel-booking'
-                      ? 'Cancelando...'
-                      : 'Cancelar reserva'}
-                  </Text>
-                </TouchableOpacity>
-              )}
+                    <Text
+                      className={`text-sm font-medium text-center ${actionLoading === 'cancel-booking'
+                          ? 'text-neutral-400'
+                          : 'text-red-500'
+                        }`}
+                    >
+                      {actionLoading === 'cancel-booking'
+                        ? 'Cancelando...'
+                        : 'Cancelar reserva'}
+                    </Text>
+                  </TouchableOpacity>
+                )}
 
               {myBooking.status === 'PENDING' && (
                 <View className="mt-3 bg-amber-50 rounded-xl p-3">
@@ -630,15 +631,15 @@ export default function TripDetailScreen() {
               )}
               {(trip.status === 'DRAFT' ||
                 trip.status === 'PUBLISHED') && (
-                <Button
-                  variant="danger"
-                  onPress={handleCancel}
-                  loading={actionLoading === 'Cancelar viaje'}
-                  icon={<XCircle size={16} color="white" />}
-                >
-                  Cancelar viaje
-                </Button>
-              )}
+                  <Button
+                    variant="danger"
+                    onPress={handleCancel}
+                    loading={actionLoading === 'Cancelar viaje'}
+                    icon={<XCircle size={16} color="white" />}
+                  >
+                    Cancelar viaje
+                  </Button>
+                )}
             </View>
           )}
 
@@ -669,7 +670,8 @@ export default function TripDetailScreen() {
           visible={mapVisible}
           onClose={() => setMapVisible(false)}
           waypoints={waypointsFull}
-          loading={loadingWaypoints}
+          routePolyline={routePolyline}
+          loading={loadingWaypoints || loadingRoutePolyline}
         />
       )}
     </View>

@@ -208,15 +208,14 @@ export const tomtomService = {
 
   /**
    * Calculate a route between ordered stops and return the polyline points and travel time.
-   * Downsamples to `maxPoints` (default 60) to keep the payload manageable.
+   * Returns the full TomTom road geometry without downsampling.
    * Throws if TomTom is not configured or the request fails.
    */
   async calculateRoute(
     stops: Array<{ latitude: number; longitude: number; }>,
-    options?: { maxPoints?: number; },
   ): Promise<TomTomRouteResult> {
     if (!Config.TOMTOM_API_KEY) throw new Error('TomTom API key not configured');
-    return tomtomCalculateRoute(stops, options?.maxPoints ?? 60);
+    return tomtomCalculateRoute(stops);
   },
 
   /**
@@ -225,12 +224,11 @@ export const tomtomService = {
    */
   async calculateRouteAlternatives(
     stops: Array<{ latitude: number; longitude: number; }>,
-    options?: { maxPoints?: number; maxAlternatives?: number; },
+    options?: { maxAlternatives?: number; },
   ): Promise<TomTomRouteAlternative[]> {
     if (!Config.TOMTOM_API_KEY) throw new Error('TomTom API key not configured');
     return tomtomCalculateRouteAlternatives(
       stops,
-      options?.maxPoints ?? 80,
       options?.maxAlternatives ?? 2,
     );
   },
@@ -247,7 +245,6 @@ export const tomtomService = {
 
 async function tomtomCalculateRoute(
   stops: Array<{ latitude: number; longitude: number; }>,
-  maxPoints: number,
 ): Promise<TomTomRouteResult> {
   const locations = stops.map((p) => `${p.latitude},${p.longitude}`).join(':');
   const params = new URLSearchParams({
@@ -276,32 +273,14 @@ async function tomtomCalculateRoute(
   const hasTolls = sections.some((s) => s.sectionType === 'TOLL_ROAD' || s.sectionType === 'tollRoad');
   const distanceKm = lengthInMeters / 1000;
 
-  if (all.length <= maxPoints) return { points: all, travelTimeInSeconds, distanceKm, hasTolls };
-
-  const step = Math.ceil(all.length / maxPoints);
-  const sampled: TomTomRoutePoint[] = [];
-  for (let i = 0; i < all.length; i += step) sampled.push(all[i]);
-  const last = all[all.length - 1];
-  if (sampled[sampled.length - 1] !== last) sampled.push(last);
-  return { points: sampled, travelTimeInSeconds, distanceKm, hasTolls };
+  return { points: all, travelTimeInSeconds, distanceKm, hasTolls };
 }
 
 const ROUTE_ALT_TITLES = ['Ruta recomendada', 'Alternativa A', 'Alternativa B'];
 const ROUTE_ALT_IDS = ['DIRECT', 'ALT_A', 'ALT_B'];
 
-function downsamplePoints(all: TomTomRoutePoint[], maxPoints: number): TomTomRoutePoint[] {
-  if (all.length <= maxPoints) return all;
-  const step = Math.ceil(all.length / maxPoints);
-  const sampled: TomTomRoutePoint[] = [];
-  for (let i = 0; i < all.length; i += step) sampled.push(all[i]);
-  const last = all[all.length - 1];
-  if (sampled[sampled.length - 1] !== last) sampled.push(last);
-  return sampled;
-}
-
 async function tomtomCalculateRouteAlternatives(
   stops: Array<{ latitude: number; longitude: number; }>,
-  maxPoints: number,
   maxAlternatives: number,
 ): Promise<TomTomRouteAlternative[]> {
   const locations = stops.map((p) => `${p.latitude},${p.longitude}`).join(':');
@@ -341,7 +320,7 @@ async function tomtomCalculateRouteAlternatives(
     return {
       id: ROUTE_ALT_IDS[idx] ?? `ALT_${idx}`,
       title: ROUTE_ALT_TITLES[idx] ?? `Alternativa ${idx}`,
-      points: downsamplePoints(all, maxPoints),
+      points: all,
       travelTimeInSeconds,
       distanceKm,
       durationMin: Math.round(travelTimeInSeconds / 60),

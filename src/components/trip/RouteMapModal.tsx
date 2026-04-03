@@ -17,6 +17,7 @@ interface RouteMapModalProps {
   visible: boolean;
   onClose: () => void;
   waypoints: RouteWaypointResponse[];
+  routePolyline: Array<{ latitude: number; longitude: number; }>;
   loading: boolean;
 }
 
@@ -25,6 +26,7 @@ export function RouteMapModal({
   visible,
   onClose,
   waypoints,
+  routePolyline,
   loading,
 }: RouteMapModalProps) {
   const mapRef = useRef<MapView>(null);
@@ -43,18 +45,19 @@ export function RouteMapModal({
       longitude: trip.destinationLongitude,
     },
   ];
+  const renderedPolyline = routePolyline.length >= 2 ? routePolyline : allPoints;
   const pickupWaypoints = sortedWaypoints.filter((w) => w.isPickupPoint);
 
   useEffect(() => {
-    if (!visible || loading || allPoints.length < 2) return;
+    if (!visible || loading || renderedPolyline.length < 2) return;
     const timer = setTimeout(() => {
-      mapRef.current?.fitToCoordinates(allPoints, {
+      mapRef.current?.fitToCoordinates(renderedPolyline, {
         edgePadding: { top: 80, right: 48, bottom: 220, left: 48 },
         animated: true,
       });
     }, 400);
     return () => clearTimeout(timer);
-  }, [visible, loading, waypoints]);
+  }, [visible, loading, renderedPolyline]);
 
   return (
     <Modal
@@ -131,12 +134,25 @@ export function RouteMapModal({
                   0.5,
               }}
             >
-              {allPoints.length >= 2 && (
-                <Polyline
-                  coordinates={allPoints}
-                  strokeColor={Colors.primary[500]}
-                  strokeWidth={3.5}
-                />
+              {renderedPolyline.length >= 2 && (
+                <>
+                  <Polyline
+                    coordinates={renderedPolyline}
+                    strokeColor="rgba(15, 23, 42, 0.45)"
+                    strokeWidth={9}
+                    lineCap="round"
+                    lineJoin="round"
+                    zIndex={1}
+                  />
+                  <Polyline
+                    coordinates={renderedPolyline}
+                    strokeColor="#2563EB"
+                    strokeWidth={5.5}
+                    lineCap="round"
+                    lineJoin="round"
+                    zIndex={2}
+                  />
+                </>
               )}
               <Marker
                 coordinate={{

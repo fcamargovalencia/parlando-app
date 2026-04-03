@@ -94,7 +94,7 @@ export function useRouteAlternatives(
         { latitude: destination.latitude, longitude: destination.longitude },
       ];
       tomtomService
-        .calculateRouteAlternatives(stops, { maxPoints: 80, maxAlternatives: 2 })
+        .calculateRouteAlternatives(stops, { maxAlternatives: 2 })
         .then((alts) => {
           if (alts.length > 0) {
             setAlternatives(alts);

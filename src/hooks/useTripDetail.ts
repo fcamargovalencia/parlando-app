@@ -3,6 +3,7 @@ import { Alert } from 'react-native';
 import { tripsApi } from '@/api/trips';
 import { bookingsApi } from '@/api/bookings';
 import { vehiclesApi } from '@/api/vehicles';
+import { tomtomService } from '@/lib/tomtom';
 import { useAuthStore } from '@/stores/auth-store';
 import type {
   TripResponse,
@@ -26,6 +27,8 @@ export function useTripDetail(id: string) {
   // Route map
   const [waypointsFull, setWaypointsFull] = useState<RouteWaypointResponse[]>([]);
   const [loadingWaypoints, setLoadingWaypoints] = useState(false);
+  const [routePolyline, setRoutePolyline] = useState<Array<{ latitude: number; longitude: number; }>>([]);
+  const [loadingRoutePolyline, setLoadingRoutePolyline] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -177,22 +180,63 @@ export function useTripDetail(id: string) {
   };
 
   const openMap = async () => {
-    if (waypointsFull.length > 0) return;
-    setLoadingWaypoints(true);
+    if (!trip) return;
+
+    const needsWaypoints = waypointsFull.length === 0;
+    const needsRoutePolyline = routePolyline.length === 0;
+    if (!needsWaypoints && !needsRoutePolyline) return;
+
+    if (needsWaypoints) setLoadingWaypoints(true);
+    if (needsRoutePolyline) setLoadingRoutePolyline(true);
+
+    let resolvedWaypoints = waypointsFull;
+
     try {
-      const { data: res } = await tripsApi.getWaypoints(id);
-      const fetched = res.data ?? [];
-      if (fetched.length > 0) {
-        setWaypointsFull(fetched);
-      } else if (trip?.waypoints && trip.waypoints.length > 0) {
-        setWaypointsFull(mapEmbeddedWaypoints(trip));
+      if (needsWaypoints) {
+        try {
+          const { data: res } = await tripsApi.getWaypoints(id);
+          const fetched = res.data ?? [];
+          if (fetched.length > 0) {
+            resolvedWaypoints = fetched;
+            setWaypointsFull(fetched);
+          } else if (trip.waypoints && trip.waypoints.length > 0) {
+            resolvedWaypoints = mapEmbeddedWaypoints(trip);
+            setWaypointsFull(resolvedWaypoints);
+          }
+        } catch {
+          if (trip.waypoints && trip.waypoints.length > 0) {
+            resolvedWaypoints = mapEmbeddedWaypoints(trip);
+            setWaypointsFull(resolvedWaypoints);
+          }
+        }
       }
-    } catch {
-      if (trip?.waypoints && trip.waypoints.length > 0) {
-        setWaypointsFull(mapEmbeddedWaypoints(trip));
+
+      if (needsRoutePolyline) {
+        const pickupStops = (resolvedWaypoints.length > 0 ? resolvedWaypoints : mapEmbeddedWaypoints(trip))
+          .filter((w) => w.isPickupPoint)
+          .sort((a, b) => a.orderIndex - b.orderIndex);
+
+        const stopPoints = [
+          { latitude: trip.originLatitude, longitude: trip.originLongitude },
+          ...pickupStops.map((w) => ({ latitude: w.latitude, longitude: w.longitude })),
+          { latitude: trip.destinationLatitude, longitude: trip.destinationLongitude },
+        ];
+
+        try {
+          if (tomtomService.isConfigured()) {
+            const { points } = await tomtomService.calculateRoute(stopPoints);
+            setRoutePolyline(points.length >= 2 ? points : stopPoints);
+          } else {
+            setRoutePolyline(stopPoints);
+          }
+        } catch {
+          // Fallback: connect logical stops if TomTom fails.
+          setRoutePolyline(stopPoints);
+        }
       }
     } finally {
-      setLoadingWaypoints(false);
+      if (needsWaypoints) setLoadingWaypoints(false);
+      if (needsRoutePolyline) setLoadingRoutePolyline(false);
     }
   };
 
@@ -260,6 +304,8 @@ export function useTripDetail(id: string) {
     canBook,
     waypointsFull,
     loadingWaypoints,
+    routePolyline,
+    loadingRoutePolyline,
     load,
     handlePublish,
     handleStart,

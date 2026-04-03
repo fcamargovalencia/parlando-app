@@ -31,7 +31,7 @@ import {
   Search,
   X,
 } from 'lucide-react-native';
-import MapView, { Polyline, Marker, type Region } from 'react-native-maps';
+import MapView, { Polyline, Marker, UrlTile, type Region } from 'react-native-maps';
 import { Screen, Button, Input, Card, DatePickerModal, Toggle } from '@/components/ui';
 import {
   LocationPickerModal,
@@ -39,6 +39,7 @@ import {
 } from '@/components/LocationPickerModal';
 import { TripTypeIcon } from '@/components/TripTypeIcon';
 import { Colors } from '@/constants/colors';
+import { Config } from '@/constants/config';
 import { TRIP_TYPE_OPTIONS } from '@/constants/trips';
 import { distanceKm, normalizePlace, formatDuration } from '@/lib/utils';
 import type { LocationSearchResult } from '@/lib/tomtom';
@@ -72,6 +73,9 @@ function fmtTime(d: Date) {
 // ── Constants ──
 
 const TOTAL_STEPS = 9;
+const TOMTOM_TILE_URL = Config.TOMTOM_API_KEY
+  ? `https://api.tomtom.com/map/1/tile/basic/main/{z}/{x}/{y}.png?key=${Config.TOMTOM_API_KEY}&language=es-ES&view=Unified`
+  : null;
 
 // ── Screen ──
 
@@ -134,7 +138,7 @@ export default function PublishScreen() {
   const [locationPicker, setLocationPicker] = useState<{
     visible: boolean;
     target: 'origin' | 'destination' | 'waypoint';
-    municipalityFocus?: { latitude: number; longitude: number; name: string };
+    municipalityFocus?: { latitude: number; longitude: number; name: string; };
   }>({ visible: false, target: 'origin' });
 
   const [showDatePicker, setShowDatePicker] = useState(false);
@@ -303,19 +307,17 @@ export default function PublishScreen() {
           <TouchableOpacity
             key={opt.type}
             onPress={() => setTripType(opt.type)}
-            className={`flex-1 items-center py-4 rounded-xl border-2 ${
-              tripType === opt.type
+            className={`flex-1 items-center py-4 rounded-xl border-2 ${tripType === opt.type
                 ? 'border-primary-500 bg-primary-50'
                 : 'border-neutral-200 bg-white'
-            }`}
+              }`}
           >
             <TripTypeIcon type={opt.type} size={20} />
             <Text
-              className={`text-xs font-medium mt-1 ${
-                tripType === opt.type
+              className={`text-xs font-medium mt-1 ${tripType === opt.type
                   ? 'text-primary-700'
                   : 'text-neutral-600'
-              }`}
+                }`}
             >
               {opt.label}
             </Text>
@@ -401,15 +403,13 @@ export default function PublishScreen() {
 
         {location && (
           <View
-            className={`px-3 py-3 rounded-xl border mt-2 ${
-              invalidDestination ? 'border-red-300 bg-red-50' : borderClass
-            }`}
+            className={`px-3 py-3 rounded-xl border mt-2 ${invalidDestination ? 'border-red-300 bg-red-50' : borderClass
+              }`}
           >
             <View className="flex-row items-center">
               <View
-                className={`w-2.5 h-2.5 rounded-full mr-2 ${
-                  invalidDestination ? 'bg-red-500' : dotClass
-                }`}
+                className={`w-2.5 h-2.5 rounded-full mr-2 ${invalidDestination ? 'bg-red-500' : dotClass
+                  }`}
               />
               <Text
                 className="text-sm font-medium text-neutral-900 flex-1"
@@ -514,22 +514,20 @@ export default function PublishScreen() {
                 <TouchableOpacity
                   onPress={() => moveWaypointUp(idx)}
                   disabled={idx === 0}
-                  className={`w-7 h-7 rounded-lg border items-center justify-center ${
-                    idx === 0
+                  className={`w-7 h-7 rounded-lg border items-center justify-center ${idx === 0
                       ? 'border-neutral-100 opacity-30'
                       : 'border-neutral-200'
-                  }`}
+                    }`}
                 >
                   <ChevronUp size={14} color={Colors.neutral[600]} />
                 </TouchableOpacity>
                 <TouchableOpacity
                   onPress={() => moveWaypointDown(idx)}
                   disabled={idx === waypoints.length - 1}
-                  className={`w-7 h-7 rounded-lg border items-center justify-center ${
-                    idx === waypoints.length - 1
+                  className={`w-7 h-7 rounded-lg border items-center justify-center ${idx === waypoints.length - 1
                       ? 'border-neutral-100 opacity-30'
                       : 'border-neutral-200'
-                  }`}
+                    }`}
                 >
                   <ChevronDown size={14} color={Colors.neutral[600]} />
                 </TouchableOpacity>
@@ -601,6 +599,7 @@ export default function PublishScreen() {
           <MapView
             ref={routeHook.mapRef}
             style={{ flex: 1 }}
+            mapType={TOMTOM_TILE_URL && Platform.OS === 'android' ? 'none' : 'standard'}
             scrollEnabled
             zoomEnabled
             rotateEnabled={false}
@@ -627,6 +626,14 @@ export default function PublishScreen() {
               } as Region
             }
           >
+            {TOMTOM_TILE_URL ? (
+              <UrlTile
+                urlTemplate={TOMTOM_TILE_URL}
+                maximumZ={22}
+                flipY={false}
+                zIndex={0}
+              />
+            ) : null}
             <Marker
               coordinate={{
                 latitude: form.origin.latitude,
@@ -946,9 +953,8 @@ export default function PublishScreen() {
                   dispatch({ type: 'SET_VEHICLE', payload: v.id });
                 }}
                 activeOpacity={0.7}
-                className={`flex-row items-center p-3 rounded-2xl border-2 mb-2 ${
-                  active ? 'bg-white' : 'bg-neutral-50'
-                } ${selected ? 'border-primary-500' : 'border-neutral-200'}`}
+                className={`flex-row items-center p-3 rounded-2xl border-2 mb-2 ${active ? 'bg-white' : 'bg-neutral-50'
+                  } ${selected ? 'border-primary-500' : 'border-neutral-200'}`}
               >
                 <View className="w-12 h-12 rounded-xl bg-primary-50 items-center justify-center mr-3">
                   <Car size={22} color={Colors.primary[400]} />
@@ -961,22 +967,19 @@ export default function PublishScreen() {
                     {v.color}
                   </Text>
                   <View
-                    className={`rounded px-1.5 py-0.5 self-start mt-1 ${
-                      active ? 'bg-primary-50' : 'bg-neutral-200'
-                    }`}
+                    className={`rounded px-1.5 py-0.5 self-start mt-1 ${active ? 'bg-primary-50' : 'bg-neutral-200'
+                      }`}
                   >
                     <Text
-                      className={`text-xs font-bold ${
-                        active ? 'text-primary-700' : 'text-neutral-600'
-                      }`}
+                      className={`text-xs font-bold ${active ? 'text-primary-700' : 'text-neutral-600'
+                        }`}
                     >
                       {v.plateNumber}
                     </Text>
                   </View>
                   <Text
-                    className={`text-xs mt-1 ${
-                      active ? 'text-emerald-600' : 'text-amber-600'
-                    }`}
+                    className={`text-xs mt-1 ${active ? 'text-emerald-600' : 'text-amber-600'
+                      }`}
                   >
                     Estado: {active ? 'Activo' : 'No activo'}
                   </Text>
@@ -1216,9 +1219,8 @@ export default function PublishScreen() {
               <TouchableOpacity
                 onPress={goBack}
                 disabled={step === 1 || submitting}
-                className={`w-9 h-9 rounded-full border border-neutral-200 bg-white items-center justify-center ${
-                  step === 1 ? 'opacity-30' : 'opacity-100'
-                }`}
+                className={`w-9 h-9 rounded-full border border-neutral-200 bg-white items-center justify-center ${step === 1 ? 'opacity-30' : 'opacity-100'
+                  }`}
               >
                 <ArrowLeft size={18} color={Colors.neutral[700]} />
               </TouchableOpacity>
