@@ -39,6 +39,7 @@ import { TripTypeIcon } from '@/components/TripTypeIcon';
 import { EditTripModal } from '@/components/trip/EditTripModal';
 import { BookTripModal } from '@/components/trip/BookTripModal';
 import { RouteMapModal } from '@/components/trip/RouteMapModal';
+import { RateModal } from '@/components/trip/RateModal';
 import { Colors, Shadows } from '@/constants/colors';
 import { TRIP_STATUS_BADGE, BOOKING_STATUS_BADGE } from '@/constants/trips';
 import { formatCurrency, getTripTypeLabel, formatDeparture } from '@/lib/utils';
@@ -90,6 +91,8 @@ function BookingRow({
   onReject,
   onBoard,
   onNoShow,
+  onRate,
+  isRated,
   actionLoading,
   tripStatus,
 }: {
@@ -98,6 +101,8 @@ function BookingRow({
   onReject: () => void;
   onBoard: () => void;
   onNoShow: () => void;
+  onRate: () => void;
+  isRated: boolean;
   actionLoading: string | null;
   tripStatus: TripStatus;
 }) {
@@ -200,6 +205,28 @@ function BookingRow({
           </TouchableOpacity>
         </View>
       )}
+
+      {booking.status === 'COMPLETED' && (
+        <View className="ml-12 mt-1">
+          {isRated || booking.passengerRatingId ? (
+            <View className="flex-row items-center gap-1">
+              <Star size={13} color="#F59E0B" fill="#F59E0B" />
+              <Text className="text-sm text-neutral-400">Calificado</Text>
+            </View>
+          ) : (
+            <TouchableOpacity
+              onPress={onRate}
+              className="flex-row items-center gap-1.5 self-start bg-amber-50 px-3 py-1.5 rounded-full"
+              style={{ borderWidth: 1, borderColor: '#FDE68A' }}
+            >
+              <Star size={13} color="#F59E0B" fill="#F59E0B" />
+              <Text className="text-sm font-semibold text-amber-600">
+                Calificar pasajero
+              </Text>
+            </TouchableOpacity>
+          )}
+        </View>
+      )}
     </View>
   );
 }
@@ -224,6 +251,8 @@ export default function TripDetailScreen() {
     isDriver,
     canEdit,
     canBook,
+    driverRated,
+    ratedPassengerBookings,
     waypointsFull,
     loadingWaypoints,
     routePolyline,
@@ -236,11 +265,20 @@ export default function TripDetailScreen() {
     handleCancelBooking,
     openMap,
     handleBookingAction,
+    handleRateDriver,
+    handleRatePassenger,
   } = useTripDetail(id);
 
   const [editVisible, setEditVisible] = useState(false);
   const [bookVisible, setBookVisible] = useState(false);
   const [mapVisible, setMapVisible] = useState(false);
+  const [rateModal, setRateModal] = useState<{
+    bookingId: string;
+    revieweeId: string;
+    firstName: string;
+    lastName: string;
+    photoUrl: string | null;
+  } | null>(null);
 
   const handleOpenMap = async () => {
     setMapVisible(true);
@@ -599,6 +637,34 @@ export default function TripDetailScreen() {
                   </View>
                 </View>
               )}
+
+              {myBooking?.status === 'COMPLETED' && (
+                <View className="mt-3 pt-3 border-t border-neutral-100 flex-row items-center justify-between">
+                  {driverRated || myBooking.driverRatingId ? (
+                    <View className="flex-row items-center gap-1.5">
+                      <Star size={14} color="#F59E0B" fill="#F59E0B" />
+                      <Text className="text-sm text-neutral-400">Conductor calificado</Text>
+                    </View>
+                  ) : (
+                    <TouchableOpacity
+                      onPress={() => trip.driver && setRateModal({
+                        bookingId: myBooking.id,
+                        revieweeId: trip.driverId,
+                        firstName: trip.driver.firstName,
+                        lastName: trip.driver.lastName,
+                        photoUrl: trip.driver.profilePhotoUrl,
+                      })}
+                      className="flex-row items-center gap-1.5 bg-amber-50 px-3 py-1.5 rounded-full"
+                      style={{ borderWidth: 1, borderColor: '#FDE68A' }}
+                    >
+                      <Star size={13} color="#F59E0B" fill="#F59E0B" />
+                      <Text className="text-sm font-semibold text-amber-600">
+                        Calificar conductor
+                      </Text>
+                    </TouchableOpacity>
+                  )}
+                </View>
+              )}
             </Card>
           )}
 
@@ -638,10 +704,18 @@ export default function TripDetailScreen() {
                     booking={b}
                     tripStatus={trip.status}
                     actionLoading={actionLoading}
+                    isRated={ratedPassengerBookings.has(b.id)}
                     onAccept={() => handleBookingAction(b.id, 'accept')}
                     onReject={() => handleBookingAction(b.id, 'reject')}
                     onBoard={() => handleBookingAction(b.id, 'board')}
                     onNoShow={() => handleBookingAction(b.id, 'noshow')}
+                    onRate={() => b.passenger && setRateModal({
+                      bookingId: b.id,
+                      revieweeId: b.passenger.id,
+                      firstName: b.passenger.firstName,
+                      lastName: b.passenger.lastName,
+                      photoUrl: b.passenger.profilePhotoUrl,
+                    })}
                   />
                 ))
               )}
@@ -723,6 +797,24 @@ export default function TripDetailScreen() {
           loading={loadingWaypoints || loadingRoutePolyline}
         />
       )}
+      <RateModal
+        visible={rateModal !== null}
+        onClose={() => setRateModal(null)}
+        onSubmit={async (score, comment) => {
+          if (!rateModal) return;
+          if (isDriver) {
+            await handleRatePassenger(rateModal.revieweeId, rateModal.bookingId, score, comment);
+          } else {
+            await handleRateDriver(score, comment);
+          }
+          setRateModal(null);
+        }}
+        title={rateModal ? `${rateModal.firstName} ${rateModal.lastName}` : ''}
+        subtitle={isDriver ? 'Califica a este pasajero' : 'Califica a este conductor'}
+        avatarUri={rateModal?.photoUrl}
+        avatarFirstName={rateModal?.firstName}
+        avatarLastName={rateModal?.lastName}
+      />
     </View>
   );
 }

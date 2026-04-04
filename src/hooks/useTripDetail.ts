@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Alert } from 'react-native';
 import { tripsApi } from '@/api/trips';
 import { bookingsApi } from '@/api/bookings';
+import { ratingsApi } from '@/api/ratings';
 import { vehiclesApi } from '@/api/vehicles';
 import { tomtomService } from '@/lib/tomtom';
 import { useAuthStore } from '@/stores/auth-store';
@@ -23,6 +24,10 @@ export function useTripDetail(id: string) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+
+  // Ratings
+  const [driverRated, setDriverRated] = useState(false);
+  const [ratedPassengerBookings, setRatedPassengerBookings] = useState<Set<string>>(new Set());
 
   // Route map
   const [waypointsFull, setWaypointsFull] = useState<RouteWaypointResponse[]>([]);
@@ -240,6 +245,30 @@ export function useTripDetail(id: string) {
     }
   };
 
+  const handleRateDriver = async (score: number, comment: string) => {
+    if (!trip) return;
+    await ratingsApi.create({
+      revieweeId: trip.driverId,
+      tripId: trip.id,
+      score,
+      comment: comment || undefined,
+    });
+    setDriverRated(true);
+    Toast.show({ type: 'success', text1: '¡Calificación enviada!', text2: 'Gracias por tu opinión' });
+  };
+
+  const handleRatePassenger = async (passengerUserId: string, bookingId: string, score: number, comment: string) => {
+    if (!trip) return;
+    await ratingsApi.create({
+      revieweeId: passengerUserId,
+      tripId: trip.id,
+      score,
+      comment: comment || undefined,
+    });
+    setRatedPassengerBookings((prev) => new Set([...prev, bookingId]));
+    Toast.show({ type: 'success', text1: '¡Calificación enviada!', text2: 'Gracias por tu opinión' });
+  };
+
   const handleBookingAction = async (
     bookingId: string,
     action: 'accept' | 'reject' | 'board' | 'noshow',
@@ -302,6 +331,8 @@ export function useTripDetail(id: string) {
     isDriver,
     canEdit,
     canBook,
+    driverRated,
+    ratedPassengerBookings,
     waypointsFull,
     loadingWaypoints,
     routePolyline,
@@ -314,6 +345,8 @@ export function useTripDetail(id: string) {
     handleCancelBooking,
     openMap,
     handleBookingAction,
+    handleRateDriver,
+    handleRatePassenger,
   };
 }
 

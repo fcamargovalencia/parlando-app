@@ -16,12 +16,15 @@ import {
   Armchair,
   Banknote,
   Ban,
+  Star,
 } from 'lucide-react-native';
 import { Screen, Badge, Card, EmptyState, Spinner, FilterTabs } from '@/components/ui';
 import { TripTypeIcon } from '@/components/TripTypeIcon';
+import { RateModal } from '@/components/trip/RateModal';
 import { Colors } from '@/constants/colors';
 import { BOOKING_STATUS_BADGE } from '@/constants/trips';
 import { bookingsApi } from '@/api/bookings';
+import { ratingsApi } from '@/api/ratings';
 import { getTripTypeLabel, formatDeparture, formatCurrency } from '@/lib/utils';
 import dayjs from 'dayjs';
 import type { BookingResponse, BookingStatus } from '@/types/api';
@@ -83,17 +86,22 @@ function reducer(state: State, action: Action): State {
 function BookingCard({
   booking,
   cancelling,
+  rated,
   onPress,
   onCancel,
+  onRate,
 }: {
   booking: BookingResponse;
   cancelling: boolean;
+  rated: boolean;
   onPress: () => void;
   onCancel: () => void;
+  onRate: () => void;
 }) {
   const config = BOOKING_STATUS_BADGE[booking.status];
   const trip = booking.trip;
   const canCancel = booking.status === 'PENDING' || booking.status === 'ACCEPTED';
+  const canRate = booking.status === 'COMPLETED' && !rated && !booking.driverRatingId;
 
   return (
     <TouchableOpacity onPress={onPress} activeOpacity={0.75}>
@@ -190,17 +198,40 @@ function BookingCard({
           )}
         </View>
 
-        {/* Cancel link */}
-        {canCancel && (
-          <TouchableOpacity
-            onPress={(e) => { e.stopPropagation?.(); onCancel(); }}
-            disabled={cancelling}
-            className="mt-3 self-end"
-          >
-            <Text className={`text-sm font-medium ${cancelling ? 'text-neutral-400' : 'text-red-500'}`}>
-              {cancelling ? 'Cancelando...' : 'Cancelar reserva'}
-            </Text>
-          </TouchableOpacity>
+        {/* Actions row */}
+        {(canCancel || canRate || (booking.status === 'COMPLETED' && (rated || booking.driverRatingId))) && (
+          <View className="flex-row items-center justify-between mt-3 pt-3 border-t border-neutral-100">
+            {canCancel ? (
+              <TouchableOpacity
+                onPress={(e) => { e.stopPropagation?.(); onCancel(); }}
+                disabled={cancelling}
+              >
+                <Text className={`text-sm font-medium ${cancelling ? 'text-neutral-400' : 'text-red-500'}`}>
+                  {cancelling ? 'Cancelando...' : 'Cancelar reserva'}
+                </Text>
+              </TouchableOpacity>
+            ) : <View />}
+
+            {canRate && (
+              <TouchableOpacity
+                onPress={(e) => { e.stopPropagation?.(); onRate(); }}
+                className="flex-row items-center gap-1.5 bg-amber-50 px-3 py-1.5 rounded-full"
+                style={{ borderWidth: 1, borderColor: '#FDE68A' }}
+              >
+                <Star size={13} color="#F59E0B" fill="#F59E0B" />
+                <Text className="text-sm font-semibold text-amber-600">
+                  Calificar conductor
+                </Text>
+              </TouchableOpacity>
+            )}
+
+            {booking.status === 'COMPLETED' && (rated || booking.driverRatingId) && (
+              <View className="flex-row items-center gap-1">
+                <Star size={13} color="#F59E0B" fill="#F59E0B" />
+                <Text className="text-sm text-neutral-400">Calificado</Text>
+              </View>
+            )}
+          </View>
         )}
       </Card>
     </TouchableOpacity>
@@ -212,6 +243,8 @@ function BookingCard({
 export default function MyBookingsScreen() {
   const router = useRouter();
   const [activeFilter, setActiveFilter] = useState<FilterKey>('active');
+  const [rateModal, setRateModal] = useState<{ bookingId: string; revieweeId: string; tripId: string } | null>(null);
+  const [ratedBookings, setRatedBookings] = useState<Set<string>>(new Set());
   const [state, dispatch] = useReducer(reducer, {
     bookings: [],
     loading: true,
@@ -265,6 +298,19 @@ export default function MyBookingsScreen() {
         },
       ],
     );
+  };
+
+  const handleRateDriver = async (score: number, comment: string) => {
+    if (!rateModal) return;
+    await ratingsApi.create({
+      revieweeId: rateModal.revieweeId,
+      tripId: rateModal.tripId,
+      score,
+      comment: comment || undefined,
+    });
+    setRatedBookings((prev) => new Set([...prev, rateModal.bookingId]));
+    Toast.show({ type: 'success', text1: '¡Calificación enviada!', text2: 'Gracias por tu opinión' });
+    setRateModal(null);
   };
 
   const filtered = state.bookings
@@ -332,12 +378,26 @@ export default function MyBookingsScreen() {
             <BookingCard
               booking={item}
               cancelling={state.cancelling === item.id}
+              rated={ratedBookings.has(item.id)}
               onPress={() => item.trip && router.push({ pathname: '/trip/[id]', params: { id: item.tripId } })}
               onCancel={() => handleCancel(item)}
+              onRate={() => item.trip?.driverId && setRateModal({
+                bookingId: item.id,
+                revieweeId: item.trip.driverId,
+                tripId: item.tripId,
+              })}
             />
           )}
         />
       )}
+
+      <RateModal
+        visible={rateModal !== null}
+        onClose={() => setRateModal(null)}
+        onSubmit={handleRateDriver}
+        title="Calificar conductor"
+        subtitle="Comparte tu experiencia en este viaje"
+      />
     </Screen>
   );
 }

@@ -362,6 +362,8 @@ export interface BookingResponse {
   completedAt?: string | null;
   createdAt: string;
   updatedAt: string;
+  driverRatingId?: string | null;
+  passengerRatingId?: string | null;
   trip?: {
     tripType: TripType;
     departureAt: string;
@@ -373,6 +375,7 @@ export interface BookingResponse {
     allowsLuggage: boolean;
     pricePerSeat: number;
     currency: string;
+    driverId?: string;
   };
   passenger?: {
     id: string;
@@ -382,4 +385,25 @@ export interface BookingResponse {
     trustScore: number;
     verificationLevel: VerificationLevel;
   };
+}
+
+// ── Ratings ──
+
+export interface CreateRatingRequest {
+  revieweeId: string;
+  score: number;
+  tripId: string;
+  comment?: string;
+  tags?: string[];
+}
+
+export interface RatingResponse {
+  id: string;
+  tripId: string;
+  reviewerId: string;
+  revieweeId: string;
+  score: number;
+  comment?: string;
+  tags?: string[];
+  createdAt: string;
 }

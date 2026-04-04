@@ -16,6 +16,7 @@ import {
   MapPin,
   Luggage,
   GraduationCap as StudentsIcon,
+  Star,
 } from 'lucide-react-native';
 import { Screen, Badge, Card, EmptyState, Spinner, FilterTabs } from '@/components/ui';
 import { TripTypeIcon } from '@/components/TripTypeIcon';
@@ -91,12 +92,14 @@ interface TripCardProps {
   cancelling: boolean;
   onPress: () => void;
   onCancel: () => void;
+  onRatePassengers: () => void;
 }
 
-function TripCard({ trip, cancelling, onPress, onCancel }: TripCardProps) {
+function TripCard({ trip, cancelling, onPress, onCancel, onRatePassengers }: TripCardProps) {
   const badge = TRIP_STATUS_BADGE[trip.status] ?? { label: trip.status, variant: 'neutral' as const };
   const canCancel = trip.status === 'DRAFT' || trip.status === 'PUBLISHED';
   const stopCount = trip.waypoints?.filter((w) => w.isPickupPoint).length ?? 0;
+  const isCompleted = trip.status === 'COMPLETED';
 
   return (
     <TouchableOpacity onPress={onPress} activeOpacity={0.7}>
@@ -183,17 +186,33 @@ function TripCard({ trip, cancelling, onPress, onCancel }: TripCardProps) {
           )}
         </View>
 
-        {/* Cancel shortcut */}
-        {canCancel && (
-          <TouchableOpacity
-            onPress={(e) => { e.stopPropagation?.(); onCancel(); }}
-            disabled={cancelling}
-            className="mt-1 self-start"
-          >
-            <Text className={`text-sm font-medium ${cancelling ? 'text-neutral-400' : 'text-red-500'}`}>
-              {cancelling ? 'Cancelando...' : 'Cancelar viaje'}
-            </Text>
-          </TouchableOpacity>
+        {/* Footer actions */}
+        {(canCancel || isCompleted) && (
+          <View className="flex-row items-center justify-between mt-1 pt-3 border-t border-neutral-100">
+            {canCancel ? (
+              <TouchableOpacity
+                onPress={(e) => { e.stopPropagation?.(); onCancel(); }}
+                disabled={cancelling}
+              >
+                <Text className={`text-sm font-medium ${cancelling ? 'text-neutral-400' : 'text-red-500'}`}>
+                  {cancelling ? 'Cancelando...' : 'Cancelar viaje'}
+                </Text>
+              </TouchableOpacity>
+            ) : <View />}
+
+            {isCompleted && (
+              <TouchableOpacity
+                onPress={(e) => { e.stopPropagation?.(); onRatePassengers(); }}
+                className="flex-row items-center gap-1.5 bg-amber-50 px-3 py-1.5 rounded-full"
+                style={{ borderWidth: 1, borderColor: '#FDE68A' }}
+              >
+                <Star size={13} color="#F59E0B" fill="#F59E0B" />
+                <Text className="text-sm font-semibold text-amber-600">
+                  Calificar pasajeros
+                </Text>
+              </TouchableOpacity>
+            )}
+          </View>
         )}
       </Card>
     </TouchableOpacity>
@@ -376,6 +395,7 @@ export default function MyTripsScreen() {
               cancelling={state.cancelling === item.id}
               onPress={() => router.push({ pathname: '/trip/[id]', params: { id: item.id } })}
               onCancel={() => handleCancel(item)}
+              onRatePassengers={() => router.push({ pathname: '/trip/[id]', params: { id: item.id } })}
             />
           )}
         />
