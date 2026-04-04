@@ -87,6 +87,7 @@ const BOOKING_DETAIL_BADGE: Record<
 
 function BookingRow({
   booking,
+  tripId,
   onAccept,
   onReject,
   onBoard,
@@ -97,6 +98,7 @@ function BookingRow({
   tripStatus,
 }: {
   booking: BookingResponse;
+  tripId: string;
   onAccept: () => void;
   onReject: () => void;
   onBoard: () => void;
@@ -106,6 +108,7 @@ function BookingRow({
   actionLoading: string | null;
   tripStatus: TripStatus;
 }) {
+  const router = useRouter();
   const passenger = booking.passenger;
   const badgeCfg = BOOKING_STATUS_BADGE[booking.status];
   const isLoading = (label: string) =>
@@ -113,7 +116,11 @@ function BookingRow({
 
   return (
     <View className="py-3 border-b border-neutral-100">
-      <View className="flex-row items-center gap-3 mb-2">
+      <TouchableOpacity
+        className="flex-row items-center gap-3 mb-2"
+        activeOpacity={0.7}
+        onPress={() => passenger && router.push({ pathname: '/user/[id]', params: { id: passenger.id, tripId } })}
+      >
         <Avatar
           uri={passenger?.profilePhotoUrl ?? null}
           firstName={passenger?.firstName ?? '?'}
@@ -126,13 +133,56 @@ function BookingRow({
               ? `${passenger.firstName} ${passenger.lastName}`
               : 'Pasajero'}
           </Text>
-          <Text className="text-sm text-neutral-400">
-            {booking.seatsBooked}{' '}
-            {booking.seatsBooked === 1 ? 'asiento' : 'asientos'}
-          </Text>
+          <View className="flex-row items-center gap-3 mt-0.5">
+            {passenger && (
+              <View className="flex-row items-center gap-1">
+                <Star size={13} color="#F59E0B" fill="#F59E0B" />
+                <Text className="text-sm font-semibold text-neutral-700">
+                  {passenger.trustScore} / 5
+                </Text>
+              </View>
+            )}
+            {passenger?.ratingsCount !== undefined && (
+              <View className="flex-row items-center gap-1">
+                <MessageCircle size={13} color={Colors.neutral[400]} />
+                <Text className="text-sm text-neutral-500">
+                  {passenger.ratingsCount} {passenger.ratingsCount === 1 ? 'comentario' : 'comentarios'}
+                </Text>
+              </View>
+            )}
+            <Text className="text-sm text-neutral-400">
+              {booking.seatsBooked}{' '}
+              {booking.seatsBooked === 1 ? 'asiento' : 'asientos'}
+            </Text>
+          </View>
         </View>
-        <Badge label={badgeCfg.label} variant={badgeCfg.variant} />
-      </View>
+        {booking.status !== 'COMPLETED' && (
+          <Badge label={badgeCfg.label} variant={badgeCfg.variant} />
+        )}
+        <ChevronRight size={20} color={Colors.neutral[600]} strokeWidth={2.5} />
+      </TouchableOpacity>
+
+      {booking.status === 'COMPLETED' && (
+        <View className="mt-2 pt-2 border-t border-neutral-100 items-end">
+          {isRated || booking.passengerRatingId ? (
+            <View className="flex-row items-center gap-1.5">
+              <Star size={13} color="#F59E0B" fill="#F59E0B" />
+              <Text className="text-sm text-neutral-400">Calificado</Text>
+            </View>
+          ) : (
+            <TouchableOpacity
+              onPress={onRate}
+              className="flex-row items-center gap-1.5 bg-amber-50 px-3 py-1.5 rounded-full"
+              style={{ borderWidth: 1, borderColor: '#FDE68A' }}
+            >
+              <Star size={13} color="#F59E0B" fill="#F59E0B" />
+              <Text className="text-sm font-semibold text-amber-600">
+                Calificar pasajero
+              </Text>
+            </TouchableOpacity>
+          )}
+        </View>
+      )}
 
       {booking.status === 'PENDING' && (
         <View className="flex-row gap-2 ml-12">
@@ -206,27 +256,6 @@ function BookingRow({
         </View>
       )}
 
-      {booking.status === 'COMPLETED' && (
-        <View className="ml-12 mt-1">
-          {isRated || booking.passengerRatingId ? (
-            <View className="flex-row items-center gap-1">
-              <Star size={13} color="#F59E0B" fill="#F59E0B" />
-              <Text className="text-sm text-neutral-400">Calificado</Text>
-            </View>
-          ) : (
-            <TouchableOpacity
-              onPress={onRate}
-              className="flex-row items-center gap-1.5 self-start bg-amber-50 px-3 py-1.5 rounded-full"
-              style={{ borderWidth: 1, borderColor: '#FDE68A' }}
-            >
-              <Star size={13} color="#F59E0B" fill="#F59E0B" />
-              <Text className="text-sm font-semibold text-amber-600">
-                Calificar pasajero
-              </Text>
-            </TouchableOpacity>
-          )}
-        </View>
-      )}
     </View>
   );
 }
@@ -453,10 +482,12 @@ export default function TripDetailScreen() {
                     Mi reserva
                   </Text>
                 </View>
-                <Badge
-                  label={BOOKING_DETAIL_BADGE[myBooking.status].label}
-                  variant={BOOKING_DETAIL_BADGE[myBooking.status].variant}
-                />
+                {myBooking.status !== 'COMPLETED' && trip.status !== 'COMPLETED' && (
+                  <Badge
+                    label={BOOKING_DETAIL_BADGE[myBooking.status].label}
+                    variant={BOOKING_DETAIL_BADGE[myBooking.status].variant}
+                  />
+                )}
               </View>
               <View className="flex-row items-center justify-between">
                 <View className="flex-row items-center gap-2">
@@ -592,7 +623,11 @@ export default function TripDetailScreen() {
           {/* Driver + Vehicle (passenger view) */}
           {!isDriver && trip.driver && (
             <Card>
-              <TouchableOpacity className="flex-row items-center gap-3" activeOpacity={0.7}>
+              <TouchableOpacity
+                className="flex-row items-center gap-3"
+                activeOpacity={0.7}
+                onPress={() => trip.driver && router.push({ pathname: '/user/[id]', params: { id: trip.driver.id, tripId: trip.id } })}
+              >
                 <Avatar
                   uri={trip.driver.profilePhotoUrl}
                   firstName={trip.driver.firstName}
@@ -610,13 +645,17 @@ export default function TripDetailScreen() {
                         {trip.driver.trustScore} / 5
                       </Text>
                     </View>
-                    <View className="flex-row items-center gap-1">
-                      <MessageCircle size={14} color={Colors.neutral[400]} />
-                      <Text className="text-base text-neutral-500">24 comentarios</Text>
-                    </View>
+                    {trip.driver.ratingsCount !== undefined && (
+                      <View className="flex-row items-center gap-1">
+                        <MessageCircle size={14} color={Colors.neutral[400]} />
+                        <Text className="text-base text-neutral-500">
+                          {trip.driver.ratingsCount} {trip.driver.ratingsCount === 1 ? 'comentario' : 'comentarios'}
+                        </Text>
+                      </View>
+                    )}
                   </View>
                 </View>
-                <ChevronRight size={18} color={Colors.neutral[300]} />
+                <ChevronRight size={20} color={Colors.neutral[600]} strokeWidth={2.5} />
               </TouchableOpacity>
 
               {vehicle && (
@@ -639,10 +678,10 @@ export default function TripDetailScreen() {
               )}
 
               {myBooking?.status === 'COMPLETED' && (
-                <View className="mt-3 pt-3 border-t border-neutral-100 flex-row items-center justify-between">
+                <View className="mt-3 pt-3 border-t border-neutral-100 items-end">
                   {driverRated || myBooking.driverRatingId ? (
                     <View className="flex-row items-center gap-1.5">
-                      <Star size={14} color="#F59E0B" fill="#F59E0B" />
+                      <Star size={13} color="#F59E0B" fill="#F59E0B" />
                       <Text className="text-sm text-neutral-400">Conductor calificado</Text>
                     </View>
                   ) : (
@@ -702,6 +741,7 @@ export default function TripDetailScreen() {
                   <BookingRow
                     key={b.id}
                     booking={b}
+                    tripId={trip.id}
                     tripStatus={trip.status}
                     actionLoading={actionLoading}
                     isRated={ratedPassengerBookings.has(b.id)}

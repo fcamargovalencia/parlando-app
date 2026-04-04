@@ -1,9 +1,11 @@
 import '../global.css';
 import React, { useEffect, useState } from 'react';
+import { Platform } from 'react-native';
 import { loadFonts } from '../src/fonts';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import * as SplashScreen from 'expo-splash-screen';
+import * as NavigationBar from 'expo-navigation-bar';
 import Toast from 'react-native-toast-message';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
@@ -17,6 +19,10 @@ export default function RootLayout() {
     (async () => {
       try {
         await loadFonts();
+        if (Platform.OS === 'android') {
+          await NavigationBar.setBackgroundColorAsync('#FFFFFF');
+          await NavigationBar.setButtonStyleAsync('dark');
+        }
       } catch (e) {
         console.warn('Failed to load fonts, using system defaults', e);
       } finally {

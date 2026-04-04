@@ -29,6 +29,8 @@
         "backgroundColor": "#003040"
       },
       "package": "com.parlando.app",
+      "navigationBarColor": "#FFFFFF",
+      "navigationBarStyle": "dark-content",
       "permissions": [
         "ACCESS_FINE_LOCATION",
         "ACCESS_COARSE_LOCATION",
