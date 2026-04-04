@@ -11,7 +11,6 @@ import {
   ArrowLeft,
   Clock,
   Users,
-  DollarSign,
   Luggage,
   GraduationCap,
   Car,
@@ -26,6 +25,13 @@ import {
   Check,
   X,
   UserX,
+  Armchair,
+  Banknote,
+  Ban,
+  Star,
+  MessageCircle,
+  PaintBucket,
+  FileText,
 } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Badge, Card, Spinner, Button, Avatar } from '@/components/ui';
@@ -54,8 +60,8 @@ function DetailRow({
     <View className="flex-row items-start gap-3 py-2.5 border-b border-neutral-100">
       <View className="mt-0.5">{icon}</View>
       <View className="flex-1">
-        <Text className="text-xs text-neutral-400 mb-0.5">{label}</Text>
-        <Text className="text-sm font-medium text-neutral-900">{value}</Text>
+        <Text className="text-sm text-neutral-400 mb-0.5">{label}</Text>
+        <Text className="text-base font-medium text-neutral-900">{value}</Text>
       </View>
     </View>
   );
@@ -110,12 +116,12 @@ function BookingRow({
           size="sm"
         />
         <View className="flex-1">
-          <Text className="text-sm font-semibold text-neutral-900">
+          <Text className="text-base font-semibold text-neutral-900">
             {passenger
               ? `${passenger.firstName} ${passenger.lastName}`
               : 'Pasajero'}
           </Text>
-          <Text className="text-xs text-neutral-400">
+          <Text className="text-sm text-neutral-400">
             {booking.seatsBooked}{' '}
             {booking.seatsBooked === 1 ? 'asiento' : 'asientos'}
           </Text>
@@ -136,7 +142,7 @@ function BookingRow({
             ) : (
               <>
                 <Check size={14} color="#fff" />
-                <Text className="text-white text-xs font-semibold">
+                <Text className="text-white text-sm font-semibold">
                   Aceptar
                 </Text>
               </>
@@ -153,7 +159,7 @@ function BookingRow({
             ) : (
               <>
                 <X size={14} color="#EF4444" />
-                <Text className="text-red-500 text-xs font-semibold">
+                <Text className="text-red-500 text-sm font-semibold">
                   Rechazar
                 </Text>
               </>
@@ -175,7 +181,7 @@ function BookingRow({
             ) : (
               <>
                 <UserCheck size={14} color="#fff" />
-                <Text className="text-white text-xs font-semibold">
+                <Text className="text-white text-sm font-semibold">
                   Registrar abordaje
                 </Text>
               </>
@@ -295,8 +301,8 @@ export default function TripDetailScreen() {
           className="flex-1"
           contentContainerStyle={{
             paddingHorizontal: 16,
-            paddingVertical: 16,
-            gap: 16,
+            paddingVertical: 12,
+            gap: 10,
           }}
           showsVerticalScrollIndicator={false}
         >
@@ -305,7 +311,7 @@ export default function TripDetailScreen() {
             <View className="flex-row items-center justify-between mb-4">
               <View className="flex-row items-center gap-2">
                 <TripTypeIcon type={trip.tripType} size={18} />
-                <Text className="text-sm font-medium text-neutral-600">
+                <Text className="text-base font-medium text-neutral-600">
                   {getTripTypeLabel(trip.tripType)}
                 </Text>
               </View>
@@ -315,7 +321,7 @@ export default function TripDetailScreen() {
               />
             </View>
 
-            <View className="gap-3">
+            <View className="gap-1.5">
               {/* Origin */}
               <View className="flex-row items-start gap-3">
                 <View className="items-center pt-1">
@@ -325,11 +331,11 @@ export default function TripDetailScreen() {
                   />
                 </View>
                 <View className="flex-1">
-                  <Text className="text-sm font-semibold text-neutral-900">
+                  <Text className="text-base font-semibold text-neutral-900">
                     {trip.originName}
                   </Text>
                   {!!trip.originSubtitle && (
-                    <Text className="text-xs text-neutral-400 mt-0.5">
+                    <Text className="text-sm text-neutral-400 mt-0.5">
                       {trip.originSubtitle}
                     </Text>
                   )}
@@ -343,17 +349,17 @@ export default function TripDetailScreen() {
                   .sort((a, b) => a.orderIndex - b.orderIndex)
                   .map((waypoint, idx) => (
                     <View key={waypoint.id || idx}>
-                      <View className="ml-1.5 h-4 w-0.5 bg-neutral-200" />
+                      <View className="ml-1.5 h-3 w-0.5 bg-neutral-200" />
                       <View className="flex-row items-start gap-3">
                         <View className="items-center pt-1">
                           <View className="w-3 h-3 rounded-full bg-primary-400" />
                         </View>
                         <View className="flex-1">
-                          <Text className="text-sm font-semibold text-neutral-900">
+                          <Text className="text-base font-semibold text-neutral-900">
                             {waypoint.name}
                           </Text>
                           {!!waypoint.subtitle && (
-                            <Text className="text-xs text-neutral-400 mt-0.5">
+                            <Text className="text-sm text-neutral-400 mt-0.5">
                               {waypoint.subtitle}
                             </Text>
                           )}
@@ -362,7 +368,7 @@ export default function TripDetailScreen() {
                     </View>
                   ))}
 
-              <View className="ml-1.5 h-4 w-0.5 bg-neutral-200" />
+              <View className="ml-1.5 h-3 w-0.5 bg-neutral-200" />
 
               {/* Destination */}
               <View className="flex-row items-start gap-3">
@@ -373,11 +379,11 @@ export default function TripDetailScreen() {
                   />
                 </View>
                 <View className="flex-1">
-                  <Text className="text-sm font-semibold text-neutral-900">
+                  <Text className="text-base font-semibold text-neutral-900">
                     {trip.destinationName}
                   </Text>
                   {!!trip.destinationSubtitle && (
-                    <Text className="text-xs text-neutral-400 mt-0.5">
+                    <Text className="text-sm text-neutral-400 mt-0.5">
                       {trip.destinationSubtitle}
                     </Text>
                   )}
@@ -391,7 +397,7 @@ export default function TripDetailScreen() {
             >
               <View className="flex-row items-center gap-2">
                 <Map size={16} color={Colors.primary[600]} />
-                <Text className="text-sm font-medium text-primary-600">
+                <Text className="text-base font-medium text-primary-600">
                   Ver ruta en el mapa
                 </Text>
               </View>
@@ -402,33 +408,35 @@ export default function TripDetailScreen() {
           {/* Passenger: My booking status */}
           {!isDriver && myBooking && (
             <Card>
-              <View className="flex-row items-center gap-2 mb-3">
-                <Ticket size={16} color={Colors.primary[600]} />
-                <Text className="text-sm font-semibold text-neutral-700">
-                  Mi reserva
-                </Text>
-              </View>
               <View className="flex-row items-center justify-between mb-3">
-                <Text className="text-sm text-neutral-600">Estado</Text>
+                <View className="flex-row items-center gap-2">
+                  <Ticket size={16} color={Colors.primary[600]} />
+                  <Text className="text-base font-semibold text-neutral-700">
+                    Mi reserva
+                  </Text>
+                </View>
                 <Badge
                   label={BOOKING_DETAIL_BADGE[myBooking.status].label}
                   variant={BOOKING_DETAIL_BADGE[myBooking.status].variant}
                 />
               </View>
-              <View className="flex-row items-center justify-between mb-1">
-                <Text className="text-sm text-neutral-600">Asientos</Text>
-                <Text className="text-sm font-semibold text-neutral-900">
-                  {myBooking.seatsBooked}
-                </Text>
-              </View>
               <View className="flex-row items-center justify-between">
-                <Text className="text-sm text-neutral-600">Total</Text>
-                <Text className="text-sm font-bold text-primary-700">
-                  {formatCurrency(
-                    trip.pricePerSeat * myBooking.seatsBooked,
-                    trip.currency,
-                  )}
-                </Text>
+                <View className="flex-row items-center gap-2">
+                  <Armchair size={15} color={Colors.neutral[400]} />
+                  <Text className="text-base text-neutral-600">
+                    {myBooking.seatsBooked}{' '}
+                    {myBooking.seatsBooked === 1 ? 'asiento' : 'asientos'}
+                  </Text>
+                </View>
+                <View className="flex-row items-center gap-2">
+                  <Banknote size={15} color={Colors.neutral[400]} />
+                  <Text className="text-base font-bold text-primary-700">
+                    {formatCurrency(
+                      trip.pricePerSeat * myBooking.seatsBooked,
+                      trip.currency,
+                    )}
+                  </Text>
+                </View>
               </View>
 
               {(myBooking.status === 'PENDING' ||
@@ -440,8 +448,8 @@ export default function TripDetailScreen() {
                   >
                     <Text
                       className={`text-sm font-medium text-center ${actionLoading === 'cancel-booking'
-                          ? 'text-neutral-400'
-                          : 'text-red-500'
+                        ? 'text-neutral-400'
+                        : 'text-red-500'
                         }`}
                     >
                       {actionLoading === 'cancel-booking'
@@ -453,7 +461,7 @@ export default function TripDetailScreen() {
 
               {myBooking.status === 'PENDING' && (
                 <View className="mt-3 bg-amber-50 rounded-xl p-3">
-                  <Text className="text-xs text-amber-700 text-center leading-4">
+                  <Text className="text-sm text-amber-700 text-center leading-5">
                     Tu solicitud está pendiente. El conductor la revisará
                     pronto.
                   </Text>
@@ -488,40 +496,48 @@ export default function TripDetailScreen() {
 
           {/* Trip details */}
           <Card>
-            <Text className="text-sm font-semibold text-neutral-700 mb-3">
-              Detalles del viaje
-            </Text>
-            <DetailRow
-              icon={<Clock size={16} color={Colors.neutral[400]} />}
-              label="Salida"
-              value={formatDeparture(trip.departureAt)}
-            />
-            {trip.estimatedArrivalTime && (
-              <DetailRow
-                icon={<Clock size={16} color={Colors.accent[500]} />}
-                label="Llegada estimada"
-                value={formatDeparture(trip.estimatedArrivalTime)}
-              />
-            )}
-            <DetailRow
-              icon={<Users size={16} color={Colors.neutral[400]} />}
-              label="Asientos"
-              value={`${trip.availableSeats} disponibles`}
-            />
             <View className="flex-row items-start gap-3 py-2.5 border-b border-neutral-100">
               <View className="mt-0.5">
-                <DollarSign size={16} color={Colors.neutral[400]} />
+                <Clock size={16} color={Colors.neutral[400]} />
               </View>
-              <View className="flex-1">
-                <Text className="text-xs text-neutral-400 mb-0.5">
-                  Precio y equipaje
+              <View className="flex-1 flex-row justify-between">
+                <View>
+                  <Text className="text-sm text-neutral-400 mb-0.5">Salida</Text>
+                  <Text className="text-base font-medium text-neutral-900">{formatDeparture(trip.departureAt)}</Text>
+                </View>
+                <View className="items-end">
+                  <View className="flex-row items-center gap-1 mb-0.5">
+                    <Clock size={14} color={Colors.accent[500]} />
+                    <Text className="text-sm text-neutral-400">Llegada estimada</Text>
+                  </View>
+                  <Text className="text-base font-medium text-neutral-900">
+                    {trip.arrivedAt ? formatDeparture(trip.arrivedAt) : '—'}
+                  </Text>
+                </View>
+              </View>
+            </View>
+            <View className="flex-row items-center justify-between py-2.5 border-b border-neutral-100">
+              <View className="flex-row items-center gap-1.5">
+                <Users size={15} color={Colors.neutral[400]} />
+                <Text className="text-base font-medium text-neutral-900">
+                  {trip.availableSeats} disponibles
                 </Text>
-                <Text className="text-sm font-medium text-neutral-900">
+              </View>
+              <View className="flex-row items-center gap-1.5">
+                <Banknote size={15} color={Colors.neutral[400]} />
+                <Text className="text-base font-medium text-neutral-900">
                   {formatCurrency(trip.pricePerSeat, trip.currency)}
-                  {trip.allowsLuggage
-                    ? ' • Equipaje permitido'
-                    : ' • Sin equipaje'}
                 </Text>
+              </View>
+              <View className="flex-row items-center gap-1.5">
+                <Luggage
+                  size={15}
+                  color={trip.allowsLuggage ? Colors.neutral[400] : Colors.neutral[300]}
+                />
+                <Text className={`text-base font-medium ${trip.allowsLuggage ? 'text-neutral-900' : 'text-neutral-300'}`}>
+                  Equipaje
+                </Text>
+                {!trip.allowsLuggage && <Ban size={13} color="#EF4444" />}
               </View>
             </View>
             {trip.tripType === 'ROUTINE' && (
@@ -535,21 +551,54 @@ export default function TripDetailScreen() {
             )}
           </Card>
 
-          {/* Vehicle */}
-          {vehicle && (
+          {/* Driver + Vehicle (passenger view) */}
+          {!isDriver && trip.driver && (
             <Card>
-              <View className="flex-row items-center gap-2 mb-1">
-                <Car size={16} color={Colors.neutral[400]} />
-                <Text className="text-sm font-semibold text-neutral-700">
-                  Vehículo
-                </Text>
-              </View>
-              <Text className="text-base font-semibold text-neutral-900 mt-2">
-                {vehicle.brand} {vehicle.model} {vehicle.year}
-              </Text>
-              <Text className="text-sm text-neutral-500 mt-0.5">
-                {vehicle.color}
-              </Text>
+              <TouchableOpacity className="flex-row items-center gap-3" activeOpacity={0.7}>
+                <Avatar
+                  uri={trip.driver.profilePhotoUrl}
+                  firstName={trip.driver.firstName}
+                  lastName={trip.driver.lastName}
+                  size="md"
+                />
+                <View className="flex-1">
+                  <Text className="text-lg font-semibold text-neutral-900">
+                    {trip.driver.firstName} {trip.driver.lastName}
+                  </Text>
+                  <View className="flex-row items-center gap-3 mt-0.5">
+                    <View className="flex-row items-center gap-1">
+                      <Star size={14} color="#F59E0B" fill="#F59E0B" />
+                      <Text className="text-base font-semibold text-neutral-700">
+                        {trip.driver.trustScore} / 5
+                      </Text>
+                    </View>
+                    <View className="flex-row items-center gap-1">
+                      <MessageCircle size={14} color={Colors.neutral[400]} />
+                      <Text className="text-base text-neutral-500">24 comentarios</Text>
+                    </View>
+                  </View>
+                </View>
+                <ChevronRight size={18} color={Colors.neutral[300]} />
+              </TouchableOpacity>
+
+              {vehicle && (
+                <View className="flex-row items-center justify-between mt-3 pt-3 border-t border-neutral-100">
+                  <View className="flex-row items-center gap-2">
+                    <Car size={15} color={Colors.neutral[400]} />
+                    <Text className="text-base font-semibold text-neutral-900">
+                      {vehicle.brand} {vehicle.model} {vehicle.year}
+                    </Text>
+                  </View>
+                  <View className="flex-row items-center gap-1">
+                    <PaintBucket size={13} color={Colors.neutral[400]} />
+                    <Text className="text-base text-neutral-500">{vehicle.color}</Text>
+                  </View>
+                  <View className="flex-row items-center gap-1 bg-green-100 rounded-full px-2 py-0.5">
+                    <FileText size={11} color="#15803D" />
+                    <Text className="text-xs font-semibold text-green-700">SOAT</Text>
+                  </View>
+                </View>
+              )}
             </Card>
           )}
 
@@ -558,7 +607,7 @@ export default function TripDetailScreen() {
             <Card>
               <View className="flex-row items-center gap-2 mb-3">
                 <UserCheck size={18} color={Colors.primary[600]} />
-                <Text className="text-sm font-semibold text-neutral-700">
+                <Text className="text-base font-semibold text-neutral-700">
                   Solicitudes de pasajeros
                 </Text>
                 {bookings.length > 0 && (

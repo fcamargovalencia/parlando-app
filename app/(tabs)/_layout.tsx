@@ -2,7 +2,7 @@ import React from 'react';
 import { Platform } from 'react-native';
 import { Tabs } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Home, Route, PlusCircle, User, Ticket } from 'lucide-react-native';
+import { Route, PlusCircle, User, Ticket, Search } from 'lucide-react-native';
 import { Colors } from '@/constants/colors';
 
 export default function TabsLayout() {
@@ -32,8 +32,8 @@ export default function TabsLayout() {
       <Tabs.Screen
         name="home"
         options={{
-          title: 'Inicio',
-          tabBarIcon: ({ color, size }) => <Home size={size} color={color} />,
+          title: 'Buscar',
+          tabBarIcon: ({ color, size }) => <Search size={size} color={color} />,
         }}
       />
       <Tabs.Screen

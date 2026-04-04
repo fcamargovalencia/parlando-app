@@ -302,7 +302,7 @@ export interface TripResponse {
   destinationLatitude: number;
   destinationLongitude: number;
   departureAt: string;
-  estimatedArrivalTime?: string;
+  arrivedAt?: string;
   availableSeats: number;
   pricePerSeat: number;
   currency: string;
@@ -354,12 +354,26 @@ export interface BookingResponse {
   tripId: string;
   passengerId: string;
   seatsBooked: number;
+  verificationCode?: string;
   status: BookingStatus;
   pickupWaypointId?: string | null;
   dropoffWaypointId?: string | null;
+  boardedAt?: string | null;
+  completedAt?: string | null;
   createdAt: string;
   updatedAt: string;
-  trip?: TripResponse;
+  trip?: {
+    tripType: TripType;
+    departureAt: string;
+    estimatedArrivalAt?: string | null;
+    originName: string;
+    originSubtitle?: string | null;
+    destinationName: string;
+    destinationSubtitle?: string | null;
+    allowsLuggage: boolean;
+    pricePerSeat: number;
+    currency: string;
+  };
   passenger?: {
     id: string;
     firstName: string;

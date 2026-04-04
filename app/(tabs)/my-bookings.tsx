@@ -11,15 +11,19 @@ import { useRouter } from 'expo-router';
 import {
   Ticket,
   Clock,
-  DollarSign,
   ChevronRight,
+  Luggage,
+  Armchair,
+  Banknote,
+  Ban,
 } from 'lucide-react-native';
 import { Screen, Badge, Card, EmptyState, Spinner, FilterTabs } from '@/components/ui';
 import { TripTypeIcon } from '@/components/TripTypeIcon';
 import { Colors } from '@/constants/colors';
 import { BOOKING_STATUS_BADGE } from '@/constants/trips';
 import { bookingsApi } from '@/api/bookings';
-import { formatCurrency, getTripTypeLabel, formatDeparture } from '@/lib/utils';
+import { getTripTypeLabel, formatDeparture, formatCurrency } from '@/lib/utils';
+import dayjs from 'dayjs';
 import type { BookingResponse, BookingStatus } from '@/types/api';
 import Toast from 'react-native-toast-message';
 
@@ -95,10 +99,10 @@ function BookingCard({
     <TouchableOpacity onPress={onPress} activeOpacity={0.75}>
       <Card className="mb-3">
         {/* Header */}
-        <View className="flex-row items-center justify-between mb-3">
+        <View className="flex-row items-center justify-between mb-4">
           <View className="flex-row items-center gap-1.5">
-            <TripTypeIcon type={trip?.tripType} size={14} />
-            <Text className="text-xs font-medium text-neutral-500">
+            <TripTypeIcon type={trip?.tripType ?? 'ROUTINE'} size={15} />
+            <Text className="text-sm font-medium text-neutral-500">
               {trip ? getTripTypeLabel(trip.tripType) : 'Viaje'}
             </Text>
           </View>
@@ -107,45 +111,83 @@ function BookingCard({
 
         {/* Route */}
         {trip && (
-          <View className="flex-row items-start mb-3">
+          <View className="flex-row items-start mb-4">
             <View className="items-center mr-3 pt-1">
               <View className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: Colors.primary[500] }} />
-              <View className="w-0.5 h-5 my-1" style={{ backgroundColor: Colors.neutral[200] }} />
+              <View className="w-0.5 h-9 my-1" style={{ backgroundColor: Colors.neutral[200] }} />
               <View className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: Colors.accent[500] }} />
             </View>
-            <View className="flex-1 gap-1">
-              <Text className="text-sm font-semibold text-neutral-900" numberOfLines={1}>
-                {trip.originName}
-              </Text>
-              <Text className="text-sm font-semibold text-neutral-900" numberOfLines={1}>
-                {trip.destinationName}
-              </Text>
+            <View className="flex-1 gap-3.5">
+              <View>
+                <Text className="text-base font-semibold text-neutral-900" numberOfLines={1}>
+                  {trip.originName}
+                </Text>
+                {trip.originSubtitle && (
+                  <Text className="text-sm text-neutral-400" numberOfLines={1}>{trip.originSubtitle}</Text>
+                )}
+              </View>
+              <View>
+                <Text className="text-base font-semibold text-neutral-900" numberOfLines={1}>
+                  {trip.destinationName}
+                </Text>
+                {trip.destinationSubtitle && (
+                  <Text className="text-sm text-neutral-400" numberOfLines={1}>{trip.destinationSubtitle}</Text>
+                )}
+              </View>
             </View>
-            <ChevronRight size={18} color={Colors.neutral[300]} />
+            <ChevronRight size={20} color={Colors.neutral[300]} />
           </View>
         )}
 
+        {/* Divider */}
+        <View className="h-px mb-3" style={{ backgroundColor: Colors.neutral[100] }} />
+
         {/* Meta */}
-        <View className="flex-row flex-wrap gap-x-4 gap-y-1.5 mb-1">
+        <View className="gap-y-2.5">
+          {/* Row 1: Departure + estimated arrival */}
           {trip && (
-            <>
-              <View className="flex-row items-center gap-1">
-                <Clock size={13} color={Colors.neutral[400]} />
-                <Text className="text-xs text-neutral-500">{formatDeparture(trip.departureAt)}</Text>
+            <View className="flex-row items-center justify-between">
+              <View className="flex-row items-center gap-2">
+                <Clock size={15} color={Colors.neutral[400]} />
+                <Text className="text-sm text-neutral-600">{formatDeparture(trip.departureAt)}</Text>
               </View>
-              <View className="flex-row items-center gap-1">
-                <DollarSign size={13} color={Colors.neutral[400]} />
-                <Text className="text-xs font-semibold text-neutral-700">
-                  {formatCurrency(trip.pricePerSeat * booking.seatsBooked, trip.currency)}
+              {trip.estimatedArrivalAt && (
+                <View className="flex-row items-center gap-1.5">
+                  <Text className="text-sm text-neutral-400">→</Text>
+                  <Text className="text-sm text-neutral-600">{dayjs(trip.estimatedArrivalAt).format('h:mm A')}</Text>
+                </View>
+              )}
+            </View>
+          )}
+
+          {/* Row 2: Seats + price per seat */}
+          <View className="flex-row items-center justify-between">
+            <View className="flex-row items-center gap-2">
+              <Armchair size={15} color={Colors.neutral[400]} />
+              <Text className="text-sm text-neutral-600">
+                {booking.seatsBooked} {booking.seatsBooked === 1 ? 'asiento' : 'asientos'}
+              </Text>
+            </View>
+            {trip && (
+              <View className="flex-row items-center gap-2">
+                <Banknote size={15} color={Colors.neutral[400]} />
+                <Text className="text-sm font-medium text-neutral-700">
+                  {formatCurrency(trip.pricePerSeat, trip.currency)} / asiento
                 </Text>
               </View>
-            </>
-          )}
-          <View className="flex-row items-center gap-1">
-            <Text className="text-xs text-neutral-400">
-              {booking.seatsBooked} {booking.seatsBooked === 1 ? 'asiento' : 'asientos'}
-            </Text>
+            )}
           </View>
+
+          {/* Row 3: Preferences */}
+          {trip && (
+            <View className="flex-row items-center gap-2">
+              <Luggage size={15} color={trip.allowsLuggage ? Colors.neutral[400] : Colors.neutral[300]} />
+              <Text className={`text-sm ${trip.allowsLuggage ? 'text-neutral-600' : 'text-neutral-300'}`}>
+                {trip.allowsLuggage ? 'Equipaje permitido' : 'Sin equipaje'}
+              </Text>
+              {!trip.allowsLuggage && <Ban size={13} color="#EF4444" />}
+            </View>
+          )}
         </View>
 
         {/* Cancel link */}
@@ -153,7 +195,7 @@ function BookingCard({
           <TouchableOpacity
             onPress={(e) => { e.stopPropagation?.(); onCancel(); }}
             disabled={cancelling}
-            className="mt-2 self-start"
+            className="mt-3 self-end"
           >
             <Text className={`text-sm font-medium ${cancelling ? 'text-neutral-400' : 'text-red-500'}`}>
               {cancelling ? 'Cancelando...' : 'Cancelar reserva'}
