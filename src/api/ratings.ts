@@ -10,4 +10,7 @@ export const ratingsApi = {
 
   getByTrip: (tripId: string) =>
     api.get<ApiResponse<RatingResponse[]>>(`/v1/ratings/trip/${encodeURIComponent(tripId)}`),
+
+  getCommentCount: (userId: string) =>
+    api.get<ApiResponse<number>>(`/v1/ratings/user/${encodeURIComponent(userId)}/comments/count`),
 };

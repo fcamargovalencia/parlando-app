@@ -29,9 +29,9 @@ import {
   Banknote,
   Ban,
   Star,
-  MessageCircle,
   PaintBucket,
   FileText,
+  MessageSquare,
 } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Badge, Card, Spinner, Button, Avatar } from '@/components/ui';
@@ -96,6 +96,7 @@ function BookingRow({
   isRated,
   actionLoading,
   tripStatus,
+  commentCount,
 }: {
   booking: BookingResponse;
   tripId: string;
@@ -107,6 +108,7 @@ function BookingRow({
   isRated: boolean;
   actionLoading: string | null;
   tripStatus: TripStatus;
+  commentCount?: number;
 }) {
   const router = useRouter();
   const passenger = booking.passenger;
@@ -125,7 +127,7 @@ function BookingRow({
           uri={passenger?.profilePhotoUrl ?? null}
           firstName={passenger?.firstName ?? '?'}
           lastName={passenger?.lastName ?? ''}
-          size="sm"
+          size="md"
         />
         <View className="flex-1">
           <Text className="text-base font-semibold text-neutral-900">
@@ -136,24 +138,27 @@ function BookingRow({
           <View className="flex-row items-center gap-3 mt-0.5">
             {passenger && (
               <View className="flex-row items-center gap-1">
-                <Star size={13} color="#F59E0B" fill="#F59E0B" />
-                <Text className="text-sm font-semibold text-neutral-700">
+                <Star size={14} color="#F59E0B" fill="#F59E0B" />
+                <Text className="text-base font-semibold text-neutral-700">
                   {passenger.trustScore} / 5
                 </Text>
               </View>
             )}
-            {passenger?.ratingsCount !== undefined && (
+            {commentCount !== undefined && (
               <View className="flex-row items-center gap-1">
-                <MessageCircle size={13} color={Colors.neutral[400]} />
-                <Text className="text-sm text-neutral-500">
-                  {passenger.ratingsCount} {passenger.ratingsCount === 1 ? 'comentario' : 'comentarios'}
+                <MessageSquare size={14} color={Colors.neutral[400]} />
+                <Text className="text-base font-semibold text-neutral-700">
+                  {commentCount} comentarios
                 </Text>
               </View>
             )}
-            <Text className="text-sm text-neutral-400">
-              {booking.seatsBooked}{' '}
-              {booking.seatsBooked === 1 ? 'asiento' : 'asientos'}
-            </Text>
+            <View className="flex-row items-center gap-1">
+              <Armchair size={14} color={Colors.neutral[400]} />
+              <Text className="text-base font-semibold text-neutral-700">
+                {booking.seatsBooked}{' '}
+                {booking.seatsBooked === 1 ? 'asiento' : 'asientos'}
+              </Text>
+            </View>
           </View>
         </View>
         {booking.status !== 'COMPLETED' && (
@@ -165,9 +170,9 @@ function BookingRow({
       {booking.status === 'COMPLETED' && (
         <View className="mt-2 pt-2 border-t border-neutral-100 items-end">
           {isRated || booking.passengerRatingId ? (
-            <View className="flex-row items-center gap-1.5">
-              <Star size={13} color="#F59E0B" fill="#F59E0B" />
-              <Text className="text-sm text-neutral-400">Calificado</Text>
+            <View className="flex-row items-center gap-1.5 bg-green-50 px-3 py-1.5 rounded-full" style={{ borderWidth: 1, borderColor: '#BBF7D0' }}>
+              <Star size={13} color="#16A34A" fill="#16A34A" />
+              <Text className="text-sm font-semibold text-green-700">Calificado</Text>
             </View>
           ) : (
             <TouchableOpacity
@@ -280,8 +285,9 @@ export default function TripDetailScreen() {
     isDriver,
     canEdit,
     canBook,
-    driverRated,
-    ratedPassengerBookings,
+    ratedUserIds,
+    driverCommentCount,
+    passengerCommentCounts,
     waypointsFull,
     loadingWaypoints,
     routePolyline,
@@ -645,11 +651,11 @@ export default function TripDetailScreen() {
                         {trip.driver.trustScore} / 5
                       </Text>
                     </View>
-                    {trip.driver.ratingsCount !== undefined && (
+                    {driverCommentCount !== null && (
                       <View className="flex-row items-center gap-1">
-                        <MessageCircle size={14} color={Colors.neutral[400]} />
-                        <Text className="text-base text-neutral-500">
-                          {trip.driver.ratingsCount} {trip.driver.ratingsCount === 1 ? 'comentario' : 'comentarios'}
+                        <MessageSquare size={14} color={Colors.neutral[400]} />
+                        <Text className="text-base font-semibold text-neutral-700">
+                          {driverCommentCount} comentarios
                         </Text>
                       </View>
                     )}
@@ -679,10 +685,10 @@ export default function TripDetailScreen() {
 
               {myBooking?.status === 'COMPLETED' && (
                 <View className="mt-3 pt-3 border-t border-neutral-100 items-end">
-                  {driverRated || myBooking.driverRatingId ? (
-                    <View className="flex-row items-center gap-1.5">
-                      <Star size={13} color="#F59E0B" fill="#F59E0B" />
-                      <Text className="text-sm text-neutral-400">Conductor calificado</Text>
+                  {ratedUserIds.has(trip.driverId) || myBooking.driverRatingId ? (
+                    <View className="flex-row items-center gap-1.5 bg-green-50 px-3 py-1.5 rounded-full" style={{ borderWidth: 1, borderColor: '#BBF7D0' }}>
+                      <Star size={13} color="#16A34A" fill="#16A34A" />
+                      <Text className="text-sm font-semibold text-green-700">Conductor calificado</Text>
                     </View>
                   ) : (
                     <TouchableOpacity
@@ -744,7 +750,8 @@ export default function TripDetailScreen() {
                     tripId={trip.id}
                     tripStatus={trip.status}
                     actionLoading={actionLoading}
-                    isRated={ratedPassengerBookings.has(b.id)}
+                    isRated={b.passenger ? ratedUserIds.has(b.passenger.id) : false}
+                    commentCount={b.passenger ? passengerCommentCounts[b.passenger.id] : undefined}
                     onAccept={() => handleBookingAction(b.id, 'accept')}
                     onReject={() => handleBookingAction(b.id, 'reject')}
                     onBoard={() => handleBookingAction(b.id, 'board')}
@@ -843,7 +850,7 @@ export default function TripDetailScreen() {
         onSubmit={async (score, comment) => {
           if (!rateModal) return;
           if (isDriver) {
-            await handleRatePassenger(rateModal.revieweeId, rateModal.bookingId, score, comment);
+            await handleRatePassenger(rateModal.revieweeId, score, comment);
           } else {
             await handleRateDriver(score, comment);
           }

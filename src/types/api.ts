@@ -320,7 +320,6 @@ export interface TripResponse {
     lastName: string;
     profilePhotoUrl: string | null;
     trustScore: number;
-    ratingsCount?: number;
     verificationLevel: VerificationLevel;
   };
 }
@@ -384,7 +383,6 @@ export interface BookingResponse {
     lastName: string;
     profilePhotoUrl: string | null;
     trustScore: number;
-    ratingsCount?: number;
     verificationLevel: VerificationLevel;
   };
 }

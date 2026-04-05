@@ -13,13 +13,16 @@ import {
   MapPin,
   Clock,
   Users,
-  DollarSign,
+  Banknote,
   Luggage,
+  Ban,
+  Star,
+  Car,
   ChevronRight,
   Search,
 } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Badge, Card, Spinner } from '@/components/ui';
+import { Avatar, Badge, Card, Spinner } from '@/components/ui';
 import { TripTypeIcon } from '@/components/TripTypeIcon';
 import { Colors, Shadows } from '@/constants/colors';
 import { tripsApi } from '@/api/trips';
@@ -41,11 +44,11 @@ function TripCard({ trip, onPress }: { trip: TripResponse; onPress: () => void; 
   return (
     <TouchableOpacity onPress={onPress} activeOpacity={0.75} disabled={noSeats}>
       <Card className="mb-3" style={noSeats ? { opacity: 0.55 } : undefined}>
-        {/* Header: Trip type and badges */}
-        <View className="flex-row items-center justify-between mb-2">
+        {/* Header: trip type + badges */}
+        <View className="flex-row items-center justify-between mb-3">
           <View className="flex-row items-center gap-1.5">
             <TripTypeIcon type={trip.tripType} />
-            <Text className="text-xs font-medium text-neutral-500">
+            <Text className="text-sm font-medium text-neutral-500">
               {getTripTypeLabel(trip.tripType)}
             </Text>
           </View>
@@ -55,102 +58,107 @@ function TripCard({ trip, onPress }: { trip: TripResponse; onPress: () => void; 
           </View>
         </View>
 
-        {/* Driver info - prominent at top */}
-        {trip.driver && (
-          <View className="flex-row items-center gap-2 mb-2 pb-2 border-b border-neutral-100">
-            <View className="w-7 h-7 rounded-full bg-primary-100 items-center justify-center">
-              <Text className="text-xs font-bold text-primary-700">
-                {trip.driver.firstName.charAt(0)}{trip.driver.lastName.charAt(0)}
-              </Text>
-            </View>
-            <View className="flex-1">
-              <Text className="text-xs text-neutral-700 font-semibold">
-                {trip.driver.firstName} {trip.driver.lastName}
-              </Text>
-            </View>
-            <View className="flex-row items-center gap-0.5">
-              <Text className="text-xs">⭐</Text>
-              <Text className="text-xs font-medium text-neutral-600">{trip.driver.trustScore.toFixed(1)}</Text>
-            </View>
+        {/* Route */}
+        <View className="flex-row items-start mb-4">
+          <View className="items-center mr-3 pt-1.5">
+            <View className="w-3 h-3 rounded-full" style={{ backgroundColor: Colors.primary[500] }} />
+            <View className="w-0.5 h-14 my-1" style={{ backgroundColor: Colors.neutral[200] }} />
+            <View className="w-3 h-3 rounded-full" style={{ backgroundColor: Colors.accent[500] }} />
           </View>
-        )}
-
-        {/* Route with locations */}
-        <View className="flex-row items-start mb-3">
-          <View className="items-center mr-3 pt-1">
-            <View className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: Colors.primary[500] }} />
-            <View className="w-0.5 h-12 my-1" style={{ backgroundColor: Colors.neutral[200] }} />
-            <View className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: Colors.accent[500] }} />
-          </View>
-          <View className="flex-1 gap-2">
-            {/* Origin */}
+          <View className="flex-1 gap-3">
             <View>
-              <Text className="text-sm font-semibold text-neutral-900" numberOfLines={1}>
+              <Text className="text-base font-semibold text-neutral-900" numberOfLines={1}>
                 {trip.originName}
               </Text>
-              <Text className="text-xs text-neutral-500" numberOfLines={1}>
+              <Text className="text-sm text-neutral-500" numberOfLines={1}>
                 {trip.originSubtitle}
               </Text>
             </View>
-            {/* Destination */}
             <View>
-              <Text className="text-sm font-semibold text-neutral-900" numberOfLines={1}>
+              <Text className="text-base font-semibold text-neutral-900" numberOfLines={1}>
                 {trip.destinationName}
               </Text>
-              <Text className="text-xs text-neutral-500" numberOfLines={1}>
+              <Text className="text-sm text-neutral-500" numberOfLines={1}>
                 {trip.destinationSubtitle}
               </Text>
             </View>
           </View>
-          <ChevronRight size={18} color={Colors.neutral[300]} />
+          <ChevronRight size={20} color={Colors.neutral[600]} strokeWidth={2.5} />
         </View>
 
-        {/* Time and basic info */}
-        <View className="flex-row flex-wrap gap-x-4 gap-y-1.5 mb-2">
-          <View className="flex-row items-center gap-1">
-            <Clock size={13} color={Colors.neutral[400]} />
-            <Text className="text-xs text-neutral-500">{formatDeparture(trip.departureAt)}</Text>
+        {/* Row 1: departure (left) → arrival (right) */}
+        <View className="flex-row items-center justify-between mb-3">
+          <View className="flex-row items-center gap-1.5">
+            <Clock size={14} color={Colors.neutral[400]} />
+            <Text className="text-sm font-semibold text-neutral-700">{formatDeparture(trip.departureAt)}</Text>
           </View>
-          {trip.estimatedArrivalTime && (
-            <View className="flex-row items-center gap-1">
-              <Clock size={13} color={Colors.accent[400]} />
-              <Text className="text-xs text-neutral-500">
-                Llega: {fmtArrival(trip.estimatedArrivalTime)}
-              </Text>
+          {trip.arrivedAt && (
+            <View className="flex-row items-center gap-1.5">
+              <Text className="text-xs text-neutral-400">Llega</Text>
+              <Clock size={14} color={Colors.accent[400]} />
+              <Text className="text-sm font-medium text-neutral-600">{fmtArrival(trip.arrivedAt)}</Text>
             </View>
           )}
-          <View className="flex-row items-center gap-1">
-            <Users size={13} color={Colors.neutral[400]} />
-            <Text className="text-xs text-neutral-500">
+        </View>
+
+        {/* Row 2: seats | price | luggage — full width distributed */}
+        <View className="flex-row items-center justify-between mb-4">
+          <View className="flex-1 flex-row items-center justify-center gap-1.5">
+            <Users size={15} color={Colors.primary[500]} />
+            <Text className="text-sm font-semibold text-neutral-700">
               {trip.availableSeats} {trip.availableSeats === 1 ? 'cupo' : 'cupos'}
             </Text>
           </View>
-        </View>
-
-        {/* Stops, price, luggage row */}
-        <View className="flex-row flex-wrap gap-x-4 gap-y-1.5">
-          {trip.waypoints && trip.waypoints.length > 0 && (
-            <View className="flex-row items-center gap-1">
-              <MapPin size={13} color={Colors.neutral[400]} />
-              <Text className="text-xs text-neutral-500">
-                {trip.waypoints.filter((w) => w.isPickupPoint).length}{' '}
-                {trip.waypoints.filter((w) => w.isPickupPoint).length === 1 ? 'parada' : 'paradas'}
-              </Text>
-            </View>
-          )}
-          <View className="flex-row items-center gap-1">
-            <DollarSign size={13} color={Colors.neutral[400]} />
-            <Text className="text-xs font-semibold text-neutral-700">
+          <View className="w-px h-5 bg-neutral-200" />
+          <View className="flex-1 flex-row items-center justify-center gap-1.5">
+            <Banknote size={15} color={Colors.primary[500]} />
+            <Text className="text-sm font-bold text-neutral-800">
               {formatCurrency(trip.pricePerSeat, trip.currency)}
             </Text>
           </View>
-          {trip.allowsLuggage && (
-            <View className="flex-row items-center gap-1">
-              <Luggage size={13} color={Colors.neutral[400]} />
-              <Text className="text-xs text-neutral-500">Equipaje</Text>
-            </View>
-          )}
+          <View className="w-px h-5 bg-neutral-200" />
+          <View className="flex-1 flex-row items-center justify-center gap-1.5">
+            {trip.allowsLuggage ? (
+              <>
+                <Luggage size={15} color={Colors.primary[500]} />
+                <Text className="text-sm font-semibold text-neutral-700">Equipaje</Text>
+              </>
+            ) : (
+              <>
+                <Ban size={15} color={Colors.neutral[400]} />
+                <Text className="text-sm text-neutral-400">Sin equipaje</Text>
+              </>
+            )}
+          </View>
         </View>
+
+        {/* Driver info — bottom */}
+        {trip.driver && (
+          <View className="flex-row items-center gap-3 pt-3 border-t border-neutral-100">
+            <Avatar
+              uri={trip.driver.profilePhotoUrl}
+              firstName={trip.driver.firstName}
+              lastName={trip.driver.lastName}
+              size="md"
+              verified
+            />
+            <View className="flex-1">
+              <View className="flex-row items-center gap-1.5">
+                <Car size={16} color={Colors.neutral[500]} />
+                <Text className="text-base font-semibold text-neutral-800">
+                  {trip.driver.firstName} {trip.driver.lastName}
+                </Text>
+              </View>
+              <View className="flex-row items-center gap-1 mt-0.5">
+                <Star size={12} color="#F59E0B" fill="#F59E0B" />
+                <Text className="text-sm font-medium text-neutral-600">
+                  {trip.driver.trustScore.toFixed(1)}
+                </Text>
+                <Text className="text-xs text-neutral-400">/ 5</Text>
+              </View>
+            </View>
+          </View>
+        )}
       </Card>
     </TouchableOpacity>
   );

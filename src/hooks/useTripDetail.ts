@@ -26,8 +26,9 @@ export function useTripDetail(id: string) {
   const [actionLoading, setActionLoading] = useState<string | null>(null);
 
   // Ratings
-  const [driverRated, setDriverRated] = useState(false);
-  const [ratedPassengerBookings, setRatedPassengerBookings] = useState<Set<string>>(new Set());
+  const [ratedUserIds, setRatedUserIds] = useState<Set<string>>(new Set());
+  const [driverCommentCount, setDriverCommentCount] = useState<number | null>(null);
+  const [passengerCommentCounts, setPassengerCommentCounts] = useState<Record<string, number>>({});
 
   // Route map
   const [waypointsFull, setWaypointsFull] = useState<RouteWaypointResponse[]>([]);
@@ -54,7 +55,28 @@ export function useTripDetail(id: string) {
       if (isDriver) {
         try {
           const { data: bRes } = await bookingsApi.getByTrip(t.id);
-          setBookings(bRes.data ?? []);
+          const fetchedBookings = bRes.data ?? [];
+          setBookings(fetchedBookings);
+
+          const uniquePassengerIds = [
+            ...new Set(
+              fetchedBookings
+                .map((b) => b.passenger?.id)
+                .filter((pid): pid is string => !!pid),
+            ),
+          ];
+          if (uniquePassengerIds.length > 0) {
+            const results = await Promise.allSettled(
+              uniquePassengerIds.map((pid) => ratingsApi.getCommentCount(pid)),
+            );
+            const countsMap: Record<string, number> = {};
+            results.forEach((result, idx) => {
+              if (result.status === 'fulfilled') {
+                countsMap[uniquePassengerIds[idx]] = result.value.data.data ?? 0;
+              }
+            });
+            setPassengerCommentCounts(countsMap);
+          }
         } catch { }
       } else {
         try {
@@ -64,7 +86,18 @@ export function useTripDetail(id: string) {
         } catch {
           setMyBooking(null);
         }
+
+        try {
+          const { data: countRes } = await ratingsApi.getCommentCount(t.driverId);
+          setDriverCommentCount(countRes.data ?? null);
+        } catch { }
       }
+
+      try {
+        const { data: ratingsRes } = await ratingsApi.getByTrip(t.id);
+        const myRatings = (ratingsRes.data ?? []).filter((r) => r.reviewerId === user?.id);
+        setRatedUserIds(new Set(myRatings.map((r) => r.revieweeId)));
+      } catch { }
     } catch (err: any) {
       setError(err?.response?.data?.message ?? 'No se pudo cargar el viaje');
     } finally {
@@ -253,11 +286,11 @@ export function useTripDetail(id: string) {
       score,
       comment: comment || undefined,
     });
-    setDriverRated(true);
+    setRatedUserIds((prev) => new Set([...prev, trip.driverId]));
     Toast.show({ type: 'success', text1: '¡Calificación enviada!', text2: 'Gracias por tu opinión' });
   };
 
-  const handleRatePassenger = async (passengerUserId: string, bookingId: string, score: number, comment: string) => {
+  const handleRatePassenger = async (passengerUserId: string, score: number, comment: string) => {
     if (!trip) return;
     await ratingsApi.create({
       revieweeId: passengerUserId,
@@ -265,7 +298,7 @@ export function useTripDetail(id: string) {
       score,
       comment: comment || undefined,
     });
-    setRatedPassengerBookings((prev) => new Set([...prev, bookingId]));
+    setRatedUserIds((prev) => new Set([...prev, passengerUserId]));
     Toast.show({ type: 'success', text1: '¡Calificación enviada!', text2: 'Gracias por tu opinión' });
   };
 
@@ -331,8 +364,9 @@ export function useTripDetail(id: string) {
     isDriver,
     canEdit,
     canBook,
-    driverRated,
-    ratedPassengerBookings,
+    ratedUserIds,
+    driverCommentCount,
+    passengerCommentCounts,
     waypointsFull,
     loadingWaypoints,
     routePolyline,
