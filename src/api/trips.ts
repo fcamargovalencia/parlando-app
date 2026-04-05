@@ -4,9 +4,8 @@ import type { ApiResponse, PageResponse, CreateTripRequest, UpdateTripRequest, T
 export const tripsApi = {
   create: (data: CreateTripRequest) =>
     api.post<ApiResponse<TripResponse>>('/v1/trips', data),
-
   publish: (id: string) =>
-    api.patch<ApiResponse<TripResponse>>(`/v1/trips/${encodeURIComponent(id)}/publish`),
+    api.patch<ApiResponse<TripResponse>>(`/v1/trips/${encodeURIComponent(id)}/publish`, {}),
 
   getMine: () =>
     api.get<ApiResponse<TripResponse[]>>('/v1/trips/me'),
@@ -24,10 +23,10 @@ export const tripsApi = {
     api.get<ApiResponse<RouteWaypointResponse[]>>(`/v1/trips/${encodeURIComponent(id)}/waypoints`),
 
   start: (id: string) =>
-    api.patch<ApiResponse<TripResponse>>(`/v1/trips/${encodeURIComponent(id)}/start`),
+    api.patch<ApiResponse<TripResponse>>(`/v1/trips/${encodeURIComponent(id)}/start`, {}),
 
   complete: (id: string) =>
-    api.patch<ApiResponse<TripResponse>>(`/v1/trips/${encodeURIComponent(id)}/complete`),
+    api.patch<ApiResponse<TripResponse>>(`/v1/trips/${encodeURIComponent(id)}/complete`, {}),
 
   cancel: (id: string) =>
     api.delete<ApiResponse<null>>(`/v1/trips/${encodeURIComponent(id)}`),

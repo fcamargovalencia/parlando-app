@@ -5,7 +5,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { vehiclesApi } from '@/api/vehicles';
 import { tripsApi } from '@/api/trips';
 import { tomtomService } from '@/lib/tomtom';
-import { distanceKm, normalizePlace } from '@/lib/utils';
+import { distanceKm, normalizePlace, compactPolyline } from '@/lib/utils';
 import type { TripType, VehicleResponse, WaypointRequest } from '@/types/api';
 import type { SelectedLocation } from '@/components/LocationPickerModal';
 import type { RouteAlternative } from './useRouteAlternatives';
@@ -222,6 +222,10 @@ export function usePublishForm() {
             ? new Date(form.departureAt.getTime() + travelTimeInSeconds * 1000).toISOString()
             : undefined;
 
+        const routePolyline = selectedRoute?.points
+          ? compactPolyline(selectedRoute.points, 300)
+          : [];
+
         const createTripBody = {
           tripType,
           originName: form.origin.name,
@@ -241,6 +245,7 @@ export function usePublishForm() {
           allowsLuggage: form.allowsLuggage,
           studentsOnly: tripType === 'ROUTINE' ? form.studentsOnly : false,
           waypoints: routeWaypoints,
+          routePolyline,
         };
         const { data: createRes } = await tripsApi.create(createTripBody);
 

@@ -250,26 +250,29 @@ export function useTripDetail(id: string) {
       }
 
       if (needsRoutePolyline) {
-        const pickupStops = (resolvedWaypoints.length > 0 ? resolvedWaypoints : mapEmbeddedWaypoints(trip))
-          .filter((w) => w.isPickupPoint)
-          .sort((a, b) => a.orderIndex - b.orderIndex);
+        if (trip.routePolyline && trip.routePolyline.length >= 2) {
+          setRoutePolyline(trip.routePolyline);
+        } else {
+          const pickupStops = (resolvedWaypoints.length > 0 ? resolvedWaypoints : mapEmbeddedWaypoints(trip))
+            .filter((w) => w.isPickupPoint)
+            .sort((a, b) => a.orderIndex - b.orderIndex);
 
-        const stopPoints = [
-          { latitude: trip.originLatitude, longitude: trip.originLongitude },
-          ...pickupStops.map((w) => ({ latitude: w.latitude, longitude: w.longitude })),
-          { latitude: trip.destinationLatitude, longitude: trip.destinationLongitude },
-        ];
+          const stopPoints = [
+            { latitude: trip.originLatitude, longitude: trip.originLongitude },
+            ...pickupStops.map((w) => ({ latitude: w.latitude, longitude: w.longitude })),
+            { latitude: trip.destinationLatitude, longitude: trip.destinationLongitude },
+          ];
 
-        try {
-          if (tomtomService.isConfigured()) {
-            const { points } = await tomtomService.calculateRoute(stopPoints);
-            setRoutePolyline(points.length >= 2 ? points : stopPoints);
-          } else {
+          try {
+            if (tomtomService.isConfigured()) {
+              const { points } = await tomtomService.calculateRoute(stopPoints);
+              setRoutePolyline(points.length >= 2 ? points : stopPoints);
+            } else {
+              setRoutePolyline(stopPoints);
+            }
+          } catch {
             setRoutePolyline(stopPoints);
           }
-        } catch {
-          // Fallback: connect logical stops if TomTom fails.
-          setRoutePolyline(stopPoints);
         }
       }
     } finally {

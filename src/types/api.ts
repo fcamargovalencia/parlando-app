@@ -207,6 +207,11 @@ export interface SubmitVerificationRequest {
 
 // ── Trip ──
 
+export interface CoordinatePoint {
+  latitude: number;
+  longitude: number;
+}
+
 export interface WaypointRequest {
   latitude: number;
   longitude: number;
@@ -252,7 +257,8 @@ export interface CreateTripRequest {
   universityId?: string;
   isRecurring?: boolean;
   recurrencePattern?: string;
-  waypoints?: WaypointRequest[]; // Array de puntos intermedios de la ruta
+  waypoints?: WaypointRequest[];
+  routePolyline?: CoordinatePoint[];
 }
 
 export interface UpdateTripRequest {
@@ -274,6 +280,7 @@ export interface UpdateTripRequest {
   isRecurring?: boolean;
   recurrencePattern?: string;
   waypoints?: WaypointRequest[];
+  routePolyline?: CoordinatePoint[];
 }
 
 export interface RouteWaypoint {
@@ -312,6 +319,7 @@ export interface TripResponse {
   isRecurring: boolean;
   recurrencePattern?: string | null;
   waypoints?: RouteWaypoint[];
+  routePolyline?: CoordinatePoint[];
   createdAt: string;
   updatedAt: string;
   driver?: {
