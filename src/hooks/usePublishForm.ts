@@ -170,7 +170,7 @@ export function usePublishForm() {
 
   // Submit
   const handlePublish = useCallback(
-    async (selectedRoute: RouteAlternative | null) => {
+    async (selectedRoute: RouteAlternative | null, onSuccess?: () => void) => {
       if (!form.origin || !form.destination) {
         Alert.alert('Campos requeridos', 'Selecciona el origen y destino del viaje');
         return;
@@ -260,6 +260,7 @@ export function usePublishForm() {
 
         dispatch({ type: 'RESET' });
         setWaypoints([]);
+        onSuccess?.();
         router.push('/(tabs)/my-trips');
       } catch (err: any) {
         Alert.alert(

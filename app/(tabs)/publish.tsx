@@ -9,6 +9,7 @@ import {
   Alert,
   ActivityIndicator,
   Animated,
+  useWindowDimensions,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import {
@@ -31,7 +32,7 @@ import {
   Search,
   X,
 } from 'lucide-react-native';
-import MapView, { Polyline, Marker, UrlTile, type Region } from 'react-native-maps';
+import MapView, { Polyline, Marker, type Region } from 'react-native-maps';
 import { Screen, Button, Input, Card, DatePickerModal, Toggle } from '@/components/ui';
 import {
   LocationPickerModal,
@@ -39,7 +40,6 @@ import {
 } from '@/components/LocationPickerModal';
 import { TripTypeIcon } from '@/components/TripTypeIcon';
 import { Colors } from '@/constants/colors';
-import { Config } from '@/constants/config';
 import { TRIP_TYPE_OPTIONS } from '@/constants/trips';
 import { distanceKm, normalizePlace, formatDuration } from '@/lib/utils';
 import type { LocationSearchResult } from '@/lib/tomtom';
@@ -73,14 +73,12 @@ function fmtTime(d: Date) {
 // ── Constants ──
 
 const TOTAL_STEPS = 9;
-const TOMTOM_TILE_URL = Config.TOMTOM_API_KEY
-  ? `https://api.tomtom.com/map/1/tile/basic/main/{z}/{x}/{y}.png?key=${Config.TOMTOM_API_KEY}&language=es-ES&view=Unified`
-  : null;
 
 // ── Screen ──
 
 export default function PublishScreen() {
   const router = useRouter();
+  const { height: windowHeight } = useWindowDimensions();
 
   // ── Hooks ──
 
@@ -308,15 +306,15 @@ export default function PublishScreen() {
             key={opt.type}
             onPress={() => setTripType(opt.type)}
             className={`flex-1 items-center py-4 rounded-xl border-2 ${tripType === opt.type
-                ? 'border-primary-500 bg-primary-50'
-                : 'border-neutral-200 bg-white'
+              ? 'border-primary-500 bg-primary-50'
+              : 'border-neutral-200 bg-white'
               }`}
           >
             <TripTypeIcon type={opt.type} size={20} />
             <Text
               className={`text-xs font-medium mt-1 ${tripType === opt.type
-                  ? 'text-primary-700'
-                  : 'text-neutral-600'
+                ? 'text-primary-700'
+                : 'text-neutral-600'
                 }`}
             >
               {opt.label}
@@ -515,8 +513,8 @@ export default function PublishScreen() {
                   onPress={() => moveWaypointUp(idx)}
                   disabled={idx === 0}
                   className={`w-7 h-7 rounded-lg border items-center justify-center ${idx === 0
-                      ? 'border-neutral-100 opacity-30'
-                      : 'border-neutral-200'
+                    ? 'border-neutral-100 opacity-30'
+                    : 'border-neutral-200'
                     }`}
                 >
                   <ChevronUp size={14} color={Colors.neutral[600]} />
@@ -525,8 +523,8 @@ export default function PublishScreen() {
                   onPress={() => moveWaypointDown(idx)}
                   disabled={idx === waypoints.length - 1}
                   className={`w-7 h-7 rounded-lg border items-center justify-center ${idx === waypoints.length - 1
-                      ? 'border-neutral-100 opacity-30'
-                      : 'border-neutral-200'
+                    ? 'border-neutral-100 opacity-30'
+                    : 'border-neutral-200'
                     }`}
                 >
                   <ChevronDown size={14} color={Colors.neutral[600]} />
@@ -594,12 +592,12 @@ export default function PublishScreen() {
         </Text>
         <View
           className="rounded-2xl overflow-hidden border border-neutral-200 bg-white"
-          style={{ height: 520 }}
+          style={{ height: Math.max(400, windowHeight - 345) }}
         >
           <MapView
             ref={routeHook.mapRef}
             style={{ flex: 1 }}
-            mapType={TOMTOM_TILE_URL && Platform.OS === 'android' ? 'none' : 'standard'}
+            mapType="standard"
             scrollEnabled
             zoomEnabled
             rotateEnabled={false}
@@ -626,14 +624,6 @@ export default function PublishScreen() {
               } as Region
             }
           >
-            {TOMTOM_TILE_URL ? (
-              <UrlTile
-                urlTemplate={TOMTOM_TILE_URL}
-                maximumZ={22}
-                flipY={false}
-                zIndex={0}
-              />
-            ) : null}
             <Marker
               coordinate={{
                 latitude: form.origin.latitude,
@@ -1240,6 +1230,7 @@ export default function PublishScreen() {
 
           <Card className={step === TOTAL_STEPS ? 'mb-2' : 'mb-6'}>
             <Animated.View
+              pointerEvents="box-none"
               style={{
                 opacity: stepAnim,
                 transform: [
@@ -1308,7 +1299,12 @@ export default function PublishScreen() {
               </TouchableOpacity>
             ) : (
               <Button
-                onPress={() => handlePublish(routeHook.selected)}
+                onPress={() => handlePublish(routeHook.selected, () => {
+                  setStep(1);
+                  setSlideDirection('forward');
+                  originSearch.setQuery('');
+                  destinationSearch.setQuery('');
+                })}
                 size="lg"
                 className="px-6"
                 loading={submitting}

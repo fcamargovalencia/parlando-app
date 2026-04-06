@@ -23,8 +23,9 @@ import { TripTypeIcon } from '@/components/TripTypeIcon';
 import { Colors } from '@/constants/colors';
 import { TRIP_STATUS_BADGE } from '@/constants/trips';
 import { tripsApi } from '@/api/trips';
+import { bookingsApi } from '@/api/bookings';
 import { formatCurrency, getTripTypeLabel, formatDeparture } from '@/lib/utils';
-import type { TripResponse, TripStatus } from '@/types/api';
+import type { BookingResponse, TripResponse, TripStatus } from '@/types/api';
 import Toast from 'react-native-toast-message';
 
 // ── Filters ──
@@ -41,16 +42,18 @@ const FILTERS: { key: FilterKey; label: string; statuses: TripStatus[]; }[] = [
 
 interface State {
   trips: TripResponse[];
+  tripBookings: Record<string, BookingResponse[]>;
   loading: boolean;
   refreshing: boolean;
   error: string | null;
-  cancelling: string | null; // trip id being cancelled
+  cancelling: string | null;
 }
 
 type Action =
   | { type: 'FETCH_START'; refreshing?: boolean; }
   | { type: 'FETCH_SUCCESS'; payload: TripResponse[]; }
   | { type: 'FETCH_ERROR'; payload: string; }
+  | { type: 'SET_BOOKINGS'; tripId: string; bookings: BookingResponse[]; }
   | { type: 'CANCEL_START'; id: string; }
   | { type: 'CANCEL_SUCCESS'; id: string; }
   | { type: 'CANCEL_ERROR'; };
@@ -68,6 +71,11 @@ function reducer(state: State, action: Action): State {
       return { ...state, loading: false, refreshing: false, trips: action.payload };
     case 'FETCH_ERROR':
       return { ...state, loading: false, refreshing: false, error: action.payload };
+    case 'SET_BOOKINGS':
+      return {
+        ...state,
+        tripBookings: { ...state.tripBookings, [action.tripId]: action.bookings },
+      };
     case 'CANCEL_START':
       return { ...state, cancelling: action.id };
     case 'CANCEL_SUCCESS':
@@ -89,17 +97,24 @@ function reducer(state: State, action: Action): State {
 
 interface TripCardProps {
   trip: TripResponse;
+  bookings?: BookingResponse[];
   cancelling: boolean;
   onPress: () => void;
   onCancel: () => void;
   onRatePassengers: () => void;
 }
 
-function TripCard({ trip, cancelling, onPress, onCancel, onRatePassengers }: TripCardProps) {
+const RATEABLE_STATUSES = new Set(['COMPLETED', 'BOARDED']);
+
+function TripCard({ trip, bookings, cancelling, onPress, onCancel, onRatePassengers }: TripCardProps) {
   const badge = TRIP_STATUS_BADGE[trip.status] ?? { label: trip.status, variant: 'neutral' as const };
   const canCancel = trip.status === 'DRAFT' || trip.status === 'PUBLISHED';
   const stopCount = trip.waypoints?.filter((w) => w.isPickupPoint).length ?? 0;
-  const isCompleted = trip.status === 'COMPLETED';
+
+  const rateableBookings = bookings?.filter((b) => RATEABLE_STATUSES.has(b.status)) ?? [];
+  const hasPassengers = rateableBookings.length > 0;
+  const allRated = hasPassengers && rateableBookings.every((b) => b.passengerRatingId != null);
+  const pendingRating = hasPassengers && !allRated;
 
   return (
     <TouchableOpacity onPress={onPress} activeOpacity={0.7}>
@@ -187,7 +202,7 @@ function TripCard({ trip, cancelling, onPress, onCancel, onRatePassengers }: Tri
         </View>
 
         {/* Footer actions */}
-        {(canCancel || isCompleted) && (
+        {(canCancel || pendingRating || allRated) && (
           <View className="flex-row items-center justify-between mt-1 pt-3 border-t border-neutral-100">
             {canCancel ? (
               <TouchableOpacity
@@ -200,7 +215,7 @@ function TripCard({ trip, cancelling, onPress, onCancel, onRatePassengers }: Tri
               </TouchableOpacity>
             ) : <View />}
 
-            {isCompleted && (
+            {pendingRating && (
               <TouchableOpacity
                 onPress={(e) => { e.stopPropagation?.(); onRatePassengers(); }}
                 className="flex-row items-center gap-1.5 bg-amber-50 px-3 py-1.5 rounded-full"
@@ -211,6 +226,18 @@ function TripCard({ trip, cancelling, onPress, onCancel, onRatePassengers }: Tri
                   Calificar pasajeros
                 </Text>
               </TouchableOpacity>
+            )}
+
+            {allRated && (
+              <View
+                className="flex-row items-center gap-1.5 bg-green-50 px-3 py-1.5 rounded-full"
+                style={{ borderWidth: 1, borderColor: '#BBF7D0' }}
+              >
+                <Star size={13} color="#16A34A" fill="#16A34A" />
+                <Text className="text-sm font-semibold text-green-700">
+                  Pasajeros calificados
+                </Text>
+              </View>
             )}
           </View>
         )}
@@ -226,6 +253,7 @@ export default function MyTripsScreen() {
   const [activeFilter, setActiveFilter] = React.useState<FilterKey>('active');
   const [state, dispatch] = useReducer(reducer, {
     trips: [],
+    tripBookings: {},
     loading: true,
     refreshing: false,
     error: null,
@@ -267,6 +295,22 @@ export default function MyTripsScreen() {
       );
 
       dispatch({ type: 'FETCH_SUCCESS', payload: trips });
+
+      // Fetch bookings for completed trips to determine rating status
+      trips
+        .filter((t) => t.status === 'COMPLETED')
+        .forEach(async (t) => {
+          try {
+            const { data: bRes } = await bookingsApi.getByTrip(t.id);
+            const raw = (bRes as any)?.data;
+            const bookings: BookingResponse[] = Array.isArray(raw)
+              ? raw
+              : Array.isArray(raw?.data) ? raw.data : [];
+            dispatch({ type: 'SET_BOOKINGS', tripId: t.id, bookings });
+          } catch {
+            // leave bookings undefined for this trip
+          }
+        });
     } catch (err: any) {
       dispatch({
         type: 'FETCH_ERROR',
@@ -392,6 +436,7 @@ export default function MyTripsScreen() {
           renderItem={({ item }) => (
             <TripCard
               trip={item}
+              bookings={state.tripBookings[item.id]}
               cancelling={state.cancelling === item.id}
               onPress={() => router.push({ pathname: '/trip/[id]', params: { id: item.id } })}
               onCancel={() => handleCancel(item)}

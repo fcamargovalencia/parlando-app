@@ -39,10 +39,10 @@ export function Input({
 
   const handleFocus = useCallback(
     (e: NativeSyntheticEvent<TextInputFocusEventData>) => {
-      rowRef.current?.setNativeProps({
-        style: error
-          ? styles.borderError
-          : { ...styles.borderFocused, ...styles.focusedShadow },
+      requestAnimationFrame(() => {
+        rowRef.current?.setNativeProps({
+          style: error ? styles.borderError : styles.borderFocused,
+        });
       });
       onFocusProp?.(e);
     },
@@ -51,8 +51,10 @@ export function Input({
 
   const handleBlur = useCallback(
     (e: NativeSyntheticEvent<TextInputFocusEventData>) => {
-      rowRef.current?.setNativeProps({
-        style: error ? styles.borderError : styles.borderDefault,
+      requestAnimationFrame(() => {
+        rowRef.current?.setNativeProps({
+          style: error ? styles.borderError : styles.borderDefault,
+        });
       });
       onBlurProp?.(e);
     },
@@ -134,13 +136,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: Colors.neutral[900],
     minHeight: 48,
-  },
-  focusedShadow: {
-    shadowColor: Colors.primary[500],
-    shadowOffset: { width: 0, height: 0 },
-    shadowOpacity: 0.12,
-    shadowRadius: 6,
-    elevation: 2,
   },
   errorText: {
     fontSize: 12,
