@@ -36,20 +36,29 @@ export default function ChatScreen() {
   const { messages, trip, loading, sending, error, currentUserId, sendMessage, load } =
     useChat(tripId, otherUserId);
 
-  // Android edge-to-edge: the window no longer auto-resizes on keyboard,
-  // so we capture the keyboard height and push the whole screen up manually.
-  // NOTE: e.endCoordinates.height can be short by the nav-bar height in edge-to-edge
-  // mode, so we compute the footprint from the screen bottom to the keyboard top.
+  // Track keyboard height on both platforms:
+  //  - Android edge-to-edge: the window no longer auto-resizes, so we push the
+  //    whole screen up manually using `paddingBottom` on the root View.
+  //  - iOS: KeyboardAvoidingView handles the lift, but we still use the state to
+  //    drop the safe-area inset from under the input (not needed while open).
   useEffect(() => {
-    if (Platform.OS !== 'android') return;
-    const show = Keyboard.addListener('keyboardDidShow', (e) => {
-      const screenHeight = Dimensions.get('screen').height;
-      const keyboardTop = e.endCoordinates.screenY;
-      const footprint = Math.max(e.endCoordinates.height, screenHeight - keyboardTop);
-      setKeyboardHeight(footprint);
+    const isIOS = Platform.OS === 'ios';
+    const showEvent = isIOS ? 'keyboardWillShow' : 'keyboardDidShow';
+    const hideEvent = isIOS ? 'keyboardWillHide' : 'keyboardDidHide';
+    const show = Keyboard.addListener(showEvent, (e) => {
+      let height = e.endCoordinates.height ?? 0;
+      if (!isIOS) {
+        // Android edge-to-edge: e.endCoordinates.height can be short by the
+        // nav-bar height, so take the max with the footprint computed from the
+        // screen bottom to the keyboard top.
+        const screenHeight = Dimensions.get('screen').height;
+        const keyboardTop = e.endCoordinates.screenY ?? screenHeight;
+        height = Math.max(height, screenHeight - keyboardTop);
+      }
+      setKeyboardHeight(height);
       setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 100);
     });
-    const hide = Keyboard.addListener('keyboardDidHide', () => setKeyboardHeight(0));
+    const hide = Keyboard.addListener(hideEvent, () => setKeyboardHeight(0));
     return () => { show.remove(); hide.remove(); };
   }, []);
 
@@ -72,10 +81,12 @@ export default function ChatScreen() {
     router.push(`/trip/${tripId}` as any);
   }, [router, tripId]);
 
-  // On Android, keyboard already covers the nav bar area, so drop insets when open
+  // When the keyboard is open on either platform, the safe-area inset under the
+  // input is redundant (Android: keyboard covers the nav bar; iOS: keyboard
+  // already provides visual separation from the home indicator).
   const isAndroid = Platform.OS === 'android';
   const keyboardOpen = keyboardHeight > 0;
-  const bottomPadding = isAndroid && keyboardOpen ? 0 : insets.bottom;
+  const bottomPadding = keyboardOpen ? 0 : insets.bottom;
 
   return (
     <View
