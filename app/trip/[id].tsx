@@ -268,7 +268,7 @@ function BookingRow({
 // ── Main Screen ──
 
 export default function TripDetailScreen() {
-  const { id } = useLocalSearchParams<{ id: string; }>();
+  const { id, from } = useLocalSearchParams<{ id: string; from?: string; }>();
   const router = useRouter();
   const insets = useSafeAreaInsets();
 
@@ -302,7 +302,7 @@ export default function TripDetailScreen() {
     handleBookingAction,
     handleRateDriver,
     handleRatePassenger,
-  } = useTripDetail(id);
+  } = useTripDetail(id, { fromSearch: from === 'search' });
 
   const [editVisible, setEditVisible] = useState(false);
   const [bookVisible, setBookVisible] = useState(false);

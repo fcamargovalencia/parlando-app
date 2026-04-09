@@ -44,6 +44,12 @@ interface Props {
   mapHintText?: string;
   /** When set, the map opens centred on this municipality at city-level zoom. */
   municipalityFocus?: { latitude: number; longitude: number; name: string; };
+  /**
+   * When true, selecting a city/municipality suggestion confirms directly
+   * without opening the map. Useful for intercity trips where a city-level
+   * location is precise enough.
+   */
+  allowCitySelection?: boolean;
 }
 
 // ── Constants ──
@@ -55,7 +61,7 @@ const COLOMBIA_REGION: Region = {
   longitudeDelta: 8,
 };
 
-export function LocationPickerModal({ visible, title, onConfirm, onClose, initial, mode = 'full', mapHintText, municipalityFocus }: Props) {
+export function LocationPickerModal({ visible, title, onConfirm, onClose, initial, mode = 'full', mapHintText, municipalityFocus, allowCitySelection = false }: Props) {
   // ── Search state ──
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<LocationSearchResult[]>([]);
@@ -178,14 +184,16 @@ export function LocationPickerModal({ visible, title, onConfirm, onClose, initia
   // ── Handlers ──
 
   const handleSelectSuggestion = (result: LocationSearchResult) => {
-    if (result.locationType !== 'specific') {
-      // Broad area → let the user pin the exact pickup/dropoff point on the map.
+    if (result.locationType !== 'specific' && !allowCitySelection) {
+      // Broad area (city/region) → let the user pin the exact point on the map.
+      // Skipped when allowCitySelection=true (e.g. intercity trips where a
+      // city-level location is already precise enough).
       setCenterCoord(null);
       setMapName('');
       setMunicipalityCenter({ latitude: result.latitude, longitude: result.longitude, name: result.name });
       setMapVisible(true);
     } else {
-      // Specific address or POI → confirm directly, no map needed.
+      // Specific address, POI, or city when allowCitySelection=true → confirm directly.
       onConfirm({
         latitude: result.latitude,
         longitude: result.longitude,

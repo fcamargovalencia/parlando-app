@@ -14,13 +14,27 @@ import type {
 } from '@/types/api';
 import Toast from 'react-native-toast-message';
 
-export function useTripDetail(id: string) {
+interface UseTripDetailOptions {
+  /**
+   * Set to true when navigating from search results. The user is always a
+   * passenger in that context, so we skip the getMine() booking check and
+   * show the Book button immediately once the trip loads.
+   */
+  fromSearch?: boolean;
+}
+
+export function useTripDetail(id: string, options?: UseTripDetailOptions) {
   const user = useAuthStore((s) => s.user);
+  const fromSearch = options?.fromSearch ?? false;
 
   const [trip, setTrip] = useState<TripResponse | null>(null);
   const [vehicle, setVehicle] = useState<VehicleResponse | null>(null);
   const [bookings, setBookings] = useState<BookingResponse[]>([]);
-  const [myBooking, setMyBooking] = useState<BookingResponse | null | undefined>(undefined);
+  // When coming from search we know there's no existing booking yet, so
+  // initialise to null to make canBook true immediately after the trip loads.
+  const [myBooking, setMyBooking] = useState<BookingResponse | null | undefined>(
+    fromSearch ? null : undefined,
+  );
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
@@ -36,7 +50,100 @@ export function useTripDetail(id: string) {
   const [routePolyline, setRoutePolyline] = useState<Array<{ latitude: number; longitude: number; }>>([]);
   const [loadingRoutePolyline, setLoadingRoutePolyline] = useState(false);
 
+  /**
+   * Loads secondary (non-critical) data in parallel. The screen is already
+   * visible when this runs — any failure here is silent and won't block render.
+   */
+  const loadSecondary = useCallback(async (t: TripResponse) => {
+    const isDriverForTrip = user?.id === t.driverId;
+
+    // Kick off every independent request in parallel.
+    const vehiclePromise = vehiclesApi.getById(t.vehicleId);
+    const tripRatingsPromise = ratingsApi.getByTrip(t.id);
+    const driverBookingsPromise = isDriverForTrip
+      ? bookingsApi.getByTrip(t.id)
+      : null;
+    // Skip getMine() when we know the user is a passenger arriving from search —
+    // myBooking is already null and there's no booking to look up.
+    const myBookingsPromise = !isDriverForTrip && !fromSearch
+      ? bookingsApi.getMine()
+      : null;
+    const driverCommentCountPromise = !isDriverForTrip
+      ? ratingsApi.getCommentCount(t.driverId)
+      : null;
+
+    const [
+      vehicleRes,
+      tripRatingsRes,
+      driverBookingsRes,
+      myBookingsRes,
+      driverCommentRes,
+    ] = await Promise.allSettled([
+      vehiclePromise,
+      tripRatingsPromise,
+      driverBookingsPromise,
+      myBookingsPromise,
+      driverCommentCountPromise,
+    ]);
+
+    // Vehicle
+    if (vehicleRes.status === 'fulfilled' && vehicleRes.value?.data.data) {
+      setVehicle(vehicleRes.value.data.data);
+    }
+
+    // Ratings I've given on this trip
+    if (tripRatingsRes.status === 'fulfilled') {
+      const myRatings = (tripRatingsRes.value.data.data ?? []).filter(
+        (r) => r.reviewerId === user?.id,
+      );
+      setRatedUserIds(new Set(myRatings.map((r) => r.revieweeId)));
+    }
+
+    if (isDriverForTrip) {
+      // Driver: bookings for this trip + passenger comment counts
+      if (driverBookingsRes.status === 'fulfilled' && driverBookingsRes.value) {
+        const fetchedBookings = driverBookingsRes.value.data.data ?? [];
+        setBookings(fetchedBookings);
+
+        const uniquePassengerIds = [
+          ...new Set(
+            fetchedBookings
+              .map((b) => b.passenger?.id)
+              .filter((pid): pid is string => !!pid),
+          ),
+        ];
+        if (uniquePassengerIds.length > 0) {
+          const results = await Promise.allSettled(
+            uniquePassengerIds.map((pid) => ratingsApi.getCommentCount(pid)),
+          );
+          const countsMap: Record<string, number> = {};
+          results.forEach((result, idx) => {
+            if (result.status === 'fulfilled') {
+              countsMap[uniquePassengerIds[idx]] = result.value.data.data ?? 0;
+            }
+          });
+          setPassengerCommentCounts(countsMap);
+        }
+      }
+    } else {
+      // Passenger: find my booking for this trip + driver comment count
+      if (myBookingsRes.status === 'fulfilled' && myBookingsRes.value) {
+        const existing = (myBookingsRes.value.data.data ?? []).find(
+          (b) => b.tripId === t.id,
+        );
+        setMyBooking(existing ?? null);
+      } else {
+        setMyBooking(null);
+      }
+
+      if (driverCommentRes.status === 'fulfilled' && driverCommentRes.value) {
+        setDriverCommentCount(driverCommentRes.value.data.data ?? null);
+      }
+    }
+  }, [user?.id]);
+
   const load = useCallback(async () => {
+    if (!id) return;
     setLoading(true);
     setError(null);
     try {
@@ -44,66 +151,16 @@ export function useTripDetail(id: string) {
       if (!res.data) throw new Error('Viaje no encontrado');
       const t = res.data;
       setTrip(t);
+      // Flip loading off as soon as the critical data is in so the screen
+      // renders immediately. Secondary data hydrates progressively below.
+      setLoading(false);
 
-      try {
-        const { data: vRes } = await vehiclesApi.getById(t.vehicleId);
-        if (vRes.data) setVehicle(vRes.data);
-      } catch { }
-
-      const isDriver = user?.id === t.driverId;
-
-      if (isDriver) {
-        try {
-          const { data: bRes } = await bookingsApi.getByTrip(t.id);
-          const fetchedBookings = bRes.data ?? [];
-          setBookings(fetchedBookings);
-
-          const uniquePassengerIds = [
-            ...new Set(
-              fetchedBookings
-                .map((b) => b.passenger?.id)
-                .filter((pid): pid is string => !!pid),
-            ),
-          ];
-          if (uniquePassengerIds.length > 0) {
-            const results = await Promise.allSettled(
-              uniquePassengerIds.map((pid) => ratingsApi.getCommentCount(pid)),
-            );
-            const countsMap: Record<string, number> = {};
-            results.forEach((result, idx) => {
-              if (result.status === 'fulfilled') {
-                countsMap[uniquePassengerIds[idx]] = result.value.data.data ?? 0;
-              }
-            });
-            setPassengerCommentCounts(countsMap);
-          }
-        } catch { }
-      } else {
-        try {
-          const { data: bRes } = await bookingsApi.getMine();
-          const existing = (bRes.data ?? []).find((b) => b.tripId === t.id);
-          setMyBooking(existing ?? null);
-        } catch {
-          setMyBooking(null);
-        }
-
-        try {
-          const { data: countRes } = await ratingsApi.getCommentCount(t.driverId);
-          setDriverCommentCount(countRes.data ?? null);
-        } catch { }
-      }
-
-      try {
-        const { data: ratingsRes } = await ratingsApi.getByTrip(t.id);
-        const myRatings = (ratingsRes.data ?? []).filter((r) => r.reviewerId === user?.id);
-        setRatedUserIds(new Set(myRatings.map((r) => r.revieweeId)));
-      } catch { }
+      void loadSecondary(t);
     } catch (err: any) {
       setError(err?.response?.data?.message ?? 'No se pudo cargar el viaje');
-    } finally {
       setLoading(false);
     }
-  }, [id, user?.id]);
+  }, [id, loadSecondary]);
 
   useEffect(() => {
     load();
