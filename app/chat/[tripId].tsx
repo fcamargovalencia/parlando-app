@@ -7,6 +7,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   Keyboard,
+  Dimensions,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -30,19 +31,25 @@ export default function ChatScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const flatListRef = useRef<FlatList>(null);
-  const [keyboardOpen, setKeyboardOpen] = useState(false);
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
 
   const { messages, trip, loading, sending, error, currentUserId, sendMessage, load } =
     useChat(tripId, otherUserId);
 
-  // Android: track keyboard to toggle bottom insets
+  // Android edge-to-edge: the window no longer auto-resizes on keyboard,
+  // so we capture the keyboard height and push the whole screen up manually.
+  // NOTE: e.endCoordinates.height can be short by the nav-bar height in edge-to-edge
+  // mode, so we compute the footprint from the screen bottom to the keyboard top.
   useEffect(() => {
     if (Platform.OS !== 'android') return;
-    const show = Keyboard.addListener('keyboardDidShow', () => {
-      setKeyboardOpen(true);
+    const show = Keyboard.addListener('keyboardDidShow', (e) => {
+      const screenHeight = Dimensions.get('screen').height;
+      const keyboardTop = e.endCoordinates.screenY;
+      const footprint = Math.max(e.endCoordinates.height, screenHeight - keyboardTop);
+      setKeyboardHeight(footprint);
       setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 100);
     });
-    const hide = Keyboard.addListener('keyboardDidHide', () => setKeyboardOpen(false));
+    const hide = Keyboard.addListener('keyboardDidHide', () => setKeyboardHeight(0));
     return () => { show.remove(); hide.remove(); };
   }, []);
 
@@ -66,11 +73,15 @@ export default function ChatScreen() {
   }, [router, tripId]);
 
   // On Android, keyboard already covers the nav bar area, so drop insets when open
-  const bottomPadding =
-    Platform.OS === 'android' && keyboardOpen ? 0 : insets.bottom;
+  const isAndroid = Platform.OS === 'android';
+  const keyboardOpen = keyboardHeight > 0;
+  const bottomPadding = isAndroid && keyboardOpen ? 0 : insets.bottom;
 
   return (
-    <View className="flex-1 bg-neutral-50">
+    <View
+      className="flex-1 bg-neutral-50"
+      style={isAndroid ? { paddingBottom: keyboardHeight } : undefined}
+    >
       {/* Header */}
       <ChatHeader
         firstName={firstName}
@@ -82,7 +93,7 @@ export default function ChatScreen() {
 
       <KeyboardAvoidingView
         className="flex-1"
-        behavior="padding"
+        behavior={isAndroid ? undefined : 'padding'}
       >
         {/* Messages */}
         {loading ? (
