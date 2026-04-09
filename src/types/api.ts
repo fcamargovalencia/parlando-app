@@ -395,6 +395,38 @@ export interface BookingResponse {
   };
 }
 
+// ── Chat ──
+
+export type MessageType = 'TEXT';
+
+export interface SendMessageRequest {
+  content: string;
+  recipientId: string;
+  tripId: string;
+  messageType: MessageType;
+}
+
+export interface ChatMessageResponse {
+  id: string;
+  tripId: string;
+  senderId: string;
+  recipientId: string;
+  content: string;
+  messageType: MessageType;
+  sentAt: string;
+  readAt: string | null;
+}
+
+export interface ConversationResponse {
+  tripId: string;
+  counterpartId: string;
+  counterpartFirstName: string;
+  counterpartLastName: string;
+  counterpartPhotoUrl: string | null;
+  lastMessage: ChatMessageResponse;
+  unreadCount: number;
+}
+
 // ── Ratings ──
 
 export interface CreateRatingRequest {

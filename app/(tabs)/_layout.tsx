@@ -2,7 +2,7 @@ import React from 'react';
 import { Platform } from 'react-native';
 import { Tabs } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Route, PlusCircle, User, Search } from 'lucide-react-native';
+import { Route, PlusCircle, User, Search, MessageCircle } from 'lucide-react-native';
 import { Colors } from '@/constants/colors';
 
 export default function TabsLayout() {
@@ -49,6 +49,15 @@ export default function TabsLayout() {
           title: 'Publicar',
           tabBarIcon: ({ color, size }) => (
             <PlusCircle size={size + 4} color={Colors.primary[500]} />
+          ),
+        }}
+      />
+      <Tabs.Screen
+        name="messages"
+        options={{
+          title: 'Mensajes',
+          tabBarIcon: ({ color, size }) => (
+            <MessageCircle size={size} color={color} />
           ),
         }}
       />
