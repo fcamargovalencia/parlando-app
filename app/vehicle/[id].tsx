@@ -1,49 +1,17 @@
-import React, { useEffect, useState } from 'react';
-import { View, Text, ScrollView, Alert } from 'react-native';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import React from 'react';
+import { View, Text, ScrollView } from 'react-native';
 import { Car } from 'lucide-react-native';
 import { Screen, Button, Spinner } from '@/components/ui';
-import { useVehicles } from '@/hooks/useVehicles';
 import { Colors } from '@/constants/colors';
+import { useVehicleDetail } from '@/hooks/useVehicleDetail';
 import { VehicleHero } from '@/components/vehicle/VehicleHero';
 import { VehicleTitle } from '@/components/vehicle/VehicleTitle';
 import { VehicleDetailsCard } from '@/components/vehicle/VehicleDetailsCard';
 import { VehicleDocumentsCard } from '@/components/vehicle/VehicleDocumentsCard';
 import { VehicleActions } from '@/components/vehicle/VehicleActions';
-import Toast from 'react-native-toast-message';
 
 export default function VehicleDetailScreen() {
-  const { id } = useLocalSearchParams<{ id: string }>();
-  const router = useRouter();
-  const { selected: vehicle, loading, error, fetchVehicle, deleteVehicle } = useVehicles();
-  const [deleting, setDeleting] = useState(false);
-
-  useEffect(() => {
-    if (id) fetchVehicle(id);
-  }, [id]);
-
-  const handleDelete = () => {
-    Alert.alert(
-      'Eliminar vehículo',
-      `¿Estás seguro de que deseas eliminar ${vehicle?.brand} ${vehicle?.model}?`,
-      [
-        { text: 'Cancelar', style: 'cancel' },
-        {
-          text: 'Eliminar',
-          style: 'destructive',
-          onPress: async () => {
-            setDeleting(true);
-            const success = await deleteVehicle(id!);
-            setDeleting(false);
-            if (success) {
-              Toast.show({ type: 'success', text1: 'Vehículo eliminado' });
-              router.back();
-            }
-          },
-        },
-      ],
-    );
-  };
+  const { vehicle, loading, error, deleting, goBack, handleDelete } = useVehicleDetail();
 
   if (loading) {
     return <Spinner fullScreen message="Cargando vehículo..." />;
@@ -58,9 +26,7 @@ export default function VehicleDetailScreen() {
             No se pudo cargar el vehículo
           </Text>
           <Text className="text-sm text-neutral-400 mb-4 text-center">{error}</Text>
-          <Button variant="outline" onPress={() => router.back()}>
-            Volver
-          </Button>
+          <Button variant="outline" onPress={goBack}>Volver</Button>
         </View>
       </Screen>
     );
