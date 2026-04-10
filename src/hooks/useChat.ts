@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useReducer, useRef } from 'react';
+import { useCallback, useReducer, useRef } from 'react';
 import { useFocusEffect } from 'expo-router';
 import { chatApi } from '@/api/chat';
 import { tripsApi } from '@/api/trips';

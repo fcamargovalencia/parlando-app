@@ -4,8 +4,6 @@ import {
   TextInput,
   TouchableOpacity,
   ActivityIndicator,
-  Platform,
-  KeyboardAvoidingView,
 } from 'react-native';
 import { Send } from 'lucide-react-native';
 import { Colors } from '@/constants/colors';

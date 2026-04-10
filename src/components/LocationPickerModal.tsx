@@ -15,7 +15,7 @@ import {
 import MapView from 'react-native-maps';
 import type { Region } from 'react-native-maps';
 import * as Location from 'expo-location';
-import { Navigation, X, Search, MapPin, ArrowLeft, ChevronRight, Zap } from 'lucide-react-native';
+import { Navigation, X, Search, MapPin, ArrowLeft, ChevronRight } from 'lucide-react-native';
 import { Colors } from '@/constants/colors';
 import { Button } from '@/components/ui';
 import { tomtomService, type LocationSearchResult } from '@/lib/tomtom';
