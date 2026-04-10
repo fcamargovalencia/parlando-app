@@ -1,0 +1,232 @@
+import { useState, useRef, useEffect, useCallback } from 'react';
+import { Animated, Alert } from 'react-native';
+import { useLocationSearch } from '@/hooks/useLocationSearch';
+import { useRouteAlternatives } from '@/hooks/useRouteAlternatives';
+import {
+  isStepValid,
+  STEP_VALIDATION_MESSAGES,
+  type PublishForm,
+  type PublishAction,
+} from '@/hooks/usePublishForm';
+import { distanceKm, normalizePlace } from '@/lib/utils';
+import { TRIP_TYPE_OPTIONS } from '@/constants/trips';
+import type { SelectedLocation } from '@/components/LocationPickerModal';
+import type { LocationSearchResult } from '@/lib/tomtom';
+import type { TripType } from '@/types/api';
+
+export const TOTAL_STEPS = 9;
+
+interface UsePublishScreenParams {
+  form: PublishForm;
+  dispatch: React.Dispatch<PublishAction>;
+  waypoints: SelectedLocation[];
+  setWaypoints: React.Dispatch<React.SetStateAction<SelectedLocation[]>>;
+  submitting: boolean;
+  tripType: TripType;
+}
+
+export function usePublishScreen({
+  form,
+  dispatch,
+  waypoints,
+  setWaypoints,
+  submitting,
+  tripType,
+}: UsePublishScreenParams) {
+  const originSearch = useLocationSearch();
+  const destinationSearch = useLocationSearch();
+
+  const [step, setStep] = useState(1);
+  const [slideDirection, setSlideDirection] = useState<'forward' | 'backward'>('forward');
+
+  const [locationPicker, setLocationPicker] = useState<{
+    visible: boolean;
+    target: 'origin' | 'destination' | 'waypoint';
+    municipalityFocus?: { latitude: number; longitude: number; name: string };
+  }>({ visible: false, target: 'origin' });
+
+  // ── Route alternatives (only active on step 5) ──
+
+  const routeHook = useRouteAlternatives(form.origin, form.destination, waypoints, step === 5);
+
+  // ── Animations ──
+
+  const stepAnim = useRef(new Animated.Value(1)).current;
+  const progressAnim = useRef(new Animated.Value(1 / TOTAL_STEPS)).current;
+
+  useEffect(() => {
+    stepAnim.setValue(0);
+    Animated.parallel([
+      Animated.timing(stepAnim, {
+        toValue: 1,
+        duration: 260,
+        useNativeDriver: true,
+      }),
+      Animated.timing(progressAnim, {
+        toValue: step / TOTAL_STEPS,
+        duration: 300,
+        useNativeDriver: false,
+      }),
+    ]).start();
+  }, [step, stepAnim, progressAnim]);
+
+  // ── Derived ──
+
+  const tripTypeLabel =
+    TRIP_TYPE_OPTIONS.find((opt) => opt.type === tripType)?.label ?? tripType;
+
+  // ── Navigation ──
+
+  const goNext = useCallback(() => {
+    if (!isStepValid(step, form, routeHook.alternatives, routeHook.selectedId)) {
+      const msg = STEP_VALIDATION_MESSAGES[step];
+      if (msg) Alert.alert(msg.title, msg.message);
+      return;
+    }
+    setSlideDirection('forward');
+    setStep((s) => Math.min(TOTAL_STEPS, s + 1));
+  }, [step, form, routeHook.alternatives, routeHook.selectedId]);
+
+  const goBack = useCallback(() => {
+    setSlideDirection('backward');
+    setStep((s) => Math.max(1, s - 1));
+  }, []);
+
+  // ── Location handlers ──
+
+  const handleInlineLocationSelect = useCallback(
+    (target: 'origin' | 'destination', loc: SelectedLocation) => {
+      dispatch({
+        type: target === 'origin' ? 'SET_ORIGIN' : 'SET_DESTINATION',
+        payload: loc,
+      });
+
+      if (target === 'origin') {
+        originSearch.setQueryAndClear(loc.name);
+        destinationSearch.clear();
+        if (form.destination) {
+          const sameCity =
+            normalizePlace(form.destination.name) === normalizePlace(loc.name);
+          const near = distanceKm(form.destination, loc) < 1;
+          if (sameCity || near) {
+            Alert.alert('Destino inválido', 'Elige un destino diferente al nuevo origen.');
+          }
+        }
+        setSlideDirection('forward');
+        setStep(3);
+      } else {
+        destinationSearch.setQueryAndClear(loc.name);
+        setSlideDirection('forward');
+        setStep(4);
+      }
+    },
+    [form.destination, dispatch, originSearch, destinationSearch],
+  );
+
+  const handleSuggestionSelect = useCallback(
+    (target: 'origin' | 'destination', item: LocationSearchResult) => {
+      if (item.locationType === 'municipality') {
+        if (target === 'origin') originSearch.clear();
+        else destinationSearch.clear();
+        setLocationPicker({
+          visible: true,
+          target,
+          municipalityFocus: {
+            latitude: item.latitude,
+            longitude: item.longitude,
+            name: item.name,
+          },
+        });
+      } else {
+        handleInlineLocationSelect(target, {
+          latitude: item.latitude,
+          longitude: item.longitude,
+          name: item.name,
+          city: item.city,
+          state: item.state,
+          country: item.country,
+        });
+      }
+    },
+    [handleInlineLocationSelect, originSearch, destinationSearch],
+  );
+
+  const handleLocationConfirm = useCallback(
+    (loc: SelectedLocation) => {
+      if (locationPicker.target === 'waypoint') {
+        const exists = waypoints.some((w) => distanceKm(w, loc) < 0.5);
+        if (exists) {
+          Alert.alert('Ciudad repetida', 'Esa ciudad intermedia ya fue agregada.');
+        } else {
+          setWaypoints((prev) => [...prev, loc]);
+        }
+        setLocationPicker((p) => ({ ...p, visible: false }));
+        return;
+      }
+      handleInlineLocationSelect(locationPicker.target, loc);
+      setLocationPicker((p) => ({
+        ...p,
+        visible: false,
+        municipalityFocus: undefined,
+      }));
+    },
+    [locationPicker.target, waypoints, handleInlineLocationSelect, setWaypoints],
+  );
+
+  // ── Waypoint handlers ──
+
+  const addWaypoint = useCallback(() => {
+    if (!form.origin) {
+      Alert.alert('Origen requerido', 'Primero selecciona el lugar de origen.');
+      setStep(2);
+      return;
+    }
+    setLocationPicker({ visible: true, target: 'waypoint' });
+  }, [form.origin]);
+
+  const moveWaypointUp = useCallback(
+    (idx: number) => {
+      if (idx === 0) return;
+      setWaypoints((prev) => {
+        const next = [...prev];
+        [next[idx - 1], next[idx]] = [next[idx], next[idx - 1]];
+        return next;
+      });
+    },
+    [setWaypoints],
+  );
+
+  const moveWaypointDown = useCallback(
+    (idx: number) => {
+      setWaypoints((prev) => {
+        if (idx >= prev.length - 1) return prev;
+        const next = [...prev];
+        [next[idx], next[idx + 1]] = [next[idx + 1], next[idx]];
+        return next;
+      });
+    },
+    [setWaypoints],
+  );
+
+  return {
+    originSearch,
+    destinationSearch,
+    routeHook,
+    step,
+    setStep,
+    slideDirection,
+    stepAnim,
+    progressAnim,
+    locationPicker,
+    setLocationPicker,
+    tripTypeLabel,
+    goNext,
+    goBack,
+    handleInlineLocationSelect,
+    handleSuggestionSelect,
+    handleLocationConfirm,
+    addWaypoint,
+    moveWaypointUp,
+    moveWaypointDown,
+  };
+}

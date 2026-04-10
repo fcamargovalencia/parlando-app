@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, Image, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
@@ -46,15 +46,16 @@ export default function WelcomeScreen() {
       <StatusBar style="light" />
       {/* Full-bleed gradient hero */}
       <LinearGradient
-        colors={['#003040', '#005660', '#007380']}
+        colors={['#1a1a1a', '#3a3a3a', '#5a5a5a']}
         start={{ x: 0, y: 0 }}
-        end={{ x: 1, y: 1 }}
-        style={[styles.hero, { paddingTop: insets.top + 48 }]}
+        end={{ x: 0, y: 1 }}
+        style={[styles.hero, { paddingTop: insets.top + 32 }]}
       >
-        <View style={styles.logoBadge}>
-          <MapPin size={32} color="#FFFFFF" />
-        </View>
-        <Text style={styles.logoText}>ParlAndo</Text>
+        <Image
+          source={require('../../assets/parlando-icon.png')}
+          style={styles.logoBadge}
+          resizeMode="contain"
+        />
         <Text style={styles.tagline}>
           Pin de Conexión{'\n'}Viajes compartidos para Colombia 🇨🇴
         </Text>
@@ -82,7 +83,7 @@ export default function WelcomeScreen() {
           <Button
             onPress={handleGetStarted}
             size="lg"
-            className="w-full"
+            className="w-full my-2"
             icon={<ChevronRight size={20} color="#FFFFFF" />}
           >
             Crear cuenta
@@ -104,7 +105,7 @@ export default function WelcomeScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#003040',
+    backgroundColor: '#1a1a1a',
   },
   hero: {
     alignItems: 'center',
@@ -113,19 +114,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 32,
   },
   logoBadge: {
-    width: 64,
-    height: 64,
+    width: 460,
+    height: 460,
     borderRadius: 20,
-    backgroundColor: 'rgba(255,255,255,0.15)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 16,
-  },
-  logoText: {
-    fontSize: 40,
-    fontWeight: '800',
-    color: '#FFFFFF',
-    letterSpacing: -1,
+    marginBottom: -160,
   },
   tagline: {
     fontSize: 16,
