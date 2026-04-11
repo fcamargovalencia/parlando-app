@@ -5,6 +5,7 @@ import { bookingsApi } from '@/api/bookings';
 import { ratingsApi } from '@/api/ratings';
 import { vehiclesApi } from '@/api/vehicles';
 import { tomtomService } from '@/lib/tomtom';
+import { extractApiError } from '@/lib/utils';
 import { useAuthStore } from '@/stores/auth-store';
 import type {
   TripResponse,
@@ -140,7 +141,7 @@ export function useTripDetail(id: string, options?: UseTripDetailOptions) {
         setDriverCommentCount(driverCommentRes.value.data.data ?? null);
       }
     }
-  }, [user?.id]);
+  }, [user?.id, fromSearch]);
 
   const load = useCallback(async () => {
     if (!id) return;
@@ -156,8 +157,8 @@ export function useTripDetail(id: string, options?: UseTripDetailOptions) {
       setLoading(false);
 
       void loadSecondary(t);
-    } catch (err: any) {
-      setError(err?.response?.data?.message ?? 'No se pudo cargar el viaje');
+    } catch (err) {
+      setError(extractApiError(err, 'No se pudo cargar el viaje'));
       setLoading(false);
     }
   }, [id, loadSecondary]);
@@ -179,7 +180,7 @@ export function useTripDetail(id: string, options?: UseTripDetailOptions) {
 
   // ── Actions ──
 
-  const runAction = async (
+  const runAction = useCallback(async (
     label: string,
     action: () => Promise<void>,
     confirmMsg?: string,
@@ -202,20 +203,16 @@ export function useTripDetail(id: string, options?: UseTripDetailOptions) {
     } finally {
       setActionLoading(null);
     }
-  };
+  }, []);
 
-  const handlePublish = () =>
+  const handlePublish = useCallback(() =>
     runAction('Publicar', async () => {
       const { data: res } = await tripsApi.publish(id);
       if (res.data) setTrip(res.data);
-      Toast.show({
-        type: 'success',
-        text1: '¡Viaje publicado!',
-        text2: 'Ya es visible para pasajeros',
-      });
-    });
+      Toast.show({ type: 'success', text1: '¡Viaje publicado!', text2: 'Ya es visible para pasajeros' });
+    }), [id, runAction]);
 
-  const handleStart = () =>
+  const handleStart = useCallback(() =>
     runAction(
       'Iniciar viaje',
       async () => {
@@ -224,9 +221,9 @@ export function useTripDetail(id: string, options?: UseTripDetailOptions) {
         Toast.show({ type: 'success', text1: 'Viaje iniciado' });
       },
       '¿Confirmas que el viaje está en camino?',
-    );
+    ), [id, runAction]);
 
-  const handleComplete = () =>
+  const handleComplete = useCallback(() =>
     runAction(
       'Completar',
       async () => {
@@ -235,9 +232,9 @@ export function useTripDetail(id: string, options?: UseTripDetailOptions) {
         Toast.show({ type: 'success', text1: 'Viaje completado' });
       },
       '¿Confirmas que llegaste al destino?',
-    );
+    ), [id, runAction]);
 
-  const handleCancel = () =>
+  const handleCancel = useCallback(() =>
     runAction(
       'Cancelar viaje',
       async () => {
@@ -246,9 +243,9 @@ export function useTripDetail(id: string, options?: UseTripDetailOptions) {
         Toast.show({ type: 'success', text1: 'Viaje cancelado' });
       },
       '¿Seguro que quieres cancelar este viaje? Esta acción no se puede deshacer.',
-    );
+    ), [id, runAction]);
 
-  const handleCancelBooking = () => {
+  const handleCancelBooking = useCallback(() => {
     if (!myBooking) return;
     Alert.alert('Cancelar reserva', '¿Seguro que quieres cancelar tu reserva?', [
       { text: 'No', style: 'cancel' },
@@ -261,20 +258,17 @@ export function useTripDetail(id: string, options?: UseTripDetailOptions) {
             await bookingsApi.cancel(myBooking.id);
             setMyBooking({ ...myBooking, status: 'CANCELLED' });
             Toast.show({ type: 'success', text1: 'Reserva cancelada' });
-          } catch (err: any) {
-            Alert.alert(
-              'Error',
-              err?.response?.data?.message ?? 'No se pudo cancelar',
-            );
+          } catch (err) {
+            Alert.alert('Error', extractApiError(err, 'No se pudo cancelar'));
           } finally {
             setActionLoading(null);
           }
         },
       },
     ]);
-  };
+  }, [myBooking]);
 
-  const openMap = async () => {
+  const openMap = useCallback(async () => {
     if (!trip) return;
 
     const needsWaypoints = waypointsFull.length === 0;
@@ -336,60 +330,41 @@ export function useTripDetail(id: string, options?: UseTripDetailOptions) {
       if (needsWaypoints) setLoadingWaypoints(false);
       if (needsRoutePolyline) setLoadingRoutePolyline(false);
     }
-  };
+  }, [id, trip, waypointsFull, routePolyline]);
 
-  const handleRateDriver = async (score: number, comment: string) => {
+  /** Unified rating handler for both driver and passenger. */
+  const handleRate = useCallback(async (revieweeId: string, score: number, comment: string) => {
     if (!trip) return;
     await ratingsApi.create({
-      revieweeId: trip.driverId,
+      revieweeId,
       tripId: trip.id,
       score,
       comment: comment || undefined,
     });
-    setRatedUserIds((prev) => new Set([...prev, trip.driverId]));
+    setRatedUserIds((prev) => new Set([...prev, revieweeId]));
     Toast.show({ type: 'success', text1: '¡Calificación enviada!', text2: 'Gracias por tu opinión' });
-  };
+  }, [trip]);
 
-  const handleRatePassenger = async (passengerUserId: string, score: number, comment: string) => {
-    if (!trip) return;
-    await ratingsApi.create({
-      revieweeId: passengerUserId,
-      tripId: trip.id,
-      score,
-      comment: comment || undefined,
-    });
-    setRatedUserIds((prev) => new Set([...prev, passengerUserId]));
-    Toast.show({ type: 'success', text1: '¡Calificación enviada!', text2: 'Gracias por tu opinión' });
-  };
-
-  const handleBookingAction = async (
+  const handleBookingAction = useCallback(async (
     bookingId: string,
     action: 'accept' | 'reject' | 'board' | 'noshow',
   ) => {
     const label = `${bookingId}-${action}`;
     setActionLoading(label);
     try {
-      let updated: BookingResponse | undefined;
-      if (action === 'accept') {
-        const { data: r } = await bookingsApi.accept(bookingId);
-        updated = r.data ?? undefined;
-      }
-      if (action === 'reject') {
-        const { data: r } = await bookingsApi.reject(bookingId);
-        updated = r.data ?? undefined;
-      }
-      if (action === 'board') {
-        const { data: r } = await bookingsApi.board(bookingId);
-        updated = r.data ?? undefined;
-      }
-      if (action === 'noshow') {
-        const { data: r } = await bookingsApi.noShow(bookingId);
-        updated = r.data ?? undefined;
-      }
+      const apiCallMap = {
+        accept: () => bookingsApi.accept(bookingId),
+        reject: () => bookingsApi.reject(bookingId),
+        board: () => bookingsApi.board(bookingId),
+        noshow: () => bookingsApi.noShow(bookingId),
+      } as const;
+
+      const { data: r } = await apiCallMap[action]();
+      const updated = r.data ?? undefined;
 
       if (updated) {
         setBookings((prev) =>
-          prev.map((b) => (b.id === bookingId ? updated! : b)),
+          prev.map((b) => (b.id === bookingId ? updated : b)),
         );
         const { data: tRes } = await tripsApi.getDetails(id);
         if (tRes.data) setTrip(tRes.data);
@@ -401,15 +376,12 @@ export function useTripDetail(id: string, options?: UseTripDetailOptions) {
         noshow: 'No-show registrado',
       };
       Toast.show({ type: 'success', text1: msgs[action] });
-    } catch (err: any) {
-      Alert.alert(
-        'Error',
-        err?.response?.data?.message ?? 'No se pudo completar la acción',
-      );
+    } catch (err) {
+      Alert.alert('Error', extractApiError(err, 'No se pudo completar la acción'));
     } finally {
       setActionLoading(null);
     }
-  };
+  }, [id]);
 
   return {
     trip,
@@ -439,8 +411,7 @@ export function useTripDetail(id: string, options?: UseTripDetailOptions) {
     handleCancelBooking,
     openMap,
     handleBookingAction,
-    handleRateDriver,
-    handleRatePassenger,
+    handleRate,
   };
 }
 

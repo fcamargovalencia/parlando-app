@@ -5,7 +5,7 @@ import { useFocusEffect } from '@react-navigation/native';
 import { vehiclesApi } from '@/api/vehicles';
 import { tripsApi } from '@/api/trips';
 import { tomtomService } from '@/lib/tomtom';
-import { distanceKm, normalizePlace, compactPolyline } from '@/lib/utils';
+import { distanceKm, normalizePlace, compactPolyline, extractApiError } from '@/lib/utils';
 import type { TripType, VehicleResponse, WaypointRequest } from '@/types/api';
 import type { SelectedLocation } from '@/components/LocationPickerModal';
 import type { RouteAlternative } from './useRouteAlternatives';
@@ -104,7 +104,6 @@ export function isStepValid(
     );
   }
   if (step === 8) return !!form.vehicleId;
-  if (step === 9) return true;
   return true;
 }
 
@@ -142,7 +141,6 @@ export function usePublishForm() {
     }
   }, []);
 
-  useEffect(() => { loadVehicles(); }, [loadVehicles]);
   useFocusEffect(useCallback(() => { loadVehicles(); }, [loadVehicles]));
 
   // Auto-select if only one active vehicle
@@ -262,11 +260,8 @@ export function usePublishForm() {
         setWaypoints([]);
         onSuccess?.();
         router.push('/(tabs)/my-trips');
-      } catch (err: any) {
-        Alert.alert(
-          'Error al publicar',
-          err?.response?.data?.message ?? 'No se pudo publicar el viaje. Intenta nuevamente.',
-        );
+      } catch (err) {
+        Alert.alert('Error al publicar', extractApiError(err, 'No se pudo publicar el viaje. Intenta nuevamente.'));
       } finally {
         setSubmitting(false);
       }

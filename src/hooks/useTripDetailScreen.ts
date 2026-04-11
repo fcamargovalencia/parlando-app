@@ -112,20 +112,18 @@ export function useTripDetailScreen() {
   const handleSubmitRating = useCallback(
     async (score: number, comment: string) => {
       if (!rateModal) return;
-      if (tripDetail.isDriver) {
-        await tripDetail.handleRatePassenger(rateModal.revieweeId, score, comment);
-      } else {
-        await tripDetail.handleRateDriver(score, comment);
-      }
+      await tripDetail.handleRate(rateModal.revieweeId, score, comment);
       setRateModal(null);
     },
-    [rateModal, tripDetail.isDriver, tripDetail.handleRatePassenger, tripDetail.handleRateDriver],
+    [rateModal, tripDetail.handleRate],
   );
+
+  const goBack = useCallback(() => router.back(), [router]);
 
   return {
     ...tripDetail,
     insets,
-    goBack: () => router.back(),
+    goBack,
     editVisible,
     setEditVisible,
     bookVisible,

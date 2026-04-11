@@ -3,6 +3,7 @@ import { useFocusEffect } from 'expo-router';
 import { chatApi } from '@/api/chat';
 import { tripsApi } from '@/api/trips';
 import { useAuthStore } from '@/stores/auth-store';
+import { extractApiError } from '@/lib/utils';
 import type { ChatMessageResponse, TripResponse } from '@/types/api';
 
 // ── State ──
@@ -73,15 +74,15 @@ export function useChat(tripId: string, otherUserId: string) {
       const res = await chatApi.getMessages(tripId, otherUserId);
       dispatch({ type: 'FETCH_SUCCESS', messages: res.data.data ?? [] });
       chatApi.markAsRead(tripId, otherUserId).catch(() => { });
-    } catch (e: any) {
-      const status = e?.response?.status;
+    } catch (e) {
+      const status = (e as any)?.response?.status;
       // 403/404 = no booking yet — treat as empty conversation, not an error
       if (status === 403 || status === 404) {
         dispatch({ type: 'FETCH_SUCCESS', messages: [] });
       } else {
         dispatch({
           type: 'FETCH_ERROR',
-          error: e?.response?.data?.message ?? 'Error al cargar mensajes',
+          error: extractApiError(e, 'Error al cargar mensajes'),
         });
       }
     }
@@ -118,10 +119,10 @@ export function useChat(tripId: string, otherUserId: string) {
         if (res.data.data) {
           dispatch({ type: 'SEND_SUCCESS', message: res.data.data });
         }
-      } catch (e: any) {
+      } catch (e) {
         dispatch({
           type: 'SEND_ERROR',
-          error: e?.response?.data?.message ?? 'Error al enviar mensaje',
+          error: extractApiError(e, 'Error al enviar mensaje'),
         });
       }
     },
@@ -150,7 +151,7 @@ export function useChat(tripId: string, otherUserId: string) {
         if (pollRef.current) clearInterval(pollRef.current);
         pollRef.current = null;
       };
-    }, [load, tripId, otherUserId]),
+    }, [load]),
   );
 
   return {

@@ -1,5 +1,6 @@
 import { useReducer, useCallback, useEffect } from 'react';
 import { vehiclesApi } from '@/api/vehicles';
+import { extractApiError } from '@/lib/utils';
 import type { VehicleResponse, CreateVehicleRequest, UpdateVehicleRequest } from '@/types/api';
 
 // ── State & Actions ──
@@ -15,6 +16,7 @@ interface VehiclesState {
 type VehiclesAction =
   | { type: 'FETCH_START'; }
   | { type: 'FETCH_SUCCESS'; payload: VehicleResponse[]; }
+  | { type: 'FETCH_VEHICLE_SUCCESS'; payload: VehicleResponse; }
   | { type: 'FETCH_ERROR'; payload: string; }
   | { type: 'SELECT'; payload: VehicleResponse; }
   | { type: 'SUBMIT_START'; }
@@ -30,6 +32,8 @@ function vehiclesReducer(state: VehiclesState, action: VehiclesAction): Vehicles
       return { ...state, loading: true, error: null };
     case 'FETCH_SUCCESS':
       return { ...state, loading: false, vehicles: action.payload, error: null };
+    case 'FETCH_VEHICLE_SUCCESS':
+      return { ...state, loading: false, selected: action.payload, error: null };
     case 'FETCH_ERROR':
       return { ...state, loading: false, error: action.payload };
     case 'SELECT':
@@ -82,31 +86,30 @@ export function useVehicles() {
     try {
       const { data: res } = await vehiclesApi.getMine();
       dispatch({ type: 'FETCH_SUCCESS', payload: res.data ?? [] });
-    } catch (err: any) {
+    } catch (err) {
       dispatch({
         type: 'FETCH_ERROR',
-        payload: err?.response?.data?.message ?? 'Error al cargar vehículos',
+        payload: extractApiError(err, 'Error al cargar vehículos'),
       });
     }
   }, []);
 
-  const fetchVehicle = useCallback(async (id: string) => {
+  const fetchVehicle = useCallback(async (vehicleId: string) => {
     dispatch({ type: 'FETCH_START' });
     try {
-      const { data: res } = await vehiclesApi.getById(id);
+      const { data: res } = await vehiclesApi.getById(vehicleId);
       if (res.data) {
-        dispatch({ type: 'SELECT', payload: res.data });
-        dispatch({ type: 'FETCH_SUCCESS', payload: state.vehicles });
+        dispatch({ type: 'FETCH_VEHICLE_SUCCESS', payload: res.data });
       } else {
         dispatch({ type: 'FETCH_ERROR', payload: 'Vehículo no encontrado' });
       }
-    } catch (err: any) {
+    } catch (err) {
       dispatch({
         type: 'FETCH_ERROR',
-        payload: err?.response?.data?.message ?? 'Error al cargar vehículo',
+        payload: extractApiError(err, 'Error al cargar vehículo'),
       });
     }
-  }, [state.vehicles]);
+  }, []);
 
   const createVehicle = useCallback(async (data: CreateVehicleRequest) => {
     dispatch({ type: 'SUBMIT_START' });
@@ -115,41 +118,41 @@ export function useVehicles() {
       if (!res.data) throw new Error('Error al registrar vehículo');
       dispatch({ type: 'SUBMIT_SUCCESS', payload: res.data });
       return true;
-    } catch (err: any) {
+    } catch (err) {
       dispatch({
         type: 'SUBMIT_ERROR',
-        payload: err?.response?.data?.message ?? 'Error al registrar vehículo',
+        payload: extractApiError(err, 'Error al registrar vehículo'),
       });
       return false;
     }
   }, []);
 
-  const updateVehicle = useCallback(async (id: string, data: UpdateVehicleRequest) => {
+  const updateVehicle = useCallback(async (vehicleId: string, data: UpdateVehicleRequest) => {
     dispatch({ type: 'SUBMIT_START' });
     try {
-      const { data: res } = await vehiclesApi.update(id, data);
+      const { data: res } = await vehiclesApi.update(vehicleId, data);
       if (!res.data) throw new Error('Error al actualizar vehículo');
       dispatch({ type: 'UPDATE_SUCCESS', payload: res.data });
       return true;
-    } catch (err: any) {
+    } catch (err) {
       dispatch({
         type: 'SUBMIT_ERROR',
-        payload: err?.response?.data?.message ?? 'Error al actualizar vehículo',
+        payload: extractApiError(err, 'Error al actualizar vehículo'),
       });
       return false;
     }
   }, []);
 
-  const deleteVehicle = useCallback(async (id: string) => {
+  const deleteVehicle = useCallback(async (vehicleId: string) => {
     dispatch({ type: 'SUBMIT_START' });
     try {
-      await vehiclesApi.remove(id);
-      dispatch({ type: 'DELETE_SUCCESS', payload: id });
+      await vehiclesApi.remove(vehicleId);
+      dispatch({ type: 'DELETE_SUCCESS', payload: vehicleId });
       return true;
-    } catch (err: any) {
+    } catch (err) {
       dispatch({
         type: 'SUBMIT_ERROR',
-        payload: err?.response?.data?.message ?? 'Error al eliminar vehículo',
+        payload: extractApiError(err, 'Error al eliminar vehículo'),
       });
       return false;
     }

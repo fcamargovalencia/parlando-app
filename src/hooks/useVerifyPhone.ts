@@ -83,25 +83,20 @@ export function useVerifyPhone() {
   const otpValue = code.join('');
   const isComplete = otpValue.length === OTP_LENGTH;
 
+  const navigateAfterVerify = useCallback(() => {
+    if (from === 'profile') router.back();
+    else router.replace('/(tabs)/home');
+  }, [from, router]);
+
   const handleVerify = useCallback(async () => {
     if (!isComplete) return;
     const success = await verifyPhone(otpValue);
-    if (success) {
-      if (from === 'profile') {
-        router.back();
-      } else {
-        router.replace('/(tabs)/home');
-      }
-    }
-  }, [isComplete, verifyPhone, otpValue, from, router]);
+    if (success) navigateAfterVerify();
+  }, [isComplete, verifyPhone, otpValue, navigateAfterVerify]);
 
   const handleSkip = useCallback(() => {
-    if (from === 'profile') {
-      router.back();
-    } else {
-      router.replace('/(tabs)/home');
-    }
-  }, [from, router]);
+    navigateAfterVerify();
+  }, [navigateAfterVerify]);
 
   return {
     phone,

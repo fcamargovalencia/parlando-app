@@ -4,6 +4,7 @@ import Toast from 'react-native-toast-message';
 import { bookingsApi } from '@/api/bookings';
 import { ratingsApi } from '@/api/ratings';
 import { tripsApi } from '@/api/trips';
+import { extractApiError } from '@/lib/utils';
 import {
   mapBookingToItem,
   mapTripToItem,
@@ -160,20 +161,19 @@ export function useMyTrips() {
       dispatch({ type: 'FETCH_SUCCESS', trips, bookings });
 
       // Hydrate bookings for completed trips so we can know if passengers were rated.
-      trips
-        .filter((t) => t.status === 'COMPLETED')
-        .forEach(async (t) => {
-          try {
+      // Fire-and-forget in parallel — failures are silent, screen already rendered.
+      void Promise.allSettled(
+        trips
+          .filter((t) => t.status === 'COMPLETED')
+          .map(async (t) => {
             const tripBookings = await fetchBookingsForTrip(t.id);
             dispatch({ type: 'SET_TRIP_BOOKINGS', tripId: t.id, bookings: tripBookings });
-          } catch {
-            // best effort — leave undefined
-          }
-        });
-    } catch (err: any) {
+          }),
+      );
+    } catch (err) {
       dispatch({
         type: 'FETCH_ERROR',
-        payload: err?.response?.data?.message ?? 'Error al cargar tus viajes',
+        payload: extractApiError(err, 'Error al cargar tus viajes'),
       });
     }
   }, []);
@@ -199,12 +199,9 @@ export function useMyTrips() {
               await tripsApi.cancel(trip.id);
               dispatch({ type: 'CANCEL_TRIP_SUCCESS', id: trip.id });
               Toast.show({ type: 'success', text1: 'Viaje cancelado' });
-            } catch (err: any) {
+            } catch (err) {
               dispatch({ type: 'CANCEL_ERROR' });
-              Alert.alert(
-                'Error',
-                err?.response?.data?.message ?? 'No se pudo cancelar el viaje',
-              );
+              Alert.alert('Error', extractApiError(err, 'No se pudo cancelar el viaje'));
             }
           },
         },
@@ -229,12 +226,9 @@ export function useMyTrips() {
               await bookingsApi.cancel(booking.id);
               dispatch({ type: 'CANCEL_BOOKING_SUCCESS', id: booking.id });
               Toast.show({ type: 'success', text1: 'Reserva cancelada' });
-            } catch (err: any) {
+            } catch (err) {
               dispatch({ type: 'CANCEL_ERROR' });
-              Alert.alert(
-                'Error',
-                err?.response?.data?.message ?? 'No se pudo cancelar la reserva',
-              );
+              Alert.alert('Error', extractApiError(err, 'No se pudo cancelar la reserva'));
             }
           },
         },

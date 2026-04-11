@@ -2,6 +2,7 @@ import { useReducer, useCallback } from 'react';
 import { authApi } from '@/api/auth';
 import { usersApi } from '@/api/users';
 import { useAuthStore } from '@/stores/auth-store';
+import { extractApiError } from '@/lib/utils';
 import type { LoginRequest, RegisterRequest, UserResponse } from '@/types/api';
 
 // ── State & Actions ──
@@ -56,10 +57,8 @@ export function useAuth() {
       storeLogin(accessToken, refreshToken, user);
       dispatch({ type: 'RESET' });
       return true;
-    } catch (err: any) {
-      const message =
-        err?.response?.data?.message ?? err?.message ?? 'Error al iniciar sesión';
-      dispatch({ type: 'ERROR', payload: message });
+    } catch (err) {
+      dispatch({ type: 'ERROR', payload: extractApiError(err, 'Error al iniciar sesión') });
       return false;
     }
   }, [storeLogin]);
@@ -74,10 +73,8 @@ export function useAuth() {
       storeLogin(accessToken, refreshToken, user);
       dispatch({ type: 'RESET' });
       return true;
-    } catch (err: any) {
-      const message =
-        err?.response?.data?.message ?? err?.message ?? 'Error al registrarse';
-      dispatch({ type: 'ERROR', payload: message });
+    } catch (err) {
+      dispatch({ type: 'ERROR', payload: extractApiError(err, 'Error al registrarse') });
       return false;
     }
   }, [storeLogin]);
@@ -119,10 +116,8 @@ export function useAuth() {
       }
       dispatch({ type: 'RESET' });
       return true;
-    } catch (err: any) {
-      const message =
-        err?.response?.data?.message ?? err?.message ?? 'Código inválido';
-      dispatch({ type: 'ERROR', payload: message });
+    } catch (err) {
+      dispatch({ type: 'ERROR', payload: extractApiError(err, 'Código inválido') });
       return false;
     }
   }, []);

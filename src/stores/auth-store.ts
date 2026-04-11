@@ -24,9 +24,12 @@ interface AuthState {
   refreshToken: string | null;
   user: UserResponse | null;
   hasOnboarded: boolean;
+  /** Runtime flag: verifications loaded at least once this session (not persisted). */
+  verificationsInitialized: boolean;
 
   setTokens: (accessToken: string, refreshToken: string) => void;
   setUser: (user: UserResponse) => void;
+  setVerificationsInitialized: (value: boolean) => void;
   login: (accessToken: string, refreshToken: string, user: UserResponse | null) => void;
   logout: () => void;
   completeOnboarding: () => void;
@@ -41,10 +44,13 @@ export const useAuthStore = create<AuthState>()(
       refreshToken: null,
       user: null,
       hasOnboarded: false,
+      verificationsInitialized: false,
 
       setTokens: (accessToken, refreshToken) => set({ accessToken, refreshToken }),
 
       setUser: (user) => set({ user }),
+
+      setVerificationsInitialized: (value) => set({ verificationsInitialized: value }),
 
       login: (accessToken, refreshToken, user) =>
         set({ accessToken, refreshToken, user }),

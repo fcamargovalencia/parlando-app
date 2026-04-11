@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useReducer } from 'react';
 import { chatApi } from '@/api/chat';
+import { extractApiError } from '@/lib/utils';
 import type { ConversationResponse } from '@/types/api';
 
 // ── State ──
@@ -68,10 +69,10 @@ export function useConversations() {
         conversations: convRes.data.data ?? [],
         unread: typeof unreadRes.data.data === 'number' ? unreadRes.data.data : 0,
       });
-    } catch (e: any) {
+    } catch (e) {
       dispatch({
         type: 'FETCH_ERROR',
-        error: e?.response?.data?.message ?? 'Error al cargar conversaciones',
+        error: extractApiError(e, 'Error al cargar conversaciones'),
       });
     }
   }, []);

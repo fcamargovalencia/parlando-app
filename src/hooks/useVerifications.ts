@@ -2,16 +2,13 @@ import { useReducer, useCallback, useEffect, useRef } from 'react';
 import { verificationsApi } from '@/api/verifications';
 import { usersApi } from '@/api/users';
 import { useAuthStore } from '@/stores/auth-store';
+import { extractApiError } from '@/lib/utils';
 import type {
   IdentityVerificationResponse,
   SubmitVerificationRequest,
 } from '@/types/api';
 
 const POLL_INTERVAL = 30_000; // 30 seconds
-
-// Survives component unmounts so the full-screen spinner never shows again
-// after verifications have been loaded at least once.
-let _moduleInitialized = false;
 
 // ── State & Actions ──
 
@@ -78,11 +75,13 @@ interface FetchVerificationsOptions {
 
 export function useVerifications() {
   const setStoreUser = useAuthStore((s) => s.setUser);
+  const verificationsInitialized = useAuthStore((s) => s.verificationsInitialized);
+  const setVerificationsInitialized = useAuthStore((s) => s.setVerificationsInitialized);
   const prevStatusesRef = useRef<Record<string, string>>({});
 
   const [state, dispatch] = useReducer(verificationsReducer, {
     verifications: [],
-    initialized: _moduleInitialized,
+    initialized: verificationsInitialized,
     loading: false,
     refreshing: false,
     submitting: false,
@@ -100,7 +99,8 @@ export function useVerifications() {
         : Array.isArray(rawData?.data)
           ? rawData.data
           : [];
-      _moduleInitialized = true;
+
+      setVerificationsInitialized(true);
       dispatch({ type: 'FETCH_SUCCESS', payload: newVerifications });
 
       // Detect status changes from previous fetch
@@ -123,16 +123,13 @@ export function useVerifications() {
           // ignore profile refresh errors silently
         }
       }
-    } catch (err: any) {
-      const backendMessage = err?.response?.data?.message
-        ?? err?.response?.data?.error
-        ?? err?.message;
+    } catch (err) {
       dispatch({
         type: 'FETCH_ERROR',
-        payload: backendMessage ?? 'Error al cargar verificaciones',
+        payload: extractApiError(err, 'Error al cargar verificaciones'),
       });
     }
-  }, [setStoreUser]);
+  }, [setStoreUser, setVerificationsInitialized]);
 
   const submitVerification = useCallback(async (data: SubmitVerificationRequest) => {
     dispatch({ type: 'SUBMIT_START' });
@@ -141,10 +138,10 @@ export function useVerifications() {
       if (!res.data) throw new Error('Error al enviar verificación');
       dispatch({ type: 'SUBMIT_SUCCESS', payload: res.data });
       return true;
-    } catch (err: any) {
+    } catch (err) {
       dispatch({
         type: 'SUBMIT_ERROR',
-        payload: err?.response?.data?.message ?? 'Error al enviar verificación',
+        payload: extractApiError(err, 'Error al enviar verificación'),
       });
       return false;
     }

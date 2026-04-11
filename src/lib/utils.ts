@@ -104,6 +104,29 @@ export function getStatusColor(status: string): 'success' | 'warning' | 'error' 
   return variants[status] ?? 'neutral';
 }
 
+// ── Error helpers ──
+
+export function extractApiError(err: unknown, fallback: string): string {
+  const e = err as Record<string, any>;
+  return e?.response?.data?.message ?? e?.message ?? fallback;
+}
+
+// ── Date helpers ──
+
+/**
+ * Returns an ISO-8601 string preserving the local UTC offset so the backend
+ * can interpret the time in the user's timezone (e.g. "2025-04-02T10:00:00-05:00").
+ */
+export function toLocalISOString(date: Date): string {
+  const offsetMs = date.getTimezoneOffset() * 60_000;
+  const local = new Date(date.getTime() - offsetMs);
+  const offsetMin = -date.getTimezoneOffset();
+  const sign = offsetMin >= 0 ? '+' : '-';
+  const hh = String(Math.floor(Math.abs(offsetMin) / 60)).padStart(2, '0');
+  const mm = String(Math.abs(offsetMin) % 60).padStart(2, '0');
+  return local.toISOString().slice(0, 19) + `${sign}${hh}:${mm}`;
+}
+
 // ── Geo helpers ──
 
 export function distanceKm(
@@ -121,6 +144,13 @@ export function distanceKm(
     Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLon / 2) * Math.sin(dLon / 2);
   const c = 2 * Math.atan2(Math.sqrt(h), Math.sqrt(1 - h));
   return R * c;
+}
+
+/** Computes total route distance in km by summing haversine between consecutive points. */
+export function routeTotalKm(points: { latitude: number; longitude: number }[]): number {
+  let total = 0;
+  for (let i = 1; i < points.length; i++) total += distanceKm(points[i - 1], points[i]);
+  return total;
 }
 
 export function normalizePlace(value: string): string {

@@ -1,8 +1,9 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useMemo } from 'react';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { usersApi } from '@/api/users';
 import { ratingsApi } from '@/api/ratings';
+import { extractApiError } from '@/lib/utils';
 import type { UserResponse, RatingResponse } from '@/types/api';
 
 export function useUserProfile() {
@@ -26,8 +27,8 @@ export function useUserProfile() {
       if (userRes.data.data) setUser(userRes.data.data);
       const rawRatings = ratingsRes.data.data;
       setRatings(Array.isArray(rawRatings) ? rawRatings : []);
-    } catch (err: any) {
-      setError(err?.response?.data?.message ?? 'No se pudo cargar el perfil');
+    } catch (err) {
+      setError(extractApiError(err, 'No se pudo cargar el perfil'));
     } finally {
       setLoading(false);
     }
@@ -35,12 +36,16 @@ export function useUserProfile() {
 
   useEffect(() => { load(); }, [load]);
 
-  const avgScore =
-    ratings.length > 0
+  const avgScore = useMemo(
+    () => ratings.length > 0
       ? ratings.reduce((sum, r) => sum + r.score, 0) / ratings.length
-      : null;
+      : null,
+    [ratings],
+  );
 
-  const withComment = ratings.filter((r) => r.comment);
+  const withComment = useMemo(() => ratings.filter((r) => r.comment), [ratings]);
+
+  const goBack = useCallback(() => router.back(), [router]);
 
   return {
     user,
@@ -51,6 +56,6 @@ export function useUserProfile() {
     avgScore,
     withComment,
     load,
-    goBack: () => router.back(),
+    goBack,
   };
 }

@@ -1,4 +1,4 @@
-import { useReducer, useEffect, useCallback } from 'react';
+import { useReducer, useEffect, useCallback, useMemo } from 'react';
 import { useRouter } from 'expo-router';
 import { useProfile } from '@/hooks/useProfile';
 import { useAuthStore } from '@/stores/auth-store';
@@ -57,10 +57,13 @@ export function useEditProfile() {
     [],
   );
 
-  const hasChanges =
-    form.firstName !== (user?.firstName || '') ||
-    form.lastName !== (user?.lastName || '') ||
-    form.profilePhotoUrl !== (user?.profilePhotoUrl || '');
+  const hasChanges = useMemo(
+    () =>
+      form.firstName !== (user?.firstName ?? '') ||
+      form.lastName !== (user?.lastName ?? '') ||
+      form.profilePhotoUrl !== (user?.profilePhotoUrl ?? ''),
+    [form, user],
+  );
 
   const handleSave = useCallback(async () => {
     if (!form.firstName.trim() || !form.lastName.trim()) {

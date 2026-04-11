@@ -1,6 +1,7 @@
 import { useReducer, useCallback, useEffect } from 'react';
 import { usersApi } from '@/api/users';
 import { useAuthStore } from '@/stores/auth-store';
+import { extractApiError } from '@/lib/utils';
 import type { UserResponse, UpdateProfileRequest } from '@/types/api';
 
 // ── State & Actions ──
@@ -55,10 +56,10 @@ export function useProfile() {
       if (!res.data) throw new Error('No se pudo obtener el perfil');
       dispatch({ type: 'FETCH_SUCCESS', payload: res.data });
       setStoreUser(res.data);
-    } catch (err: any) {
+    } catch (err) {
       dispatch({
         type: 'FETCH_ERROR',
-        payload: err?.response?.data?.message ?? 'Error al cargar perfil',
+        payload: extractApiError(err, 'Error al cargar perfil'),
       });
     }
   }, [setStoreUser]);
@@ -72,10 +73,10 @@ export function useProfile() {
         dispatch({ type: 'UPDATE_SUCCESS', payload: res.data });
         setStoreUser(res.data);
         return true;
-      } catch (err: any) {
+      } catch (err) {
         dispatch({
           type: 'UPDATE_ERROR',
-          payload: err?.response?.data?.message ?? 'Error al actualizar perfil',
+          payload: extractApiError(err, 'Error al actualizar perfil'),
         });
         return false;
       }

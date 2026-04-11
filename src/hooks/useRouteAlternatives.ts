@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import MapView from 'react-native-maps';
 import { tomtomService } from '@/lib/tomtom';
+import { routeTotalKm } from '@/lib/utils';
 import type { SelectedLocation } from '@/components/LocationPickerModal';
 
 export type RouteAlternative = {
@@ -13,24 +14,6 @@ export type RouteAlternative = {
   travelTimeInSeconds?: number;
 };
 
-function routeDistanceKm(points: { latitude: number; longitude: number; }[]) {
-  if (points.length < 2) return 0;
-  let total = 0;
-  const toRad = (deg: number) => (deg * Math.PI) / 180;
-  const R = 6371;
-  for (let i = 1; i < points.length; i++) {
-    const a = points[i - 1];
-    const b = points[i];
-    const dLat = toRad(b.latitude - a.latitude);
-    const dLon = toRad(b.longitude - a.longitude);
-    const h =
-      Math.sin(dLat / 2) ** 2 +
-      Math.cos(toRad(a.latitude)) * Math.cos(toRad(b.latitude)) * Math.sin(dLon / 2) ** 2;
-    total += R * 2 * Math.atan2(Math.sqrt(h), Math.sqrt(1 - h));
-  }
-  return total;
-}
-
 function buildFallback(
   origin: SelectedLocation,
   destination: SelectedLocation,
@@ -41,7 +24,7 @@ function buildFallback(
     ...waypoints.map((w) => ({ latitude: w.latitude, longitude: w.longitude })),
     { latitude: destination.latitude, longitude: destination.longitude },
   ];
-  const distance = routeDistanceKm(points);
+  const distance = routeTotalKm(points);
   return [{
     id: 'DIRECT',
     title: 'Ruta directa',

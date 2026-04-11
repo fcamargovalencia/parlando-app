@@ -37,12 +37,14 @@ export function useVehicleDetail() {
     );
   }, [vehicle, id, deleteVehicle, router]);
 
+  const goBack = useCallback(() => router.back(), [router]);
+
   return {
     vehicle,
     loading,
     error,
     deleting,
-    goBack: () => router.back(),
+    goBack,
     handleDelete,
   };
 }

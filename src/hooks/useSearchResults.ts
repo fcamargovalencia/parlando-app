@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useReducer } from 'react';
 import { tripsApi } from '@/api/trips';
+import { extractApiError } from '@/lib/utils';
 import type { TripResponse, TripType } from '@/types/api';
 
 // ── Config ──
@@ -122,10 +123,10 @@ export function useSearchResults(params: SearchResultsParams) {
           last: result.last,
           replace,
         });
-      } catch (err: any) {
+      } catch (err) {
         dispatch({
           type: 'ERROR',
-          payload: err?.response?.data?.message ?? 'No se pudo cargar la búsqueda',
+          payload: extractApiError(err, 'No se pudo cargar la búsqueda'),
         });
       }
     },

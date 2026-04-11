@@ -1,24 +1,9 @@
 import { useState } from 'react';
 import { useRouter } from 'expo-router';
 import dayjs from 'dayjs';
+import { toLocalISOString } from '@/lib/utils';
 import type { SelectedLocation } from '@/components/LocationPickerModal';
 import type { TripType } from '@/types/api';
-
-// ── Helpers ──
-
-/**
- * Returns an ISO-8601 string preserving the local UTC offset so the backend
- * can interpret the time in the user's timezone (e.g. "2025-04-02T10:00:00-05:00").
- */
-function toLocalISOString(date: Date): string {
-  const offsetMs = date.getTimezoneOffset() * 60_000;
-  const local = new Date(date.getTime() - offsetMs);
-  const offsetMin = -date.getTimezoneOffset();
-  const sign = offsetMin >= 0 ? '+' : '-';
-  const hh = String(Math.floor(Math.abs(offsetMin) / 60)).padStart(2, '0');
-  const mm = String(Math.abs(offsetMin) % 60).padStart(2, '0');
-  return local.toISOString().slice(0, 19) + `${sign}${hh}:${mm}`;
-}
 
 // ── Hook ──
 
