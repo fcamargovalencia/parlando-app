@@ -19,7 +19,7 @@ import { useTripDetailScreen } from '@/hooks/useTripDetailScreen';
 export default function TripDetailScreen() {
   const {
     // data
-    trip, setTrip, vehicle, bookings, myBooking, setMyBooking,
+    trip, updateTrip, vehicle, bookings, myBooking, updateMyBooking,
     // status
     loading, error, actionLoading, isDriver, canEdit, canBook,
     // ratings
@@ -158,14 +158,14 @@ export default function TripDetailScreen() {
           trip={trip}
           visible={editVisible}
           onClose={() => setEditVisible(false)}
-          onSaved={(u) => setTrip(u)}
+          onSaved={(u) => updateTrip(u)}
         />
       )}
       <BookTripModal
         trip={trip}
         visible={bookVisible}
         onClose={() => setBookVisible(false)}
-        onBooked={(booking) => setMyBooking(booking)}
+        onBooked={(booking) => updateMyBooking(booking)}
       />
       <RouteMapModal
         trip={trip}

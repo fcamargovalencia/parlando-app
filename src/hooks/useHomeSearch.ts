@@ -1,9 +1,13 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { useRouter } from 'expo-router';
 import dayjs from 'dayjs';
 import { toLocalISOString } from '@/lib/utils';
 import type { SelectedLocation } from '@/components/LocationPickerModal';
 import type { TripType } from '@/types/api';
+
+// ── Types ──
+
+export type ActivePicker = 'origin' | 'destination' | 'date' | 'tripType' | null;
 
 // ── Hook ──
 
@@ -16,11 +20,8 @@ export function useHomeSearch() {
   const [departureDate, setDepartureDate] = useState<Date>(new Date());
   const [tripType, setTripType] = useState<TripType>('INTERCITY');
 
-  // ── Modal visibility ──
-  const [originPickerVisible, setOriginPickerVisible] = useState(false);
-  const [destPickerVisible, setDestPickerVisible] = useState(false);
-  const [datePickerVisible, setDatePickerVisible] = useState(false);
-  const [tripTypeSheetVisible, setTripTypeSheetVisible] = useState(false);
+  // ── Single modal state — enforces at most one picker open at a time ──
+  const [activePicker, setActivePicker] = useState<ActivePicker>(null);
 
   // ── Derived ──
   const canSearch = !!origin && !!destination;
@@ -28,15 +29,15 @@ export function useHomeSearch() {
 
   // ── Actions ──
 
-  const openOriginPicker = () => setOriginPickerVisible(true);
-  const openDestPicker = () => setDestPickerVisible(true);
+  const openOriginPicker = useCallback(() => setActivePicker('origin'), []);
+  const openDestPicker = useCallback(() => setActivePicker('destination'), []);
 
-  const selectTripTypeAndSearch = (type: TripType) => {
+  const selectTripTypeAndSearch = useCallback((type: TripType) => {
     setTripType(type);
-    setOriginPickerVisible(true);
-  };
+    setActivePicker('origin');
+  }, []);
 
-  const handleSearch = () => {
+  const handleSearch = useCallback(() => {
     if (!origin || !destination) return;
 
     const isToday = dayjs(departureDate).isSame(dayjs(), 'day');
@@ -59,7 +60,7 @@ export function useHomeSearch() {
         tripType,
       },
     });
-  };
+  }, [origin, destination, departureDate, tripType, router]);
 
   return {
     // Form values
@@ -76,19 +77,13 @@ export function useHomeSearch() {
     setDepartureDate,
     setTripType,
 
-    // Modal flags
-    originPickerVisible,
-    destPickerVisible,
-    datePickerVisible,
-    tripTypeSheetVisible,
+    // Picker state — single source of truth for which picker is visible
+    activePicker,
+    setActivePicker,
 
-    // Modal openers/closers
+    // Shorthand openers
     openOriginPicker,
     openDestPicker,
-    setOriginPickerVisible,
-    setDestPickerVisible,
-    setDatePickerVisible,
-    setTripTypeSheetVisible,
 
     // Handlers
     selectTripTypeAndSearch,

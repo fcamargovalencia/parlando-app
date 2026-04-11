@@ -32,16 +32,10 @@ export default function HomeScreen() {
     setDestination,
     setDepartureDate,
     setTripType,
-    originPickerVisible,
-    destPickerVisible,
-    datePickerVisible,
-    tripTypeSheetVisible,
+    activePicker,
+    setActivePicker,
     openOriginPicker,
     openDestPicker,
-    setOriginPickerVisible,
-    setDestPickerVisible,
-    setDatePickerVisible,
-    setTripTypeSheetVisible,
     selectTripTypeAndSearch,
     handleSearch,
   } = useHomeSearch();
@@ -116,8 +110,8 @@ export default function HomeScreen() {
             canSearch={canSearch}
             onOpenOriginPicker={openOriginPicker}
             onOpenDestPicker={openDestPicker}
-            onOpenDatePicker={() => setDatePickerVisible(true)}
-            onOpenTripTypeSheet={() => setTripTypeSheetVisible(true)}
+            onOpenDatePicker={() => setActivePicker('date')}
+            onOpenTripTypeSheet={() => setActivePicker('tripType')}
             onSearch={handleSearch}
           />
         </LinearGradient>
@@ -132,39 +126,39 @@ export default function HomeScreen() {
 
       {/* Location pickers */}
       <LocationPickerModal
-        visible={originPickerVisible}
+        visible={activePicker === 'origin'}
         title="Origen"
         initial={origin}
         allowCitySelection={isIntercity}
-        onConfirm={(loc) => { setOrigin(loc); setOriginPickerVisible(false); }}
-        onClose={() => setOriginPickerVisible(false)}
+        onConfirm={(loc) => { setOrigin(loc); setActivePicker(null); }}
+        onClose={() => setActivePicker(null)}
       />
       <LocationPickerModal
-        visible={destPickerVisible}
+        visible={activePicker === 'destination'}
         title="Destino"
         initial={destination}
         allowCitySelection={isIntercity}
-        onConfirm={(loc) => { setDestination(loc); setDestPickerVisible(false); }}
-        onClose={() => setDestPickerVisible(false)}
+        onConfirm={(loc) => { setDestination(loc); setActivePicker(null); }}
+        onClose={() => setActivePicker(null)}
       />
 
       {/* Date picker */}
       <DatePickerModal
-        visible={datePickerVisible}
+        visible={activePicker === 'date'}
         value={departureDate}
         mode="date"
         title="Fecha de viaje"
         minimumDate={new Date()}
-        onConfirm={(date) => { setDepartureDate(date); setDatePickerVisible(false); }}
-        onCancel={() => setDatePickerVisible(false)}
+        onConfirm={(date) => { setDepartureDate(date); setActivePicker(null); }}
+        onCancel={() => setActivePicker(null)}
       />
 
       {/* Trip type sheet */}
       <TripTypeSheet
-        visible={tripTypeSheetVisible}
+        visible={activePicker === 'tripType'}
         tripType={tripType}
         onSelect={setTripType}
-        onClose={() => setTripTypeSheetVisible(false)}
+        onClose={() => setActivePicker(null)}
       />
     </Screen>
   );

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useReducer } from 'react';
 import { Alert } from 'react-native';
 import { tripsApi } from '@/api/trips';
 import { bookingsApi } from '@/api/bookings';
@@ -7,13 +7,9 @@ import { vehiclesApi } from '@/api/vehicles';
 import { tomtomService } from '@/lib/tomtom';
 import { extractApiError } from '@/lib/utils';
 import { useAuthStore } from '@/stores/auth-store';
-import type {
-  TripResponse,
-  VehicleResponse,
-  BookingResponse,
-  RouteWaypointResponse,
-} from '@/types/api';
+import type { TripResponse, VehicleResponse, BookingResponse } from '@/types/api';
 import Toast from 'react-native-toast-message';
+import { tripDetailReducer, createInitialState } from './reducer';
 
 interface UseTripDetailOptions {
   /**
@@ -28,28 +24,11 @@ export function useTripDetail(id: string, options?: UseTripDetailOptions) {
   const user = useAuthStore((s) => s.user);
   const fromSearch = options?.fromSearch ?? false;
 
-  const [trip, setTrip] = useState<TripResponse | null>(null);
-  const [vehicle, setVehicle] = useState<VehicleResponse | null>(null);
-  const [bookings, setBookings] = useState<BookingResponse[]>([]);
-  // When coming from search we know there's no existing booking yet, so
-  // initialise to null to make canBook true immediately after the trip loads.
-  const [myBooking, setMyBooking] = useState<BookingResponse | null | undefined>(
-    fromSearch ? null : undefined,
+  const [state, dispatch] = useReducer(
+    tripDetailReducer,
+    fromSearch,
+    createInitialState,
   );
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [actionLoading, setActionLoading] = useState<string | null>(null);
-
-  // Ratings
-  const [ratedUserIds, setRatedUserIds] = useState<Set<string>>(new Set());
-  const [driverCommentCount, setDriverCommentCount] = useState<number | null>(null);
-  const [passengerCommentCounts, setPassengerCommentCounts] = useState<Record<string, number>>({});
-
-  // Route map
-  const [waypointsFull, setWaypointsFull] = useState<RouteWaypointResponse[]>([]);
-  const [loadingWaypoints, setLoadingWaypoints] = useState(false);
-  const [routePolyline, setRoutePolyline] = useState<Array<{ latitude: number; longitude: number; }>>([]);
-  const [loadingRoutePolyline, setLoadingRoutePolyline] = useState(false);
 
   /**
    * Loads secondary (non-critical) data in parallel. The screen is already
@@ -58,14 +37,11 @@ export function useTripDetail(id: string, options?: UseTripDetailOptions) {
   const loadSecondary = useCallback(async (t: TripResponse) => {
     const isDriverForTrip = user?.id === t.driverId;
 
-    // Kick off every independent request in parallel.
     const vehiclePromise = vehiclesApi.getById(t.vehicleId);
     const tripRatingsPromise = ratingsApi.getByTrip(t.id);
     const driverBookingsPromise = isDriverForTrip
       ? bookingsApi.getByTrip(t.id)
       : null;
-    // Skip getMine() when we know the user is a passenger arriving from search —
-    // myBooking is already null and there's no booking to look up.
     const myBookingsPromise = !isDriverForTrip && !fromSearch
       ? bookingsApi.getMine()
       : null;
@@ -73,38 +49,33 @@ export function useTripDetail(id: string, options?: UseTripDetailOptions) {
       ? ratingsApi.getCommentCount(t.driverId)
       : null;
 
-    const [
-      vehicleRes,
-      tripRatingsRes,
-      driverBookingsRes,
-      myBookingsRes,
-      driverCommentRes,
-    ] = await Promise.allSettled([
-      vehiclePromise,
-      tripRatingsPromise,
-      driverBookingsPromise,
-      myBookingsPromise,
-      driverCommentCountPromise,
-    ]);
+    const [vehicleRes, tripRatingsRes, driverBookingsRes, myBookingsRes, driverCommentRes] =
+      await Promise.allSettled([
+        vehiclePromise,
+        tripRatingsPromise,
+        driverBookingsPromise,
+        myBookingsPromise,
+        driverCommentCountPromise,
+      ]);
 
-    // Vehicle
     if (vehicleRes.status === 'fulfilled' && vehicleRes.value?.data.data) {
-      setVehicle(vehicleRes.value.data.data);
+      dispatch({ type: 'SET_VEHICLE', vehicle: vehicleRes.value.data.data });
     }
 
-    // Ratings I've given on this trip
     if (tripRatingsRes.status === 'fulfilled') {
       const myRatings = (tripRatingsRes.value.data.data ?? []).filter(
         (r) => r.reviewerId === user?.id,
       );
-      setRatedUserIds(new Set(myRatings.map((r) => r.revieweeId)));
+      dispatch({
+        type: 'SET_RATED_USER_IDS',
+        ratedUserIds: new Set(myRatings.map((r) => r.revieweeId)),
+      });
     }
 
     if (isDriverForTrip) {
-      // Driver: bookings for this trip + passenger comment counts
       if (driverBookingsRes.status === 'fulfilled' && driverBookingsRes.value) {
         const fetchedBookings = driverBookingsRes.value.data.data ?? [];
-        setBookings(fetchedBookings);
+        dispatch({ type: 'SET_BOOKINGS', bookings: fetchedBookings });
 
         const uniquePassengerIds = [
           ...new Set(
@@ -123,43 +94,37 @@ export function useTripDetail(id: string, options?: UseTripDetailOptions) {
               countsMap[uniquePassengerIds[idx]] = result.value.data.data ?? 0;
             }
           });
-          setPassengerCommentCounts(countsMap);
+          dispatch({ type: 'SET_PASSENGER_COMMENT_COUNTS', counts: countsMap });
         }
       }
     } else {
-      // Passenger: find my booking for this trip + driver comment count
       if (myBookingsRes.status === 'fulfilled' && myBookingsRes.value) {
         const existing = (myBookingsRes.value.data.data ?? []).find(
           (b) => b.tripId === t.id,
         );
-        setMyBooking(existing ?? null);
+        dispatch({ type: 'SET_MY_BOOKING', myBooking: existing ?? null });
       } else {
-        setMyBooking(null);
+        dispatch({ type: 'SET_MY_BOOKING', myBooking: null });
       }
 
       if (driverCommentRes.status === 'fulfilled' && driverCommentRes.value) {
-        setDriverCommentCount(driverCommentRes.value.data.data ?? null);
+        dispatch({ type: 'SET_DRIVER_COMMENT_COUNT', count: driverCommentRes.value.data.data ?? 0 });
       }
     }
   }, [user?.id, fromSearch]);
 
   const load = useCallback(async () => {
     if (!id) return;
-    setLoading(true);
-    setError(null);
+    dispatch({ type: 'LOAD_START' });
     try {
       const { data: res } = await tripsApi.getDetails(id);
       if (!res.data) throw new Error('Viaje no encontrado');
       const t = res.data;
-      setTrip(t);
-      // Flip loading off as soon as the critical data is in so the screen
-      // renders immediately. Secondary data hydrates progressively below.
-      setLoading(false);
-
+      dispatch({ type: 'LOAD_SUCCESS', trip: t });
+      // loadSecondary runs after the screen is already visible — non-blocking
       void loadSecondary(t);
     } catch (err) {
-      setError(extractApiError(err, 'No se pudo cargar el viaje'));
-      setLoading(false);
+      dispatch({ type: 'LOAD_ERROR', error: extractApiError(err, 'No se pudo cargar el viaje') });
     }
   }, [id, loadSecondary]);
 
@@ -169,16 +134,16 @@ export function useTripDetail(id: string, options?: UseTripDetailOptions) {
 
   // ── Derived ──
 
+  const { trip, myBooking } = state;
   const isDriver = trip && user ? trip.driverId === user.id : false;
-  const canEdit =
-    isDriver && (trip?.status === 'DRAFT' || trip?.status === 'PUBLISHED');
+  const canEdit = isDriver && (trip?.status === 'DRAFT' || trip?.status === 'PUBLISHED');
   const canBook =
     !isDriver &&
     trip?.status === 'PUBLISHED' &&
     (trip?.availableSeats ?? 0) > 0 &&
     myBooking === null;
 
-  // ── Actions ──
+  // ── Action helpers ──
 
   const runAction = useCallback(async (
     label: string,
@@ -189,26 +154,24 @@ export function useTripDetail(id: string, options?: UseTripDetailOptions) {
       await new Promise<void>((resolve, reject) => {
         Alert.alert(label, confirmMsg, [
           { text: 'Cancelar', style: 'cancel', onPress: () => reject() },
-          {
-            text: 'Confirmar',
-            style: 'destructive',
-            onPress: () => resolve(),
-          },
+          { text: 'Confirmar', style: 'destructive', onPress: () => resolve() },
         ]);
       });
     }
-    setActionLoading(label);
+    dispatch({ type: 'ACTION_START', label });
     try {
       await action();
     } finally {
-      setActionLoading(null);
+      dispatch({ type: 'ACTION_END' });
     }
   }, []);
+
+  // ── Trip actions ──
 
   const handlePublish = useCallback(() =>
     runAction('Publicar', async () => {
       const { data: res } = await tripsApi.publish(id);
-      if (res.data) setTrip(res.data);
+      if (res.data) dispatch({ type: 'UPDATE_TRIP', trip: res.data });
       Toast.show({ type: 'success', text1: '¡Viaje publicado!', text2: 'Ya es visible para pasajeros' });
     }), [id, runAction]);
 
@@ -217,7 +180,7 @@ export function useTripDetail(id: string, options?: UseTripDetailOptions) {
       'Iniciar viaje',
       async () => {
         const { data: res } = await tripsApi.start(id);
-        if (res.data) setTrip(res.data);
+        if (res.data) dispatch({ type: 'UPDATE_TRIP', trip: res.data });
         Toast.show({ type: 'success', text1: 'Viaje iniciado' });
       },
       '¿Confirmas que el viaje está en camino?',
@@ -228,7 +191,7 @@ export function useTripDetail(id: string, options?: UseTripDetailOptions) {
       'Completar',
       async () => {
         const { data: res } = await tripsApi.complete(id);
-        if (res.data) setTrip(res.data);
+        if (res.data) dispatch({ type: 'UPDATE_TRIP', trip: res.data });
         Toast.show({ type: 'success', text1: 'Viaje completado' });
       },
       '¿Confirmas que llegaste al destino?',
@@ -239,7 +202,7 @@ export function useTripDetail(id: string, options?: UseTripDetailOptions) {
       'Cancelar viaje',
       async () => {
         await tripsApi.cancel(id);
-        setTrip((t) => (t ? { ...t, status: 'CANCELLED' } : t));
+        dispatch({ type: 'CANCEL_TRIP' });
         Toast.show({ type: 'success', text1: 'Viaje cancelado' });
       },
       '¿Seguro que quieres cancelar este viaje? Esta acción no se puede deshacer.',
@@ -253,15 +216,15 @@ export function useTripDetail(id: string, options?: UseTripDetailOptions) {
         text: 'Sí, cancelar',
         style: 'destructive',
         onPress: async () => {
-          setActionLoading('cancel-booking');
+          dispatch({ type: 'ACTION_START', label: 'cancel-booking' });
           try {
             await bookingsApi.cancel(myBooking.id);
-            setMyBooking({ ...myBooking, status: 'CANCELLED' });
+            dispatch({ type: 'CANCEL_MY_BOOKING' });
             Toast.show({ type: 'success', text1: 'Reserva cancelada' });
           } catch (err) {
             Alert.alert('Error', extractApiError(err, 'No se pudo cancelar'));
           } finally {
-            setActionLoading(null);
+            dispatch({ type: 'ACTION_END' });
           }
         },
       },
@@ -271,14 +234,12 @@ export function useTripDetail(id: string, options?: UseTripDetailOptions) {
   const openMap = useCallback(async () => {
     if (!trip) return;
 
-    const needsWaypoints = waypointsFull.length === 0;
-    const needsRoutePolyline = routePolyline.length === 0;
-    if (!needsWaypoints && !needsRoutePolyline) return;
+    const needsWaypoints = state.waypointsFull.length === 0;
+    const needsPolyline = state.routePolyline.length === 0;
+    if (!needsWaypoints && !needsPolyline) return;
 
-    if (needsWaypoints) setLoadingWaypoints(true);
-    if (needsRoutePolyline) setLoadingRoutePolyline(true);
-
-    let resolvedWaypoints = waypointsFull;
+    dispatch({ type: 'MAP_LOAD_START', needsWaypoints, needsPolyline });
+    let resolvedWaypoints = state.waypointsFull;
 
     try {
       if (needsWaypoints) {
@@ -287,22 +248,22 @@ export function useTripDetail(id: string, options?: UseTripDetailOptions) {
           const fetched = res.data ?? [];
           if (fetched.length > 0) {
             resolvedWaypoints = fetched;
-            setWaypointsFull(fetched);
+            dispatch({ type: 'SET_WAYPOINTS', waypoints: fetched });
           } else if (trip.waypoints && trip.waypoints.length > 0) {
             resolvedWaypoints = mapEmbeddedWaypoints(trip);
-            setWaypointsFull(resolvedWaypoints);
+            dispatch({ type: 'SET_WAYPOINTS', waypoints: resolvedWaypoints });
           }
         } catch {
           if (trip.waypoints && trip.waypoints.length > 0) {
             resolvedWaypoints = mapEmbeddedWaypoints(trip);
-            setWaypointsFull(resolvedWaypoints);
+            dispatch({ type: 'SET_WAYPOINTS', waypoints: resolvedWaypoints });
           }
         }
       }
 
-      if (needsRoutePolyline) {
+      if (needsPolyline) {
         if (trip.routePolyline && trip.routePolyline.length >= 2) {
-          setRoutePolyline(trip.routePolyline);
+          dispatch({ type: 'SET_ROUTE_POLYLINE', polyline: trip.routePolyline });
         } else {
           const pickupStops = (resolvedWaypoints.length > 0 ? resolvedWaypoints : mapEmbeddedWaypoints(trip))
             .filter((w) => w.isPickupPoint)
@@ -317,20 +278,19 @@ export function useTripDetail(id: string, options?: UseTripDetailOptions) {
           try {
             if (tomtomService.isConfigured()) {
               const { points } = await tomtomService.calculateRoute(stopPoints);
-              setRoutePolyline(points.length >= 2 ? points : stopPoints);
+              dispatch({ type: 'SET_ROUTE_POLYLINE', polyline: points.length >= 2 ? points : stopPoints });
             } else {
-              setRoutePolyline(stopPoints);
+              dispatch({ type: 'SET_ROUTE_POLYLINE', polyline: stopPoints });
             }
           } catch {
-            setRoutePolyline(stopPoints);
+            dispatch({ type: 'SET_ROUTE_POLYLINE', polyline: stopPoints });
           }
         }
       }
     } finally {
-      if (needsWaypoints) setLoadingWaypoints(false);
-      if (needsRoutePolyline) setLoadingRoutePolyline(false);
+      dispatch({ type: 'MAP_LOAD_END', needsWaypoints, needsPolyline });
     }
-  }, [id, trip, waypointsFull, routePolyline]);
+  }, [id, trip, state.waypointsFull, state.routePolyline]);
 
   /** Unified rating handler for both driver and passenger. */
   const handleRate = useCallback(async (revieweeId: string, score: number, comment: string) => {
@@ -341,7 +301,7 @@ export function useTripDetail(id: string, options?: UseTripDetailOptions) {
       score,
       comment: comment || undefined,
     });
-    setRatedUserIds((prev) => new Set([...prev, revieweeId]));
+    dispatch({ type: 'ADD_RATED_USER', userId: revieweeId });
     Toast.show({ type: 'success', text1: '¡Calificación enviada!', text2: 'Gracias por tu opinión' });
   }, [trip]);
 
@@ -349,8 +309,7 @@ export function useTripDetail(id: string, options?: UseTripDetailOptions) {
     bookingId: string,
     action: 'accept' | 'reject' | 'board' | 'noshow',
   ) => {
-    const label = `${bookingId}-${action}`;
-    setActionLoading(label);
+    dispatch({ type: 'ACTION_START', label: `${bookingId}-${action}` });
     try {
       const apiCallMap = {
         accept: () => bookingsApi.accept(bookingId),
@@ -363,11 +322,9 @@ export function useTripDetail(id: string, options?: UseTripDetailOptions) {
       const updated = r.data ?? undefined;
 
       if (updated) {
-        setBookings((prev) =>
-          prev.map((b) => (b.id === bookingId ? updated : b)),
-        );
+        dispatch({ type: 'UPDATE_BOOKING', bookingId, booking: updated });
         const { data: tRes } = await tripsApi.getDetails(id);
-        if (tRes.data) setTrip(tRes.data);
+        if (tRes.data) dispatch({ type: 'UPDATE_TRIP', trip: tRes.data });
       }
       const msgs: Record<string, string> = {
         accept: 'Reserva aceptada',
@@ -379,30 +336,33 @@ export function useTripDetail(id: string, options?: UseTripDetailOptions) {
     } catch (err) {
       Alert.alert('Error', extractApiError(err, 'No se pudo completar la acción'));
     } finally {
-      setActionLoading(null);
+      dispatch({ type: 'ACTION_END' });
     }
   }, [id]);
 
+  // ── External update callbacks (used by modal callbacks in the screen) ──
+
+  const updateTrip = useCallback(
+    (updatedTrip: TripResponse | null) => dispatch({ type: 'UPDATE_TRIP', trip: updatedTrip }),
+    [],
+  );
+
+  const updateMyBooking = useCallback(
+    (updatedBooking: BookingResponse) => dispatch({ type: 'UPDATE_MY_BOOKING', myBooking: updatedBooking }),
+    [],
+  );
+
   return {
-    trip,
-    setTrip,
-    vehicle,
-    bookings,
-    myBooking,
-    setMyBooking,
-    loading,
-    error,
-    actionLoading,
+    // State
+    ...state,
+    // Derived
     isDriver,
     canEdit,
     canBook,
-    ratedUserIds,
-    driverCommentCount,
-    passengerCommentCounts,
-    waypointsFull,
-    loadingWaypoints,
-    routePolyline,
-    loadingRoutePolyline,
+    // External update callbacks
+    updateTrip,
+    updateMyBooking,
+    // Actions
     load,
     handlePublish,
     handleStart,
@@ -415,7 +375,9 @@ export function useTripDetail(id: string, options?: UseTripDetailOptions) {
   };
 }
 
-function mapEmbeddedWaypoints(trip: TripResponse): RouteWaypointResponse[] {
+// ── Helpers ──
+
+function mapEmbeddedWaypoints(trip: TripResponse) {
   return (trip.waypoints ?? []).map((w) => ({
     id: w.id ?? '',
     tripId: trip.id,

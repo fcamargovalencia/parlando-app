@@ -24,6 +24,16 @@ export interface PublishForm {
   studentsOnly: boolean;
 }
 
+/**
+ * Internal reducer state extends PublishForm with vehicle-loading fields so
+ * both the form values and the vehicle list are managed atomically.
+ * The public `form` exposed by the hook is just the PublishForm subset.
+ */
+interface PublishInternalState extends PublishForm {
+  vehicles: VehicleResponse[];
+  loadingVehicles: boolean;
+}
+
 export type PublishAction =
   | { type: 'SET_ORIGIN'; payload: SelectedLocation; }
   | { type: 'SET_DESTINATION'; payload: SelectedLocation; }
@@ -33,7 +43,9 @@ export type PublishAction =
   | { type: 'SET_VEHICLE'; payload: string; }
   | { type: 'TOGGLE_LUGGAGE'; }
   | { type: 'TOGGLE_STUDENTS'; }
-  | { type: 'RESET'; };
+  | { type: 'RESET'; }
+  | { type: 'VEHICLES_LOAD_START'; }
+  | { type: 'VEHICLES_LOAD_SUCCESS'; payload: VehicleResponse[]; };
 
 function makeTomorrow() {
   const d = new Date();
@@ -53,17 +65,29 @@ const initialForm: PublishForm = {
   studentsOnly: false,
 };
 
-function formReducer(state: PublishForm, action: PublishAction): PublishForm {
+const initialInternalState: PublishInternalState = {
+  ...initialForm,
+  vehicles: [],
+  loadingVehicles: false,
+};
+
+function formReducer(state: PublishInternalState, action: PublishAction): PublishInternalState {
   switch (action.type) {
-    case 'SET_ORIGIN': return { ...state, origin: action.payload };
-    case 'SET_DESTINATION': return { ...state, destination: action.payload };
-    case 'SET_DEPARTURE': return { ...state, departureAt: action.payload };
-    case 'SET_SEATS': return { ...state, availableSeats: action.payload };
-    case 'SET_PRICE': return { ...state, pricePerSeat: action.payload };
-    case 'SET_VEHICLE': return { ...state, vehicleId: action.payload };
-    case 'TOGGLE_LUGGAGE': return { ...state, allowsLuggage: !state.allowsLuggage };
-    case 'TOGGLE_STUDENTS': return { ...state, studentsOnly: !state.studentsOnly };
-    case 'RESET': return { ...initialForm, departureAt: makeTomorrow() };
+    case 'SET_ORIGIN':       return { ...state, origin: action.payload };
+    case 'SET_DESTINATION':  return { ...state, destination: action.payload };
+    case 'SET_DEPARTURE':    return { ...state, departureAt: action.payload };
+    case 'SET_SEATS':        return { ...state, availableSeats: action.payload };
+    case 'SET_PRICE':        return { ...state, pricePerSeat: action.payload };
+    case 'SET_VEHICLE':      return { ...state, vehicleId: action.payload };
+    case 'TOGGLE_LUGGAGE':   return { ...state, allowsLuggage: !state.allowsLuggage };
+    case 'TOGGLE_STUDENTS':  return { ...state, studentsOnly: !state.studentsOnly };
+    // Preserve the vehicle list on reset so it doesn't flash on re-publish
+    case 'RESET':
+      return { ...initialForm, departureAt: makeTomorrow(), vehicles: state.vehicles, loadingVehicles: state.loadingVehicles };
+    case 'VEHICLES_LOAD_START':
+      return { ...state, loadingVehicles: true };
+    case 'VEHICLES_LOAD_SUCCESS':
+      return { ...state, vehicles: action.payload, loadingVehicles: false };
   }
 }
 
@@ -121,23 +145,20 @@ export const STEP_VALIDATION_MESSAGES: Record<number, { title: string; message: 
 export function usePublishForm() {
   const router = useRouter();
   const [tripType, setTripType] = useState<TripType>('INTERCITY');
-  const [form, dispatch] = useReducer(formReducer, initialForm);
+  const [internalState, dispatch] = useReducer(formReducer, initialInternalState);
   const [waypoints, setWaypoints] = useState<SelectedLocation[]>([]);
   const [submitting, setSubmitting] = useState(false);
 
-  // Vehicles
-  const [vehicles, setVehicles] = useState<VehicleResponse[]>([]);
-  const [loadingVehicles, setLoadingVehicles] = useState(false);
+  // Destructure: form fields (public) vs vehicle loading (internal)
+  const { vehicles, loadingVehicles, ...form } = internalState;
 
   const loadVehicles = useCallback(async () => {
-    setLoadingVehicles(true);
+    dispatch({ type: 'VEHICLES_LOAD_START' });
     try {
       const { data: res } = await vehiclesApi.getMine();
-      setVehicles(res.data ?? []);
+      dispatch({ type: 'VEHICLES_LOAD_SUCCESS', payload: res.data ?? [] });
     } catch {
-      // empty list shown
-    } finally {
-      setLoadingVehicles(false);
+      dispatch({ type: 'VEHICLES_LOAD_SUCCESS', payload: [] });
     }
   }, []);
 
@@ -208,8 +229,7 @@ export function usePublishForm() {
             ...waypoints.map((w) => ({ latitude: w.latitude, longitude: w.longitude })),
             { latitude: form.destination.latitude, longitude: form.destination.longitude },
           ];
-          const { travelTimeInSeconds: routeDuration } =
-            await tomtomService.calculateRoute(stops);
+          const { travelTimeInSeconds: routeDuration } = await tomtomService.calculateRoute(stops);
           if (travelTimeInSeconds === null) travelTimeInSeconds = routeDuration;
         } catch (routeErr) {
           console.warn('[TomTom] Route calculation failed, using estimated trip duration only from selected route:', routeErr);
