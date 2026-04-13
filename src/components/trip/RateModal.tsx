@@ -84,7 +84,7 @@ export function RateModal({
           {/* Close */}
           <TouchableOpacity
             onPress={handleClose}
-            disabled={loading}
+            disabled={isPending}
             className="absolute right-5 top-4 w-9 h-9 items-center justify-center rounded-full bg-neutral-100"
           >
             <X size={18} color={Colors.neutral[500]} />
@@ -117,7 +117,7 @@ export function RateModal({
               <TouchableOpacity
                 key={s}
                 onPress={() => setScore(s)}
-                disabled={loading}
+                disabled={isPending}
                 hitSlop={{ top: 8, bottom: 8, left: 4, right: 4 }}
               >
                 <Star
@@ -140,7 +140,7 @@ export function RateModal({
             placeholderTextColor={Colors.neutral[400]}
             multiline
             numberOfLines={3}
-            editable={!loading}
+            editable={!isPending}
             style={{
               backgroundColor: Colors.neutral[50],
               borderWidth: 1,

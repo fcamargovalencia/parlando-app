@@ -151,12 +151,13 @@ export function useTripDetail(id: string, options?: UseTripDetailOptions) {
     confirmMsg?: string,
   ) => {
     if (confirmMsg) {
-      await new Promise<void>((resolve, reject) => {
+      const confirmed = await new Promise<boolean>((resolve) => {
         Alert.alert(label, confirmMsg, [
-          { text: 'Cancelar', style: 'cancel', onPress: () => reject() },
-          { text: 'Confirmar', style: 'destructive', onPress: () => resolve() },
+          { text: 'Cancelar', style: 'cancel', onPress: () => resolve(false) },
+          { text: 'Confirmar', style: 'destructive', onPress: () => resolve(true) },
         ]);
       });
+      if (!confirmed) return;
     }
     dispatch({ type: 'ACTION_START', label });
     try {

@@ -32,19 +32,18 @@ export default function VehicleDetailScreen() {
     );
   }
 
+  // safe={false} → hero sangra bajo la status bar (top sin inset).
+  // edges={['bottom']} → SafeAreaView aplica padding nativo al bottom,
+  // respetando la navigation bar sin necesitar JS-side insets.
   return (
-    <Screen safe={false}>
-      <ScrollView
-        className="flex-1"
-        contentContainerClassName="pb-8"
-        showsVerticalScrollIndicator={false}
-      >
+    <Screen edges={['bottom', 'left', 'right']}>
+      <View className="flex-1">
         <VehicleHero photoUrls={vehicle.photoUrls} status={vehicle.status} />
         <VehicleTitle brand={vehicle.brand} model={vehicle.model} color={vehicle.color} />
         <VehicleDetailsCard vehicle={vehicle} />
         <VehicleDocumentsCard vehicle={vehicle} />
         <VehicleActions deleting={deleting} onDelete={handleDelete} />
-      </ScrollView>
+      </View>
     </Screen>
   );
 }

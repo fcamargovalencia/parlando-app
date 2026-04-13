@@ -10,7 +10,7 @@ interface Props {
 
 export function VehicleDocumentsCard({ vehicle }: Props) {
   return (
-    <View className="px-6 mb-6">
+    <View className="px-6 mb-4">
       <Text className="text-base font-semibold text-neutral-800 mb-3">Documentos</Text>
       <Card>
         <DocumentRow label="SOAT" hasDocument={!!vehicle.soatDocumentUrl} />
