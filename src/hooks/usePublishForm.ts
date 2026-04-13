@@ -1,15 +1,10 @@
-import { useReducer, useState, useCallback, useEffect } from 'react';
-import { Alert } from 'react-native';
-import { useRouter } from 'expo-router';
-import { useFocusEffect } from '@react-navigation/native';
+import { useReducer, useState, useCallback, useEffect, useMemo } from 'react';
+import { useFocusEffect } from 'expo-router';
 import { vehiclesApi } from '@/api/vehicles';
-import { tripsApi } from '@/api/trips';
-import { tomtomService } from '@/lib/tomtom';
-import { distanceKm, normalizePlace, compactPolyline, extractApiError } from '@/lib/utils';
-import type { TripType, VehicleResponse, WaypointRequest } from '@/types/api';
+import { distanceKm, normalizePlace } from '@/lib/utils';
+import type { TripType, VehicleResponse } from '@/types/api';
 import type { SelectedLocation } from '@/components/LocationPickerModal';
 import type { RouteAlternative } from './useRouteAlternatives';
-import Toast from 'react-native-toast-message';
 
 // ── Form state ──
 
@@ -143,11 +138,9 @@ export const STEP_VALIDATION_MESSAGES: Record<number, { title: string; message: 
 // ── Hook ──
 
 export function usePublishForm() {
-  const router = useRouter();
   const [tripType, setTripType] = useState<TripType>('INTERCITY');
   const [internalState, dispatch] = useReducer(formReducer, initialInternalState);
   const [waypoints, setWaypoints] = useState<SelectedLocation[]>([]);
-  const [submitting, setSubmitting] = useState(false);
 
   // Destructure: form fields (public) vs vehicle loading (internal)
   const { vehicles, loadingVehicles, ...form } = internalState;
@@ -172,13 +165,20 @@ export function usePublishForm() {
     }
   }, [vehicles, form.vehicleId]);
 
-  const activeVehicles = vehicles.filter((v) => isVehicleActive(v.status));
-  const vehicleOptions = [...vehicles].sort((a, b) => {
-    const aActive = isVehicleActive(a.status) ? 1 : 0;
-    const bActive = isVehicleActive(b.status) ? 1 : 0;
-    return bActive - aActive;
-  });
-  const selectedVehicle = vehicleOptions.find((v) => v.id === form.vehicleId) ?? null;
+  const activeVehicles = useMemo(
+    () => vehicles.filter((v) => isVehicleActive(v.status)),
+    [vehicles],
+  );
+  const vehicleOptions = useMemo(
+    () => [...vehicles].sort((a, b) =>
+      (isVehicleActive(b.status) ? 1 : 0) - (isVehicleActive(a.status) ? 1 : 0),
+    ),
+    [vehicles],
+  );
+  const selectedVehicle = useMemo(
+    () => vehicleOptions.find((v) => v.id === form.vehicleId) ?? null,
+    [vehicleOptions, form.vehicleId],
+  );
 
   // Clear invalid vehicle selection
   useEffect(() => {
@@ -187,107 +187,10 @@ export function usePublishForm() {
     }
   }, [form.vehicleId, activeVehicles]);
 
-  // Submit
-  const handlePublish = useCallback(
-    async (selectedRoute: RouteAlternative | null, onSuccess?: () => void) => {
-      if (!form.origin || !form.destination) {
-        Alert.alert('Campos requeridos', 'Selecciona el origen y destino del viaje');
-        return;
-      }
-      if (!form.vehicleId) {
-        Alert.alert('Campos requeridos', 'Selecciona un vehículo para el viaje');
-        return;
-      }
-      if (!form.pricePerSeat || parseInt(form.pricePerSeat) <= 0) {
-        Alert.alert('Campos requeridos', 'Ingresa el precio por asiento');
-        return;
-      }
-      if (!form.availableSeats || parseInt(form.availableSeats, 10) <= 0) {
-        Alert.alert('Campos requeridos', 'Ingresa la cantidad de asientos disponibles');
-        return;
-      }
-      if (form.departureAt <= new Date()) {
-        Alert.alert('Fecha inválida', 'La fecha de salida debe ser en el futuro');
-        return;
-      }
-
-      setSubmitting(true);
-      try {
-        const routeWaypoints: WaypointRequest[] = waypoints.map((w, idx) => ({
-          latitude: w.latitude,
-          longitude: w.longitude,
-          orderIndex: idx,
-          name: w.name,
-          subtitle: locationSubtitle(w) || undefined,
-          isPickupPoint: true,
-        }));
-        let travelTimeInSeconds: number | null = selectedRoute?.travelTimeInSeconds ?? null;
-
-        try {
-          const stops = [
-            { latitude: form.origin.latitude, longitude: form.origin.longitude },
-            ...waypoints.map((w) => ({ latitude: w.latitude, longitude: w.longitude })),
-            { latitude: form.destination.latitude, longitude: form.destination.longitude },
-          ];
-          const { travelTimeInSeconds: routeDuration } = await tomtomService.calculateRoute(stops);
-          if (travelTimeInSeconds === null) travelTimeInSeconds = routeDuration;
-        } catch (routeErr) {
-          console.warn('[TomTom] Route calculation failed, using estimated trip duration only from selected route:', routeErr);
-        }
-
-        const arrivedAt =
-          travelTimeInSeconds !== null
-            ? new Date(form.departureAt.getTime() + travelTimeInSeconds * 1000).toISOString()
-            : undefined;
-
-        const routePolyline = selectedRoute?.points
-          ? compactPolyline(selectedRoute.points, 300)
-          : [];
-
-        const createTripBody = {
-          tripType,
-          originName: form.origin.name,
-          originSubtitle: locationSubtitle(form.origin) || undefined,
-          originLatitude: form.origin.latitude,
-          originLongitude: form.origin.longitude,
-          destinationName: form.destination.name,
-          destinationSubtitle: locationSubtitle(form.destination) || undefined,
-          destinationLatitude: form.destination.latitude,
-          destinationLongitude: form.destination.longitude,
-          departureAt: form.departureAt.toISOString(),
-          arrivedAt,
-          availableSeats: parseInt(form.availableSeats, 10),
-          pricePerSeat: parseFloat(form.pricePerSeat),
-          currency: 'COP',
-          vehicleId: form.vehicleId,
-          allowsLuggage: form.allowsLuggage,
-          studentsOnly: tripType === 'ROUTINE' ? form.studentsOnly : false,
-          waypoints: routeWaypoints,
-          routePolyline,
-        };
-        const { data: createRes } = await tripsApi.create(createTripBody);
-
-        if (!createRes.data) throw new Error('Error al crear viaje');
-        await tripsApi.publish(createRes.data.id);
-
-        Toast.show({
-          type: 'success',
-          text1: '¡Viaje publicado!',
-          text2: 'Tu viaje ya es visible para pasajeros',
-        });
-
-        dispatch({ type: 'RESET' });
-        setWaypoints([]);
-        onSuccess?.();
-        router.push('/(tabs)/my-trips');
-      } catch (err) {
-        Alert.alert('Error al publicar', extractApiError(err, 'No se pudo publicar el viaje. Intenta nuevamente.'));
-      } finally {
-        setSubmitting(false);
-      }
-    },
-    [form, tripType, waypoints, router],
-  );
+  const reset = useCallback(() => {
+    dispatch({ type: 'RESET' });
+    setWaypoints([]);
+  }, []);
 
   return {
     tripType,
@@ -296,13 +199,12 @@ export function usePublishForm() {
     dispatch,
     waypoints,
     setWaypoints,
-    submitting,
     vehicles,
     loadingVehicles,
     activeVehicles,
     vehicleOptions,
     selectedVehicle,
     hasRegisteredVehicles: vehicles.length > 0,
-    handlePublish,
+    reset,
   };
 }

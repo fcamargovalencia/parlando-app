@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useReducer } from 'react';
+import { useCallback, useEffect, useReducer, useRef } from 'react';
 import { chatApi } from '@/api/chat';
 import { extractApiError } from '@/lib/utils';
 import type { ConversationResponse } from '@/types/api';
@@ -52,10 +52,13 @@ const initial: ConversationsState = {
   unreadTotal: 0,
 };
 
+const POLL_INTERVAL_MS = 30_000;
+
 // ── Hook ──
 
 export function useConversations() {
   const [state, dispatch] = useReducer(reducer, initial);
+  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
   const load = useCallback(async (isRefresh = false) => {
     dispatch({ type: isRefresh ? 'REFRESH_START' : 'FETCH_START' });
@@ -81,6 +84,29 @@ export function useConversations() {
 
   useEffect(() => {
     load();
+    // Poll silently so new conversations / unread counts update automatically.
+    pollRef.current = setInterval(async () => {
+      try {
+        const [convRes, unreadRes] = await Promise.all([
+          chatApi.getConversations(),
+          chatApi.getUnreadCount(),
+        ]);
+        dispatch({
+          type: 'FETCH_SUCCESS',
+          conversations: convRes.data.data ?? [],
+          unread: typeof unreadRes.data.data === 'number' ? unreadRes.data.data : 0,
+        });
+      } catch {
+        // Silent fail on poll — don't overwrite a visible error
+      }
+    }, POLL_INTERVAL_MS);
+
+    return () => {
+      if (pollRef.current) {
+        clearInterval(pollRef.current);
+        pollRef.current = null;
+      }
+    };
   }, [load]);
 
   return {

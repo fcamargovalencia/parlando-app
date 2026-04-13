@@ -1,5 +1,6 @@
 import React from 'react';
-import { View, Text, Image } from 'react-native';
+import { View, Text } from 'react-native';
+import { Image } from 'expo-image';
 import { ShieldCheck } from 'lucide-react-native';
 import { Colors } from '@/constants/colors';
 import { getInitials } from '@/lib/utils';
@@ -40,7 +41,8 @@ export function Avatar({
           <Image
             source={{ uri }}
             className={`${s.container} rounded-full`}
-            resizeMode="cover"
+            contentFit="cover"
+            cachePolicy="memory-disk"
           />
         ) : (
           <View

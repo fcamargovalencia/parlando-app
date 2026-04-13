@@ -1,5 +1,6 @@
-import { useState, useRef, useEffect, useCallback } from 'react';
-import { Animated, Alert } from 'react-native';
+import { useState, useEffect, useCallback } from 'react';
+import { Alert } from 'react-native';
+import { useSharedValue, withTiming, type SharedValue } from 'react-native-reanimated';
 import { useLocationSearch } from '@/hooks/useLocationSearch';
 import { useRouteAlternatives } from '@/hooks/useRouteAlternatives';
 import {
@@ -49,26 +50,21 @@ export function usePublishScreen({
 
   const routeHook = useRouteAlternatives(form.origin, form.destination, waypoints, step === 5);
 
-  // ── Animations ──
+  // ── Animations (Reanimated 4 — runs on the UI thread) ──
 
-  const stepAnim = useRef(new Animated.Value(1)).current;
-  const progressAnim = useRef(new Animated.Value(1 / TOTAL_STEPS)).current;
+  const stepOpacity = useSharedValue(1);
+  const stepTranslateX = useSharedValue(0);
+  const progressValue = useSharedValue(1 / TOTAL_STEPS);
 
   useEffect(() => {
-    stepAnim.setValue(0);
-    Animated.parallel([
-      Animated.timing(stepAnim, {
-        toValue: 1,
-        duration: 260,
-        useNativeDriver: true,
-      }),
-      Animated.timing(progressAnim, {
-        toValue: step / TOTAL_STEPS,
-        duration: 300,
-        useNativeDriver: false,
-      }),
-    ]).start();
-  }, [step, stepAnim, progressAnim]);
+    const offsetX = slideDirection === 'forward' ? 24 : -24;
+    // Snap to entry position, then animate to resting position.
+    stepOpacity.value = 0;
+    stepTranslateX.value = offsetX;
+    stepOpacity.value = withTiming(1, { duration: 260 });
+    stepTranslateX.value = withTiming(0, { duration: 260 });
+    progressValue.value = withTiming(step / TOTAL_STEPS, { duration: 300 });
+  }, [step, slideDirection]);
 
   // ── Derived ──
 
@@ -214,9 +210,10 @@ export function usePublishScreen({
     routeHook,
     step,
     setStep,
-    slideDirection,
-    stepAnim,
-    progressAnim,
+    // Reanimated shared values — use with useAnimatedStyle in the screen component
+    stepOpacity,
+    stepTranslateX,
+    progressValue,
     locationPicker,
     setLocationPicker,
     tripTypeLabel,

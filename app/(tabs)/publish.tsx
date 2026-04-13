@@ -6,13 +6,14 @@ import {
   TouchableOpacity,
   KeyboardAvoidingView,
   Platform,
-  Animated,
   useWindowDimensions,
 } from 'react-native';
+import Animated, { useAnimatedStyle } from 'react-native-reanimated';
 import { ChevronRight } from 'lucide-react-native';
 import { Screen, Button, Card } from '@/components/ui';
 import { LocationPickerModal } from '@/components/LocationPickerModal';
 import { usePublishForm } from '@/hooks/usePublishForm';
+import { usePublishSubmit } from '@/hooks/usePublishSubmit';
 import { usePublishScreen, TOTAL_STEPS } from '@/hooks/usePublishScreen';
 import { PublishHeader } from '@/components/publish/PublishHeader';
 import { StepTripType } from '@/components/publish/StepTripType';
@@ -34,13 +35,19 @@ export default function PublishScreen() {
     dispatch,
     waypoints,
     setWaypoints,
-    submitting,
     loadingVehicles,
     vehicleOptions,
     selectedVehicle,
     hasRegisteredVehicles,
-    handlePublish,
+    reset,
   } = usePublishForm();
+
+  const { submitting, handlePublish } = usePublishSubmit({
+    form,
+    tripType,
+    waypoints,
+    onReset: reset,
+  });
 
   const {
     originSearch,
@@ -48,9 +55,9 @@ export default function PublishScreen() {
     routeHook,
     step,
     setStep,
-    slideDirection,
-    stepAnim,
-    progressAnim,
+    stepOpacity,
+    stepTranslateX,
+    progressValue,
     locationPicker,
     setLocationPicker,
     tripTypeLabel,
@@ -62,6 +69,11 @@ export default function PublishScreen() {
     moveWaypointUp,
     moveWaypointDown,
   } = usePublishScreen({ form, dispatch, waypoints, setWaypoints, submitting, tripType });
+
+  const stepAnimStyle = useAnimatedStyle(() => ({
+    opacity: stepOpacity.value,
+    transform: [{ translateX: stepTranslateX.value }],
+  }));
 
   const renderStepContent = () => {
     switch (step) {
@@ -166,25 +178,12 @@ export default function PublishScreen() {
             step={step}
             totalSteps={TOTAL_STEPS}
             submitting={submitting}
-            progressAnim={progressAnim}
+            progressValue={progressValue}
             onBack={goBack}
           />
 
           <Card className={step === TOTAL_STEPS ? 'mb-2' : 'mb-6'}>
-            <Animated.View
-              pointerEvents="box-none"
-              style={{
-                opacity: stepAnim,
-                transform: [
-                  {
-                    translateX: stepAnim.interpolate({
-                      inputRange: [0, 1],
-                      outputRange: [slideDirection === 'forward' ? 24 : -24, 0],
-                    }),
-                  },
-                ],
-              }}
-            >
+            <Animated.View pointerEvents="box-none" style={stepAnimStyle}>
               {renderStepContent()}
             </Animated.View>
           </Card>

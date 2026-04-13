@@ -1,5 +1,6 @@
 import React from 'react';
-import { View, Animated, TouchableOpacity } from 'react-native';
+import { View, TouchableOpacity } from 'react-native';
+import Animated, { useAnimatedStyle, type SharedValue } from 'react-native-reanimated';
 import { ArrowLeft } from 'lucide-react-native';
 import { Colors } from '@/constants/colors';
 
@@ -7,11 +8,15 @@ interface Props {
   step: number;
   totalSteps: number;
   submitting: boolean;
-  progressAnim: Animated.Value;
+  progressValue: SharedValue<number>;
   onBack: () => void;
 }
 
-export function PublishHeader({ step, totalSteps, submitting, progressAnim, onBack }: Props) {
+export function PublishHeader({ step, totalSteps, submitting, progressValue, onBack }: Props) {
+  const barStyle = useAnimatedStyle(() => ({
+    width: `${progressValue.value * 100}%`,
+  }));
+
   return (
     <View className="mb-5">
       <View className="mb-2">
@@ -26,15 +31,7 @@ export function PublishHeader({ step, totalSteps, submitting, progressAnim, onBa
         </TouchableOpacity>
       </View>
       <View className="h-2 rounded-full bg-neutral-100 overflow-hidden">
-        <Animated.View
-          className="h-2 bg-primary-500"
-          style={{
-            width: progressAnim.interpolate({
-              inputRange: [0, 1],
-              outputRange: ['0%', '100%'],
-            }),
-          }}
-        />
+        <Animated.View className="h-2 bg-primary-500" style={barStyle} />
       </View>
     </View>
   );

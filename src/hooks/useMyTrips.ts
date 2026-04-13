@@ -155,9 +155,11 @@ export function useMyTrips() {
   // ── Load ──
 
   const load = useCallback(async (refreshing = false) => {
+    let cancelled = false;
     dispatch({ type: 'FETCH_START', refreshing });
     try {
       const [trips, bookings] = await Promise.all([fetchTrips(), fetchBookings()]);
+      if (cancelled) return;
       dispatch({ type: 'FETCH_SUCCESS', trips, bookings });
 
       // Hydrate bookings for completed trips so we can know if passengers were rated.
@@ -167,15 +169,20 @@ export function useMyTrips() {
           .filter((t) => t.status === 'COMPLETED')
           .map(async (t) => {
             const tripBookings = await fetchBookingsForTrip(t.id);
-            dispatch({ type: 'SET_TRIP_BOOKINGS', tripId: t.id, bookings: tripBookings });
+            if (!cancelled) {
+              dispatch({ type: 'SET_TRIP_BOOKINGS', tripId: t.id, bookings: tripBookings });
+            }
           }),
       );
     } catch (err) {
-      dispatch({
-        type: 'FETCH_ERROR',
-        payload: extractApiError(err, 'Error al cargar tus viajes'),
-      });
+      if (!cancelled) {
+        dispatch({
+          type: 'FETCH_ERROR',
+          payload: extractApiError(err, 'Error al cargar tus viajes'),
+        });
+      }
     }
+    return () => { cancelled = true; };
   }, []);
 
   useEffect(() => { void load(); }, [load]);

@@ -45,6 +45,7 @@ export default function ChatScreen() {
     const isIOS = Platform.OS === 'ios';
     const showEvent = isIOS ? 'keyboardWillShow' : 'keyboardDidShow';
     const hideEvent = isIOS ? 'keyboardWillHide' : 'keyboardDidHide';
+    let scrollTimer: ReturnType<typeof setTimeout> | null = null;
     const show = Keyboard.addListener(showEvent, (e) => {
       let height = e.endCoordinates.height ?? 0;
       if (!isIOS) {
@@ -56,19 +57,21 @@ export default function ChatScreen() {
         height = Math.max(height, screenHeight - keyboardTop);
       }
       setKeyboardHeight(height);
-      setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 100);
+      scrollTimer = setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 100);
     });
     const hide = Keyboard.addListener(hideEvent, () => setKeyboardHeight(0));
-    return () => { show.remove(); hide.remove(); };
+    return () => {
+      show.remove();
+      hide.remove();
+      if (scrollTimer) clearTimeout(scrollTimer);
+    };
   }, []);
 
   // Scroll to bottom when messages change
   useEffect(() => {
-    if (messages.length > 0) {
-      setTimeout(() => {
-        flatListRef.current?.scrollToEnd({ animated: true });
-      }, 100);
-    }
+    if (messages.length === 0) return;
+    const t = setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 100);
+    return () => clearTimeout(t);
   }, [messages.length]);
 
   const nameParts = (otherUserName ?? '').split(' ');

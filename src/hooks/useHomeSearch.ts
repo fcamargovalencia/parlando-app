@@ -17,7 +17,7 @@ export function useHomeSearch() {
   // ── Search form ──
   const [origin, setOrigin] = useState<SelectedLocation | null>(null);
   const [destination, setDestination] = useState<SelectedLocation | null>(null);
-  const [departureDate, setDepartureDate] = useState<Date>(new Date());
+  const [departureDate, setDepartureDate] = useState<Date>(() => new Date());
   const [tripType, setTripType] = useState<TripType>('INTERCITY');
 
   // ── Single modal state — enforces at most one picker open at a time ──
