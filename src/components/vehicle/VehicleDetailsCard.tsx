@@ -4,7 +4,7 @@ import { Calendar, Palette, Users, Hash, ShieldCheck } from 'lucide-react-native
 import { Card } from '@/components/ui';
 import { Colors } from '@/constants/colors';
 import { formatDate } from '@/lib/utils';
-import { DetailRow } from '@/components/vehicle/DetailRow';
+import { DetailRow } from '@/components/ui';
 import type { VehicleResponse } from '@/types/api';
 
 interface Props {

@@ -1,15 +1,14 @@
-import React, { useState } from 'react';
+import React, { useState, useActionState } from 'react';
 import {
   View,
   Text,
   TouchableOpacity,
-  Alert,
   Modal,
   Platform,
 } from 'react-native';
 import { Shadows } from '@/constants/colors';
 import { Colors } from '@/constants/colors';
-import { Button } from '@/components/ui';
+import { Button, ModalDragHandle } from '@/components/ui';
 import { bookingsApi } from '@/api/bookings';
 import { formatCurrency } from '@/lib/utils';
 import type { TripResponse, BookingResponse } from '@/types/api';
@@ -29,33 +28,30 @@ export function BookTripModal({
   onBooked,
 }: BookTripModalProps) {
   const [seats, setSeats] = useState(1);
-  const [loading, setLoading] = useState(false);
   const maxSeats = Math.min(trip.availableSeats, 4);
 
-  const handleBook = async () => {
-    setLoading(true);
-    try {
-      const { data: res } = await bookingsApi.create({
-        tripId: trip.id,
-        seatsBooked: seats,
-      });
-      if (!res.data) throw new Error();
-      onBooked(res.data);
-      Toast.show({
-        type: 'success',
-        text1: '¡Solicitud enviada!',
-        text2: 'El conductor revisará tu solicitud.',
-      });
-      onClose();
-    } catch (err: any) {
-      Alert.alert(
-        'Error',
-        err?.response?.data?.message ?? 'No se pudo crear la reserva',
-      );
-    } finally {
-      setLoading(false);
-    }
-  };
+  const [bookingError, submitBooking, isPending] = useActionState(
+    async (_prev: string | null) => {
+      try {
+        const { data: res } = await bookingsApi.create({
+          tripId: trip.id,
+          seatsBooked: seats,
+        });
+        if (!res.data) throw new Error();
+        onBooked(res.data);
+        Toast.show({
+          type: 'success',
+          text1: '¡Solicitud enviada!',
+          text2: 'El conductor revisará tu solicitud.',
+        });
+        onClose();
+        return null;
+      } catch (err: any) {
+        return err?.response?.data?.message ?? 'No se pudo crear la reserva';
+      }
+    },
+    null,
+  );
 
   return (
     <Modal
@@ -65,7 +61,7 @@ export function BookTripModal({
       onRequestClose={onClose}
     >
       <TouchableOpacity
-        style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.4)' }}
+        style={{ flex: 1, backgroundColor: Colors.overlay }}
         activeOpacity={1}
         onPress={onClose}
       />
@@ -76,8 +72,7 @@ export function BookTripModal({
           ...Shadows.lg,
         }}
       >
-        {/* Handle */}
-        <View className="w-10 h-1 rounded-full bg-neutral-200 self-center mb-5" />
+        <ModalDragHandle />
 
         <Text className="text-lg font-bold text-neutral-900 mb-1">
           Reservar cupo
@@ -127,9 +122,12 @@ export function BookTripModal({
           </Text>
         </View>
 
+        {bookingError && (
+          <Text className="text-red-500 text-xs text-center mb-3">{bookingError}</Text>
+        )}
         <Button
-          onPress={handleBook}
-          loading={loading}
+          onPress={submitBooking}
+          loading={isPending}
           size="lg"
           className="w-full"
         >

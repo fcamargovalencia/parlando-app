@@ -15,6 +15,7 @@ import {
 } from 'lucide-react-native';
 import dayjs from 'dayjs';
 import { Badge, Card } from '@/components/ui';
+import { RoutePreview } from '@/components/RoutePreview';
 import { TripTypeIcon } from '@/components/TripTypeIcon';
 import { Colors } from '@/constants/colors';
 import { formatCurrency, formatDeparture, getTripTypeLabel } from '@/lib/utils';
@@ -28,16 +29,16 @@ const ROLE_CONFIG: Record<
 > = {
   driver: {
     label: 'Conductor',
-    color: '#1D4ED8',
-    bg: '#EFF6FF',
-    border: '#BFDBFE',
+    color: Colors.role.driver.text,
+    bg: Colors.role.driver.bg,
+    border: Colors.role.driver.border,
     Icon: Car,
   },
   passenger: {
     label: 'Pasajero',
-    color: '#6D28D9',
-    bg: '#F5F3FF',
-    border: '#DDD6FE',
+    color: Colors.role.passenger.text,
+    bg: Colors.role.passenger.bg,
+    border: Colors.role.passenger.border,
     Icon: Ticket,
   },
 };
@@ -54,43 +55,6 @@ function RoleChip({ role }: { role: MyTripRole; }) {
       <Text className="text-[11px] font-semibold" style={{ color: cfg.color }}>
         {cfg.label}
       </Text>
-    </View>
-  );
-}
-
-// ── Route column ──
-
-function RouteColumn({ item }: { item: MyTripItem; }) {
-  return (
-    <View className="flex-row items-start">
-      <View className="items-center mr-3 pt-1">
-        <View className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: Colors.primary[500] }} />
-        <View className="w-0.5 h-8 my-1" style={{ backgroundColor: Colors.neutral[200] }} />
-        <View className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: Colors.accent[500] }} />
-      </View>
-      <View className="flex-1 gap-3">
-        <View>
-          <Text className="text-base font-semibold text-neutral-900" numberOfLines={1}>
-            {item.originName}
-          </Text>
-          {!!item.originSubtitle && (
-            <Text className="text-sm text-neutral-500" numberOfLines={1}>
-              {item.originSubtitle}
-            </Text>
-          )}
-        </View>
-        <View>
-          <Text className="text-base font-semibold text-neutral-900" numberOfLines={1}>
-            {item.destinationName}
-          </Text>
-          {!!item.destinationSubtitle && (
-            <Text className="text-sm text-neutral-500" numberOfLines={1}>
-              {item.destinationSubtitle}
-            </Text>
-          )}
-        </View>
-      </View>
-      <ChevronRight size={20} color={Colors.neutral[300]} />
     </View>
   );
 }
@@ -201,7 +165,7 @@ function Footer({ item, cancelling, onCancel, onRate }: FooterProps) {
           className="flex-row items-center gap-1.5 bg-amber-50 px-3 py-1.5 rounded-full"
           style={{ borderWidth: 1, borderColor: '#FDE68A' }}
         >
-          <Star size={13} color="#F59E0B" fill="#F59E0B" />
+          <Star size={13} color={Colors.semantic.warning} fill={Colors.semantic.warning} />
           <Text className="text-sm font-semibold text-amber-600">{rateLabel}</Text>
         </TouchableOpacity>
       )}
@@ -247,7 +211,13 @@ export function MyTripCard({ item, cancelling, onPress, onCancel, onRate }: MyTr
 
         {/* Route */}
         <View className="mb-4">
-          <RouteColumn item={item} />
+          <RoutePreview
+            originName={item.originName}
+            originSubtitle={item.originSubtitle}
+            destinationName={item.destinationName}
+            destinationSubtitle={item.destinationSubtitle}
+            rightContent={<ChevronRight size={20} color={Colors.neutral[300]} />}
+          />
         </View>
 
         {/* Divider */}

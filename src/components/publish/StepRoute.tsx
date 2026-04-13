@@ -73,7 +73,7 @@ export function StepRoute({ form, waypoints, routeHook, windowHeight, goNext, su
               key={`wp-${idx}`}
               coordinate={{ latitude: w.latitude, longitude: w.longitude }}
               title={`Parada ${idx + 1}: ${w.name}`}
-              pinColor="#F59E0B"
+              pinColor={Colors.semantic.warning}
             />
           ))}
           <Marker

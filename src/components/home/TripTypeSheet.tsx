@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, TouchableOpacity, Modal } from 'react-native';
 import { TripTypeIcon } from '@/components/TripTypeIcon';
+import { ModalDragHandle } from '@/components/ui';
 import { Colors } from '@/constants/colors';
 import { TRIP_TYPE_OPTIONS } from '@/constants/trips';
 import type { TripType } from '@/types/api';
@@ -21,7 +22,7 @@ export function TripTypeSheet({ visible, tripType, onSelect, onClose }: TripType
       onRequestClose={onClose}
     >
       <TouchableOpacity
-        style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.35)' }}
+        style={{ flex: 1, backgroundColor: Colors.overlay }}
         activeOpacity={1}
         onPress={onClose}
       />
@@ -35,7 +36,7 @@ export function TripTypeSheet({ visible, tripType, onSelect, onClose }: TripType
           elevation: 16,
         }}
       >
-        <View className="w-10 h-1 rounded-full bg-neutral-200 self-center mb-4" />
+        <ModalDragHandle />
         <Text className="text-base font-bold text-neutral-900 mb-4">Tipo de viaje</Text>
 
         {TRIP_TYPE_OPTIONS.map((t) => {

@@ -50,6 +50,11 @@ export const Colors = {
     info: '#3B82F6',
     infoLight: '#DBEAFE',
   },
+  role: {
+    driver: { text: '#1D4ED8', bg: '#EFF6FF', border: '#BFDBFE' },
+    passenger: { text: '#6D28D9', bg: '#F5F3FF', border: '#DDD6FE' },
+  },
+  overlay: 'rgba(0, 0, 0, 0.4)',
   white: '#FFFFFF',
   black: '#000000',
   transparent: 'transparent',

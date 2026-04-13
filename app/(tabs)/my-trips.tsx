@@ -2,10 +2,10 @@ import React, { useCallback } from 'react';
 import {
   View,
   Text,
-  FlatList,
   TouchableOpacity,
   RefreshControl,
 } from 'react-native';
+import { FlashList } from '@shopify/flash-list';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { Route } from 'lucide-react-native';
 import { Screen, EmptyState, Spinner, FilterTabs } from '@/components/ui';
@@ -97,10 +97,11 @@ export default function MyTripsScreen() {
           </TouchableOpacity>
         </View>
       ) : (
-        <FlatList
+        <FlashList
           data={items}
           keyExtractor={(item) => item.key}
-          contentContainerClassName="px-4 pb-8"
+          estimatedItemSize={220}
+          contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 32 }}
           showsVerticalScrollIndicator={false}
           refreshControl={
             <RefreshControl

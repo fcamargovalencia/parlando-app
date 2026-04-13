@@ -2,11 +2,11 @@ import React from 'react';
 import {
   View,
   Text,
-  FlatList,
   TouchableOpacity,
   ActivityIndicator,
   RefreshControl,
 } from 'react-native';
+import { FlashList } from '@shopify/flash-list';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Spinner } from '@/components/ui';
@@ -81,9 +81,10 @@ export default function SearchResultsScreen() {
           </TouchableOpacity>
         </View>
       ) : (
-        <FlatList
+        <FlashList
           data={trips}
           keyExtractor={(t) => t.id}
+          estimatedItemSize={240}
           contentContainerStyle={{
             paddingHorizontal: 16,
             paddingTop: 12,

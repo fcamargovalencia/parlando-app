@@ -12,6 +12,7 @@ import {
 } from 'lucide-react-native';
 import dayjs from 'dayjs';
 import { Avatar, Badge, Card } from '@/components/ui';
+import { RoutePreview } from '@/components/RoutePreview';
 import { TripTypeIcon } from '@/components/TripTypeIcon';
 import { Colors } from '@/constants/colors';
 import { formatCurrency, formatDeparture, getTripTypeLabel } from '@/lib/utils';
@@ -41,40 +42,6 @@ function CardHeader({ trip, noSeats }: { trip: TripResponse; noSeats: boolean; }
   );
 }
 
-function RouteSection({ trip }: { trip: TripResponse; }) {
-  return (
-    <View className="flex-row items-start mb-4">
-      <View className="items-center mr-3 pt-1.5">
-        <View className="w-3 h-3 rounded-full" style={{ backgroundColor: Colors.primary[500] }} />
-        <View className="w-0.5 h-14 my-1" style={{ backgroundColor: Colors.neutral[200] }} />
-        <View className="w-3 h-3 rounded-full" style={{ backgroundColor: Colors.accent[500] }} />
-      </View>
-      <View className="flex-1 gap-3">
-        <View>
-          <Text className="text-base font-semibold text-neutral-900" numberOfLines={1}>
-            {trip.originName}
-          </Text>
-          {!!trip.originSubtitle && (
-            <Text className="text-sm text-neutral-500" numberOfLines={1}>
-              {trip.originSubtitle}
-            </Text>
-          )}
-        </View>
-        <View>
-          <Text className="text-base font-semibold text-neutral-900" numberOfLines={1}>
-            {trip.destinationName}
-          </Text>
-          {!!trip.destinationSubtitle && (
-            <Text className="text-sm text-neutral-500" numberOfLines={1}>
-              {trip.destinationSubtitle}
-            </Text>
-          )}
-        </View>
-      </View>
-      <ChevronRight size={20} color={Colors.neutral[600]} strokeWidth={2.5} />
-    </View>
-  );
-}
 
 function TimeRow({ trip }: { trip: TripResponse; }) {
   return (
@@ -150,7 +117,7 @@ function DriverFooter({ driver }: { driver: NonNullable<TripResponse['driver']>;
           </Text>
         </View>
         <View className="flex-row items-center gap-1 mt-0.5">
-          <Star size={12} color="#F59E0B" fill="#F59E0B" />
+          <Star size={12} color={Colors.semantic.warning} fill={Colors.semantic.warning} />
           <Text className="text-sm font-medium text-neutral-600">
             {driver.trustScore.toFixed(1)}
           </Text>
@@ -170,7 +137,15 @@ export function SearchTripCard({ trip, onPress }: SearchTripCardProps) {
     <TouchableOpacity onPress={onPress} activeOpacity={0.75} disabled={noSeats}>
       <Card className="mb-3" style={noSeats ? { opacity: 0.55 } : undefined}>
         <CardHeader trip={trip} noSeats={noSeats} />
-        <RouteSection trip={trip} />
+        <View className="mb-4">
+          <RoutePreview
+            originName={trip.originName}
+            originSubtitle={trip.originSubtitle}
+            destinationName={trip.destinationName}
+            destinationSubtitle={trip.destinationSubtitle}
+            rightContent={<ChevronRight size={20} color={Colors.neutral[600]} strokeWidth={2.5} />}
+          />
+        </View>
         <TimeRow trip={trip} />
         <StatsRow trip={trip} />
         {trip.driver && <DriverFooter driver={trip.driver} />}

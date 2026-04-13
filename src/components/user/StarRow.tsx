@@ -1,6 +1,7 @@
 import React from 'react';
 import { View } from 'react-native';
 import { Star } from 'lucide-react-native';
+import { Colors } from '@/constants/colors';
 
 interface Props {
   score: number;
@@ -14,8 +15,8 @@ export function StarRow({ score, size = 14 }: Props) {
         <Star
           key={s}
           size={size}
-          color="#F59E0B"
-          fill={s <= score ? '#F59E0B' : 'transparent'}
+          color={Colors.semantic.warning}
+          fill={s <= score ? Colors.semantic.warning : 'transparent'}
         />
       ))}
     </View>

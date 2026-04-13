@@ -10,3 +10,5 @@ export { Divider } from './Divider';
 export { DatePickerModal } from './DatePickerModal';
 export { Toggle } from './Toggle';
 export { FilterTabs, type FilterTab } from './FilterTabs';
+export { ModalDragHandle } from './ModalDragHandle';
+export { DetailRow } from './DetailRow';

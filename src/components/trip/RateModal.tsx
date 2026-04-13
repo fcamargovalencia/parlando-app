@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useActionState } from 'react';
 import {
   Modal,
   View,
@@ -10,7 +10,7 @@ import {
   Platform,
 } from 'react-native';
 import { Star, X } from 'lucide-react-native';
-import { Avatar } from '@/components/ui';
+import { Avatar, ModalDragHandle } from '@/components/ui';
 import { Colors } from '@/constants/colors';
 
 interface RateModalProps {
@@ -36,25 +36,27 @@ export function RateModal({
 }: RateModalProps) {
   const [score, setScore] = useState(0);
   const [comment, setComment] = useState('');
-  const [loading, setLoading] = useState(false);
+
+  const [ratingError, submitRating, isPending] = useActionState(
+    async (_prev: string | null) => {
+      if (score === 0) return 'Selecciona una calificación';
+      try {
+        await onSubmit(score, comment.trim());
+        setScore(0);
+        setComment('');
+        return null;
+      } catch (err: any) {
+        return err?.response?.data?.message ?? 'No se pudo enviar la calificación';
+      }
+    },
+    null,
+  );
 
   const handleClose = () => {
-    if (loading) return;
+    if (isPending) return;
     setScore(0);
     setComment('');
     onClose();
-  };
-
-  const handleSubmit = async () => {
-    if (score === 0 || loading) return;
-    setLoading(true);
-    try {
-      await onSubmit(score, comment.trim());
-      setScore(0);
-      setComment('');
-    } finally {
-      setLoading(false);
-    }
   };
 
   const starLabels = ['', 'Muy malo', 'Malo', 'Regular', 'Bueno', 'Excelente'];
@@ -72,13 +74,12 @@ export function RateModal({
       >
         <TouchableOpacity
           className="flex-1"
-          style={{ backgroundColor: 'rgba(0,0,0,0.4)' }}
+          style={{ backgroundColor: Colors.overlay }}
           activeOpacity={1}
           onPress={handleClose}
         />
         <View className="bg-white rounded-t-3xl px-6 pb-10 pt-4">
-          {/* Handle */}
-          <View className="w-12 h-1 rounded-full bg-neutral-200 self-center mb-5" />
+          <ModalDragHandle />
 
           {/* Close */}
           <TouchableOpacity
@@ -121,8 +122,8 @@ export function RateModal({
               >
                 <Star
                   size={42}
-                  color={s <= score ? '#F59E0B' : Colors.neutral[200]}
-                  fill={s <= score ? '#F59E0B' : 'transparent'}
+                  color={s <= score ? Colors.semantic.warning : Colors.neutral[200]}
+                  fill={s <= score ? Colors.semantic.warning : 'transparent'}
                 />
               </TouchableOpacity>
             ))}
@@ -154,10 +155,14 @@ export function RateModal({
             }}
           />
 
+          {ratingError && (
+            <Text className="text-red-500 text-xs text-center mb-3">{ratingError}</Text>
+          )}
+
           {/* Submit */}
           <TouchableOpacity
-            onPress={handleSubmit}
-            disabled={score === 0 || loading}
+            onPress={submitRating}
+            disabled={score === 0 || isPending}
             style={{
               backgroundColor: score === 0 ? Colors.neutral[200] : Colors.primary[600],
               borderRadius: 16,
@@ -165,7 +170,7 @@ export function RateModal({
               alignItems: 'center',
             }}
           >
-            {loading ? (
+            {isPending ? (
               <ActivityIndicator color="white" />
             ) : (
               <Text

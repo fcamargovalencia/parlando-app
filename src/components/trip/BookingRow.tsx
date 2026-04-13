@@ -75,7 +75,7 @@ export function BookingRow({
           <View className="flex-row items-center gap-3 mt-0.5">
             {passenger && (
               <View className="flex-row items-center gap-1">
-                <Star size={14} color="#F59E0B" fill="#F59E0B" />
+                <Star size={14} color={Colors.semantic.warning} fill={Colors.semantic.warning} />
                 <Text className="text-base font-semibold text-neutral-700">
                   {passenger.trustScore} / 5
                 </Text>
@@ -120,7 +120,7 @@ export function BookingRow({
               className="flex-row items-center gap-1.5 bg-amber-50 px-3 py-1.5 rounded-full"
               style={{ borderWidth: 1, borderColor: '#FDE68A' }}
             >
-              <Star size={13} color="#F59E0B" fill="#F59E0B" />
+              <Star size={13} color={Colors.semantic.warning} fill={Colors.semantic.warning} />
               <Text className="text-sm font-semibold text-amber-600">
                 Calificar pasajero
               </Text>

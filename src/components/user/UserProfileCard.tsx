@@ -29,7 +29,7 @@ export function UserProfileCard({ user, ratings, avgScore }: Props) {
         <View className="flex-row items-center gap-4 mt-3">
           <View className="items-center">
             <View className="flex-row items-center gap-1.5 mb-0.5">
-              <Star size={18} color="#F59E0B" fill="#F59E0B" />
+              <Star size={18} color={Colors.semantic.warning} fill={Colors.semantic.warning} />
               <Text className="text-xl font-bold text-neutral-900">
                 {user.trustScore.toFixed(1)}
               </Text>

@@ -59,7 +59,7 @@ export function DatePickerModal({ visible, value, mode, title, minimumDate, onCo
     >
       {/* Backdrop */}
       <TouchableOpacity
-        style={{ flex: 1, backgroundColor: 'rgba(0,0,0,0.4)' }}
+        style={{ flex: 1, backgroundColor: Colors.overlay }}
         activeOpacity={1}
         onPress={onCancel}
       />

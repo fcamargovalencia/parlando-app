@@ -1,4 +1,4 @@
-import React, { useRef, useCallback } from 'react';
+import React, { useRef, useCallback, forwardRef } from 'react';
 import {
   View,
   TextInput,
@@ -20,7 +20,7 @@ interface InputProps extends TextInputProps {
   containerClassName?: string;
 }
 
-export function Input({
+export const Input = forwardRef<TextInput, InputProps>(function Input({
   label,
   error,
   hint,
@@ -32,7 +32,7 @@ export function Input({
   onBlur: onBlurProp,
   style: styleProp,
   ...rest
-}: InputProps) {
+}, ref) {
   const [showPassword, setShowPassword] = React.useState(false);
   const rowRef = useRef<View>(null);
   const isPassword = secureTextEntry !== undefined;
@@ -75,6 +75,7 @@ export function Input({
       >
         {leftIcon && <View style={styles.iconLeft}>{leftIcon}</View>}
         <TextInput
+          ref={ref}
           style={[styles.textInput, styleProp]}
           placeholderTextColor={Colors.neutral[400]}
           secureTextEntry={isPassword && !showPassword}
@@ -100,7 +101,7 @@ export function Input({
       {hint && !error && <Text style={styles.hintText}>{hint}</Text>}
     </View>
   );
-}
+});
 
 const styles = StyleSheet.create({
   wrapper: {},
