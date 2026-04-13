@@ -33,17 +33,25 @@ function reducer(state: ChatState, action: ChatAction): ChatState {
     case 'FETCH_START':
       return { ...state, loading: true, error: null };
     case 'FETCH_SUCCESS':
+      // Keep the existing array reference when nothing has changed so that
+      // FlatList/FlashList skips a full re-render on every poll tick.
+      if (
+        state.messages.length === action.messages.length &&
+        state.messages.at(-1)?.id === action.messages.at(-1)?.id
+      ) {
+        return state.loading || state.error
+          ? { ...state, loading: false, error: null }
+          : state;
+      }
       return { ...state, messages: action.messages, loading: false, error: null };
     case 'FETCH_ERROR':
       return { ...state, loading: false, error: action.error };
     case 'SEND_START':
       return { ...state, sending: true };
-    case 'SEND_SUCCESS':
-      return {
-        ...state,
-        sending: false,
-        messages: [...state.messages, action.message],
-      };
+    case 'SEND_SUCCESS': {
+      const updated = [...state.messages, action.message];
+      return { ...state, sending: false, messages: updated };
+    }
     case 'SEND_ERROR':
       return { ...state, sending: false, error: action.error };
     case 'SET_TRIP':
@@ -67,12 +75,17 @@ export function useChat(tripId: string, otherUserId: string) {
   const [state, dispatch] = useReducer(reducer, initial);
   const currentUserId = useAuthStore((s) => s.user?.id);
   const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  // Mirrors the latest messages array so the polling closure can compare
+  // without capturing a stale reference from the initial render.
+  const messagesRef = useRef<ChatMessageResponse[]>(state.messages);
 
   const load = useCallback(async () => {
     dispatch({ type: 'FETCH_START' });
     try {
       const res = await chatApi.getMessages(tripId, otherUserId);
-      dispatch({ type: 'FETCH_SUCCESS', messages: res.data.data ?? [] });
+      const loaded = res.data.data ?? [];
+      messagesRef.current = loaded;
+      dispatch({ type: 'FETCH_SUCCESS', messages: loaded });
       chatApi.markAsRead(tripId, otherUserId).catch(() => { });
     } catch (e) {
       const status = (e as any)?.response?.status;
@@ -117,6 +130,7 @@ export function useChat(tripId: string, otherUserId: string) {
           messageType: 'TEXT',
         });
         if (res.data.data) {
+          messagesRef.current = [...messagesRef.current, res.data.data];
           dispatch({ type: 'SEND_SUCCESS', message: res.data.data });
         }
       } catch (e) {
@@ -138,8 +152,16 @@ export function useChat(tripId: string, otherUserId: string) {
       pollRef.current = setInterval(async () => {
         try {
           const res = await chatApi.getMessages(tripId, otherUserId);
-          if (res.data.data) {
-            dispatch({ type: 'FETCH_SUCCESS', messages: res.data.data });
+          const incoming = res.data.data;
+          if (!incoming) return;
+          // Skip dispatch (and FlatList re-render) when nothing has changed.
+          const current = messagesRef.current;
+          const hasNew =
+            incoming.length !== current.length ||
+            incoming.at(-1)?.id !== current.at(-1)?.id;
+          if (hasNew) {
+            messagesRef.current = incoming;
+            dispatch({ type: 'FETCH_SUCCESS', messages: incoming });
             chatApi.markAsRead(tripId, otherUserId).catch(() => { });
           }
         } catch {

@@ -1,5 +1,6 @@
 import React from 'react';
-import { View, Text, FlatList, TouchableOpacity, RefreshControl } from 'react-native';
+import { View, Text, TouchableOpacity, RefreshControl } from 'react-native';
+import { FlashList } from '@shopify/flash-list';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Spinner } from '@/components/ui';
@@ -37,9 +38,10 @@ export default function MessagesScreen() {
       ) : conversations.length === 0 ? (
         <EmptyConversations />
       ) : (
-        <FlatList
+        <FlashList
           data={conversations}
           keyExtractor={(item) => `${item.tripId}-${item.counterpartId}`}
+          estimatedItemSize={72}
           renderItem={({ item }) => (
             <ConversationItem
               conversation={item}

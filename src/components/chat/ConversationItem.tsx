@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { View, Text, TouchableOpacity } from 'react-native';
 import { Avatar } from '@/components/ui';
 import { Colors } from '@/constants/colors';
@@ -25,6 +25,10 @@ function formatTime(dateStr: string): string {
 
 export function ConversationItem({ conversation, onPress }: ConversationItemProps) {
   const hasUnread = conversation.unreadCount > 0;
+  const time = useMemo(
+    () => formatTime(conversation.lastMessage.sentAt),
+    [conversation.lastMessage.sentAt],
+  );
 
   return (
     <TouchableOpacity
@@ -49,7 +53,7 @@ export function ConversationItem({ conversation, onPress }: ConversationItemProp
             {conversation.counterpartFirstName} {conversation.counterpartLastName}
           </Text>
           <Text className="text-xs text-neutral-400 ml-2">
-            {formatTime(conversation.lastMessage.sentAt)}
+            {time}
           </Text>
         </View>
 

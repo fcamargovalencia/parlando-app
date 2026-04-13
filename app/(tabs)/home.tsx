@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, RefreshControl } from 'react-native';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -20,6 +20,7 @@ export default function HomeScreen() {
   const user = useAuthStore((s) => s.user);
   const insets = useSafeAreaInsets();
   const [refreshing, setRefreshing] = useState(false);
+  const today = useMemo(() => new Date(), []);
 
   const {
     origin,
@@ -148,7 +149,7 @@ export default function HomeScreen() {
         value={departureDate}
         mode="date"
         title="Fecha de viaje"
-        minimumDate={new Date()}
+        minimumDate={today}
         onConfirm={(date) => { setDepartureDate(date); setActivePicker(null); }}
         onCancel={() => setActivePicker(null)}
       />
