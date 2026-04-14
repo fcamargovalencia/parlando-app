@@ -68,38 +68,40 @@ export function BookingRow({
           lastName={passenger?.lastName ?? ''}
           size="md"
         />
-        <View className="flex-1">
-          <Text className="text-base font-semibold text-neutral-900">
-            {passenger ? `${passenger.firstName} ${passenger.lastName}` : 'Pasajero'}
-          </Text>
-          <View className="flex-row items-center gap-3 mt-0.5">
+        <View className="flex-1 min-w-0">
+          <View className="flex-row items-center mb-0.5">
+            <Text className="text-base font-semibold text-neutral-900 flex-1 mr-2" numberOfLines={1}>
+              {passenger ? `${passenger.firstName} ${passenger.lastName}` : 'Pasajero'}
+            </Text>
+            {booking.status !== 'COMPLETED' && (
+              <Badge label={badgeCfg.label} variant={badgeCfg.variant} />
+            )}
+          </View>
+          <View className="flex-row items-center gap-2 flex-wrap">
             {passenger && (
               <View className="flex-row items-center gap-1">
-                <Star size={14} color={Colors.semantic.warning} fill={Colors.semantic.warning} />
-                <Text className="text-base font-semibold text-neutral-700">
+                <Star size={12} color={Colors.semantic.warning} fill={Colors.semantic.warning} />
+                <Text className="text-xs font-medium text-neutral-600">
                   {passenger.trustScore} / 5
                 </Text>
               </View>
             )}
             {commentCount !== undefined && (
               <View className="flex-row items-center gap-1">
-                <MessageSquare size={14} color={Colors.neutral[400]} />
-                <Text className="text-base font-semibold text-neutral-700">
+                <MessageSquare size={12} color={Colors.neutral[400]} />
+                <Text className="text-xs font-medium text-neutral-600">
                   {commentCount} comentarios
                 </Text>
               </View>
             )}
             <View className="flex-row items-center gap-1">
-              <Armchair size={14} color={Colors.neutral[400]} />
-              <Text className="text-base font-semibold text-neutral-700">
+              <Armchair size={12} color={Colors.neutral[400]} />
+              <Text className="text-xs font-medium text-neutral-600">
                 {booking.seatsBooked} {booking.seatsBooked === 1 ? 'asiento' : 'asientos'}
               </Text>
             </View>
           </View>
         </View>
-        {booking.status !== 'COMPLETED' && (
-          <Badge label={badgeCfg.label} variant={badgeCfg.variant} />
-        )}
         <ChevronRight size={20} color={Colors.neutral[600]} strokeWidth={2.5} />
       </TouchableOpacity>
 

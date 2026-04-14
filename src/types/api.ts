@@ -423,6 +423,11 @@ export interface ConversationResponse {
   counterpartFirstName: string;
   counterpartLastName: string;
   counterpartPhotoUrl: string | null;
+  tripStatus?: TripStatus;
+  tripType?: TripType;
+  originSubtitle?: string;
+  destinationSubtitle?: string;
+  departureAt?: string;
   lastMessage: ChatMessageResponse;
   unreadCount: number;
 }
