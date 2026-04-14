@@ -425,6 +425,7 @@ export interface ConversationResponse {
   counterpartPhotoUrl: string | null;
   tripStatus?: TripStatus;
   bookingStatus?: BookingStatus | null;
+  availableSeats?: number;
   tripType?: TripType;
   originSubtitle?: string;
   destinationSubtitle?: string;

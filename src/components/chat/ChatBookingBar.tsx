@@ -84,9 +84,21 @@ export function ChatBookingBar({
 
   // ── Vista pasajero ──
   if (!myBooking) {
+    if (trip.availableSeats <= 0) {
+      return (
+        <View className="flex-row items-center gap-2 mx-4 mt-2 mb-1 px-3 py-2.5 rounded-xl bg-neutral-100">
+          <UserX size={15} color={Colors.neutral[400]} />
+          <Text className="text-sm text-neutral-400 flex-1">Sin cupos disponibles</Text>
+        </View>
+      );
+    }
+
     return (
       <TouchableOpacity
-        onPress={onReserve}
+        onPress={(e) => {
+          e.stopPropagation();
+          onReserve();
+        }}
         className="flex-row items-center justify-center gap-2 mx-4 mt-2 mb-1 py-2.5 rounded-xl"
         style={{ backgroundColor: Colors.semantic.infoLight }}
       >

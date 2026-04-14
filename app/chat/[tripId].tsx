@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, useCallback, useState, useMemo } from 'react';
+import React, { useRef, useEffect, useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -18,6 +18,7 @@ import { ChatInput } from '@/components/chat/ChatInput';
 import { ChatHeader } from '@/components/chat/ChatHeader';
 import { ChatDisclaimers } from '@/components/chat/ChatDisclaimers';
 import { ChatBookingBar } from '@/components/chat/ChatBookingBar';
+import { BookTripModal } from '@/components/trip/BookTripModal';
 import { useChat } from '@/hooks/useChat';
 import { categoryForTrip } from '@/lib/my-trips';
 import { Colors } from '@/constants/colors';
@@ -43,11 +44,12 @@ export default function ChatScreen() {
   const insets = useSafeAreaInsets();
   const flatListRef = useRef<FlatList>(null);
   const [keyboardHeight, setKeyboardHeight] = useState(0);
+  const [bookVisible, setBookVisible] = useState(false);
 
   const {
     messages, trip, myBooking, counterpartBooking,
     loading, sending, bookingActionLoading, error,
-    currentUserId, sendMessage, load, acceptBooking, rejectBooking,
+    currentUserId, sendMessage, load, acceptBooking, rejectBooking, setMyBooking,
   } = useChat(tripId, otherUserId);
 
   // Track keyboard height on both platforms:
@@ -122,10 +124,6 @@ export default function ChatScreen() {
     }
   }, [effectiveTripStatus]);
 
-  const handleBookTrip = useCallback(() => {
-    router.push(`/trip/${tripId}` as any);
-  }, [router, tripId]);
-
   // When the keyboard is open on either platform, the safe-area inset under the
   // input is redundant (Android: keyboard covers the nav bar; iOS: keyboard
   // already provides visual separation from the home indicator).
@@ -163,6 +161,10 @@ export default function ChatScreen() {
               <Text className="text-sm font-semibold text-primary-600">Reintentar</Text>
             </TouchableOpacity>
           </View>
+        ) : messages.length === 0 ? (
+          <View className="flex-1">
+            <ChatDisclaimers />
+          </View>
         ) : (
           <FlatList
             ref={flatListRef}
@@ -180,7 +182,6 @@ export default function ChatScreen() {
               padding: 16,
               justifyContent: messages.length === 0 ? 'center' : undefined,
             }}
-            ListEmptyComponent={<ChatDisclaimers />}
             keyboardShouldPersistTaps="handled"
             keyboardDismissMode="interactive"
           />
@@ -195,7 +196,7 @@ export default function ChatScreen() {
               myBooking={myBooking}
               counterpartBooking={counterpartBooking}
               actionLoading={bookingActionLoading}
-              onReserve={handleBookTrip}
+              onReserve={() => setBookVisible(true)}
               onAccept={acceptBooking}
               onReject={rejectBooking}
             />
@@ -226,6 +227,15 @@ export default function ChatScreen() {
           )}
         </View>
       </KeyboardAvoidingView>
+
+      {trip && !isHistoricalChat && (
+        <BookTripModal
+          trip={trip}
+          visible={bookVisible}
+          onClose={() => setBookVisible(false)}
+          onBooked={(booking) => setMyBooking(booking)}
+        />
+      )}
     </View>
   );
 }

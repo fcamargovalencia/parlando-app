@@ -1,4 +1,4 @@
-import React, { useState, useActionState } from 'react';
+import React, { useState, useActionState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -28,7 +28,21 @@ export function BookTripModal({
   onBooked,
 }: BookTripModalProps) {
   const [seats, setSeats] = useState(1);
-  const maxSeats = Math.min(trip.availableSeats, 4);
+  const maxSeats = Math.max(0, trip.availableSeats);
+  const isIntercity = trip.tripType === 'INTERCITY';
+  const canSubmit = maxSeats > 0 && seats > 0 && seats <= maxSeats;
+
+  useEffect(() => {
+    if (!visible) return;
+    if (maxSeats <= 0) {
+      setSeats(0);
+      return;
+    }
+    setSeats((prev) => {
+      if (prev <= 0) return 1;
+      return Math.min(prev, maxSeats);
+    });
+  }, [visible, maxSeats]);
 
   const [bookingError, submitBooking, isPending] = useActionState(
     async (_prev: string | null) => {
@@ -77,50 +91,84 @@ export function BookTripModal({
         <Text className="text-lg font-bold text-neutral-900 mb-1">
           Reservar cupo
         </Text>
-        <Text className="text-sm text-neutral-500 mb-5">
-          {trip.originName} → {trip.destinationName}
-        </Text>
+        <View className="mb-5 gap-2.5">
+          <View className="flex-row items-start">
+            <View
+              className="w-2 h-2 rounded-full mr-2 mt-1.5"
+              style={{ backgroundColor: Colors.semantic.success }}
+            />
+            <View className="flex-1">
+              <Text className="text-sm text-neutral-600">{trip.originName}</Text>
+              {isIntercity && !!trip.originSubtitle && (
+                <Text className="text-xs text-neutral-400 mt-0.5">{trip.originSubtitle}</Text>
+              )}
+            </View>
+          </View>
+          <View className="flex-row items-start">
+            <View
+              className="w-2 h-2 rounded-full mr-2 mt-1.5"
+              style={{ backgroundColor: Colors.accent[500] }}
+            />
+            <View className="flex-1">
+              <Text className="text-sm text-neutral-600">{trip.destinationName}</Text>
+              {isIntercity && !!trip.destinationSubtitle && (
+                <Text className="text-xs text-neutral-400 mt-0.5">{trip.destinationSubtitle}</Text>
+              )}
+            </View>
+          </View>
+        </View>
 
         {/* Seats selector */}
-        <Text className="text-xs font-semibold text-neutral-500 uppercase tracking-wide mb-3">
-          Número de asientos
-        </Text>
-        <View className="flex-row gap-2 mb-5">
-          {Array.from({ length: maxSeats }, (_, i) => i + 1).map((n) => (
-            <TouchableOpacity
-              key={n}
-              onPress={() => setSeats(n)}
-              activeOpacity={0.75}
-              className="w-12 h-12 rounded-2xl items-center justify-center"
-              style={{
-                backgroundColor:
-                  seats === n ? Colors.primary[600] : Colors.neutral[100],
-                borderWidth: seats === n ? 0 : 1,
-                borderColor: Colors.neutral[200],
-              }}
-            >
-              <Text
-                className="text-base font-bold"
-                style={{
-                  color: seats === n ? '#fff' : Colors.neutral[700],
-                }}
-              >
-                {n}
-              </Text>
-            </TouchableOpacity>
-          ))}
+        <View className="flex-row items-center justify-between mb-3">
+          <Text className="text-xs font-semibold text-neutral-500 uppercase tracking-wide">
+            Número de asientos
+          </Text>
+          <Text className="text-xs font-semibold text-neutral-600">
+            Disponibles: {trip.availableSeats}
+          </Text>
         </View>
+        {maxSeats > 0 ? (
+          <View className="flex-row items-start gap-3 mb-5">
+            <View className="flex-1 flex-row flex-wrap gap-2">
+              {Array.from({ length: maxSeats }, (_, i) => i + 1).map((n) => (
+                <TouchableOpacity
+                  key={n}
+                  onPress={() => setSeats(n)}
+                  activeOpacity={0.75}
+                  className="w-12 h-12 rounded-2xl items-center justify-center"
+                  style={{
+                    backgroundColor:
+                      seats === n ? Colors.primary[600] : Colors.neutral[100],
+                    borderWidth: seats === n ? 0 : 1,
+                    borderColor: Colors.neutral[200],
+                  }}
+                >
+                  <Text
+                    className="text-base font-bold"
+                    style={{
+                      color: seats === n ? '#fff' : Colors.neutral[700],
+                    }}
+                  >
+                    {n}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </View>
 
-        {/* Price summary */}
-        <View className="bg-primary-50 rounded-2xl p-4 mb-5 flex-row items-center justify-between">
-          <Text className="text-sm text-neutral-600">
-            {seats} {seats === 1 ? 'asiento' : 'asientos'} ×{' '}
-            {formatCurrency(trip.pricePerSeat, trip.currency)}
-          </Text>
-          <Text className="text-base font-bold text-primary-700">
-            {formatCurrency(trip.pricePerSeat * seats, trip.currency)}
-          </Text>
-        </View>
+            <View className="bg-primary-50 rounded-xl px-3 py-2.5 min-w-[118px] items-end">
+              <Text className="text-xs text-neutral-500">
+                {seats} {seats === 1 ? 'asiento' : 'asientos'}
+              </Text>
+              <Text className="text-base font-bold text-primary-700 mt-0.5">
+                {formatCurrency(trip.pricePerSeat * seats, trip.currency)}
+              </Text>
+            </View>
+          </View>
+        ) : (
+          <View className="mb-5 px-3 py-2.5 rounded-xl bg-neutral-100">
+            <Text className="text-xs text-neutral-500">No hay cupos disponibles para reservar.</Text>
+          </View>
+        )}
 
         {bookingError && (
           <Text className="text-red-500 text-xs text-center mb-3">{bookingError}</Text>
@@ -128,6 +176,7 @@ export function BookTripModal({
         <Button
           onPress={submitBooking}
           loading={isPending}
+          disabled={!canSubmit}
           size="lg"
           className="w-full"
         >

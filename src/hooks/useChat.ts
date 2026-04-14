@@ -179,6 +179,10 @@ export function useChat(tripId: string, otherUserId: string) {
     }
   }, [state.counterpartBooking]);
 
+  const setMyBooking = useCallback((booking: BookingResponse) => {
+    dispatch({ type: 'SET_MY_BOOKING', booking });
+  }, []);
+
   useFocusEffect(
     useCallback(() => {
       dispatch({ type: 'RESET' });
@@ -220,5 +224,6 @@ export function useChat(tripId: string, otherUserId: string) {
     sendMessage,
     acceptBooking,
     rejectBooking,
+    setMyBooking,
   };
 }
