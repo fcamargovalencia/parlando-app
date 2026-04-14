@@ -84,7 +84,6 @@ export default function SearchResultsScreen() {
         <FlashList
           data={trips}
           keyExtractor={(t) => t.id}
-          estimatedItemSize={240}
           contentContainerStyle={{
             paddingHorizontal: 16,
             paddingTop: 12,

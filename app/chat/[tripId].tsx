@@ -9,6 +9,7 @@ import {
   Keyboard,
   Dimensions,
 } from 'react-native';
+import { Info } from 'lucide-react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Spinner } from '@/components/ui';
@@ -18,14 +19,25 @@ import { ChatHeader } from '@/components/chat/ChatHeader';
 import { ChatDisclaimers } from '@/components/chat/ChatDisclaimers';
 import { ChatBookingBar } from '@/components/chat/ChatBookingBar';
 import { useChat } from '@/hooks/useChat';
+import { categoryForTrip } from '@/lib/my-trips';
+import { Colors } from '@/constants/colors';
+import type { TripStatus } from '@/types/api';
+
+function normalizeTripStatus(value?: string | string[]): TripStatus | null {
+  const raw = Array.isArray(value) ? value[0] : value;
+  if (!raw) return null;
+  const allowed: TripStatus[] = ['DRAFT', 'PUBLISHED', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED'];
+  return allowed.includes(raw as TripStatus) ? (raw as TripStatus) : null;
+}
 
 export default function ChatScreen() {
-  const { tripId, otherUserId, otherUserName, otherUserPhoto } =
+  const { tripId, otherUserId, otherUserName, otherUserPhoto, tripStatus } =
     useLocalSearchParams<{
       tripId: string;
       otherUserId: string;
       otherUserName: string;
       otherUserPhoto?: string;
+      tripStatus?: string;
     }>();
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -77,7 +89,38 @@ export default function ChatScreen() {
   const firstName = nameParts[0] ?? '';
   const lastName = nameParts.slice(1).join(' ') ?? '';
 
+  const initialTripStatus = useMemo(() => normalizeTripStatus(tripStatus), [tripStatus]);
+  const effectiveTripStatus = trip?.status ?? initialTripStatus;
   const isDriver = trip?.driverId === currentUserId;
+  const isHistoricalChat = effectiveTripStatus
+    ? categoryForTrip(effectiveTripStatus) !== 'active'
+    : false;
+  const historicalNotice = useMemo(() => {
+    if (!effectiveTripStatus) {
+      return {
+        title: 'Chat historico',
+        message: 'Este viaje ya no admite nuevos mensajes ni acciones.',
+      };
+    }
+
+    switch (effectiveTripStatus) {
+      case 'CANCELLED':
+        return {
+          title: 'Viaje cancelado',
+          message: 'El viaje fue cancelado. Este chat queda disponible solo como historial.',
+        };
+      case 'COMPLETED':
+        return {
+          title: 'Viaje finalizado',
+          message: 'El viaje ya finalizo. Este chat queda disponible solo como historial.',
+        };
+      default:
+        return {
+          title: 'Chat historico',
+          message: 'Este viaje ya no admite nuevos mensajes ni acciones.',
+        };
+    }
+  }, [effectiveTripStatus]);
 
   const handleBookTrip = useCallback(() => {
     router.push(`/trip/${tripId}` as any);
@@ -145,7 +188,7 @@ export default function ChatScreen() {
 
         {/* Book trip CTA + input */}
         <View className="bg-white" style={{ paddingBottom: bottomPadding }}>
-          {trip && (
+          {trip && !isHistoricalChat && (
             <ChatBookingBar
               isDriver={isDriver}
               trip={trip}
@@ -157,7 +200,30 @@ export default function ChatScreen() {
               onReject={rejectBooking}
             />
           )}
-          <ChatInput onSend={sendMessage} sending={sending} />
+          {isHistoricalChat ? (
+            <View className="px-4 pt-3 pb-2 border-t border-neutral-100">
+              <View
+                className="flex-row items-start gap-2 rounded-xl px-3 py-2.5"
+                style={{
+                  backgroundColor: Colors.semantic.infoLight,
+                  borderWidth: 1,
+                  borderColor: '#BFDBFE',
+                }}
+              >
+                <Info size={16} color={Colors.semantic.info} style={{ marginTop: 1 }} />
+                <View className="flex-1">
+                  <Text className="text-sm font-semibold" style={{ color: Colors.semantic.info }}>
+                    {historicalNotice.title}
+                  </Text>
+                  <Text className="text-xs text-neutral-600 mt-0.5">
+                    {historicalNotice.message}
+                  </Text>
+                </View>
+              </View>
+            </View>
+          ) : (
+            <ChatInput onSend={sendMessage} sending={sending} />
+          )}
         </View>
       </KeyboardAvoidingView>
     </View>

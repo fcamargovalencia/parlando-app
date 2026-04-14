@@ -41,7 +41,6 @@ export default function MessagesScreen() {
         <FlashList
           data={conversations}
           keyExtractor={(item) => `${item.tripId}-${item.counterpartId}`}
-          estimatedItemSize={72}
           renderItem={({ item }) => (
             <ConversationItem
               conversation={item}
@@ -53,6 +52,7 @@ export default function MessagesScreen() {
                     otherUserId: item.counterpartId,
                     otherUserName: `${item.counterpartFirstName} ${item.counterpartLastName}`,
                     otherUserPhoto: item.counterpartPhotoUrl ?? '',
+                    tripStatus: item.tripStatus ?? '',
                   },
                 } as any)
               }

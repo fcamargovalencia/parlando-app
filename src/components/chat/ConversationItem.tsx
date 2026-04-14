@@ -1,8 +1,9 @@
 import React, { useMemo } from 'react';
 import { View, Text, TouchableOpacity } from 'react-native';
 import { ArrowDownLeft, ArrowUpRight } from 'lucide-react-native';
-import { Avatar } from '@/components/ui';
+import { Avatar, Badge } from '@/components/ui';
 import { Colors } from '@/constants/colors';
+import { BOOKING_STATUS_BADGE } from '@/constants/trips';
 import { useAuthStore } from '@/stores/auth-store';
 import type { ConversationResponse, TripStatus, TripType } from '@/types/api';
 
@@ -61,7 +62,7 @@ const TRIP_STATUS_LABELS: Record<TripStatus, string> = {
   CANCELLED: 'Cancelado',
 };
 
-const TRIP_STATUS_STYLES: Record<TripStatus, { bg: string; text: string }> = {
+const TRIP_STATUS_STYLES: Record<TripStatus, { bg: string; text: string; }> = {
   DRAFT: { bg: Colors.neutral[200], text: Colors.neutral[600] },
   PUBLISHED: { bg: Colors.semantic.infoLight, text: Colors.semantic.info },
   IN_PROGRESS: { bg: Colors.semantic.successLight, text: Colors.semantic.success },
@@ -90,10 +91,13 @@ export function ConversationItem({ conversation, onPress }: ConversationItemProp
   );
 
   const typeStyle = conversation.tripType ? TRIP_TYPE_STYLES[conversation.tripType] : null;
+  const bookingBadge = conversation.bookingStatus
+    ? BOOKING_STATUS_BADGE[conversation.bookingStatus]
+    : { label: 'Sin reserva', variant: 'neutral' as const };
   const isSent = conversation.lastMessage.senderId === currentUserId;
 
   const showOriginRow = !!(conversation.originSubtitle || typeStyle);
-  const showDestRow = !!(conversation.destinationSubtitle || departureText);
+  const showDestRow = !!(conversation.destinationSubtitle || bookingBadge);
 
   return (
     <TouchableOpacity
@@ -165,7 +169,7 @@ export function ConversationItem({ conversation, onPress }: ConversationItemProp
           </View>
         )}
 
-        {/* Row 3: Destination dot + text | departure date */}
+        {/* Row 3: Destination dot + text | booking status */}
         {showDestRow && (
           <View className="flex-row items-center justify-between mb-1">
             <View className="flex-row items-center flex-1 mr-2 min-w-0">
@@ -181,6 +185,7 @@ export function ConversationItem({ conversation, onPress }: ConversationItemProp
                 <View className="flex-1" />
               )}
             </View>
+            <Badge label={bookingBadge.label} variant={bookingBadge.variant} />
           </View>
         )}
 

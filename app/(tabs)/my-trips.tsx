@@ -100,7 +100,6 @@ export default function MyTripsScreen() {
         <FlashList
           data={items}
           keyExtractor={(item) => item.key}
-          estimatedItemSize={220}
           contentContainerStyle={{ paddingHorizontal: 16, paddingBottom: 32 }}
           showsVerticalScrollIndicator={false}
           refreshControl={

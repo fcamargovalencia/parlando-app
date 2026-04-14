@@ -424,6 +424,7 @@ export interface ConversationResponse {
   counterpartLastName: string;
   counterpartPhotoUrl: string | null;
   tripStatus?: TripStatus;
+  bookingStatus?: BookingStatus | null;
   tripType?: TripType;
   originSubtitle?: string;
   destinationSubtitle?: string;
