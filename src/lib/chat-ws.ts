@@ -28,7 +28,11 @@ class ChatWebSocketService {
   // ── API pública ──
 
   connect(token: string, userId: string): void {
-    if (this.ws?.readyState === WebSocket.OPEN) return;
+    // Guardar también contra CONNECTING para no abrir una segunda conexión paralela
+    if (
+      this.ws?.readyState === WebSocket.OPEN ||
+      this.ws?.readyState === WebSocket.CONNECTING
+    ) return;
     this.token = token;
     this.userId = userId;
     this.intentionalClose = false;
@@ -72,6 +76,15 @@ class ChatWebSocketService {
   }
 
   private open(): void {
+    // Anular handlers de la conexión anterior antes de reemplazarla,
+    // para que sus eventos no lleguen a la nueva instancia.
+    if (this.ws) {
+      this.ws.onopen = null;
+      this.ws.onmessage = null;
+      this.ws.onerror = null;
+      this.ws.onclose = null;
+      this.ws.close();
+    }
     const url = `${WS_BASE_URL}/ws/chat?token=${encodeURIComponent(this.token!)}`;
     this.ws = new WebSocket(url);
 
@@ -86,7 +99,9 @@ class ChatWebSocketService {
       try {
         const frame: WsInboundFrame = JSON.parse(event.data as string);
         if (frame.type === 'PONG') return;
-        if (frame.type === 'MESSAGE') this.emit('message', frame);
+        if (frame.type === 'MESSAGE') {
+          this.emit('message', frame);
+        }
         if (frame.type === 'ERROR') this.emit('error', frame);
       } catch {
         // Frame malformado — ignorar

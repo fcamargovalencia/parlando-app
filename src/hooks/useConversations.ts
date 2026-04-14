@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useReducer } from 'react';
+import { useFocusEffect } from 'expo-router';
 import { chatApi } from '@/api/chat';
 import { chatWs } from '@/lib/chat-ws';
 import { extractApiError } from '@/lib/utils';
@@ -77,19 +78,38 @@ export function useConversations() {
 
   const refresh = useCallback(() => load(true), [load]);
 
+  // Actualiza la lista sin ningún estado de carga visible — para actualizaciones WS.
+  const silentRefresh = useCallback(async () => {
+    try {
+      const [convRes, unreadRes] = await Promise.all([
+        chatApi.getConversations(),
+        chatApi.getUnreadCount(),
+      ]);
+      dispatch({
+        type: 'FETCH_SUCCESS',
+        conversations: convRes.data.data ?? [],
+        unread: typeof unreadRes.data.data === 'number' ? unreadRes.data.data : 0,
+      });
+    } catch {
+      // Ignorar errores silenciosos — la lista existente sigue visible
+    }
+  }, []);
+
+  // Al ganar foco (volver de un chat, cambiar de tab, etc.) refrescar silenciosamente
+  // para reflejar mensajes leídos y nuevos sin mostrar ningún estado de carga.
+  useFocusEffect(useCallback(() => {
+    silentRefresh();
+  }, [silentRefresh]));
+
   useEffect(() => {
     load();
 
-    // Cualquier mensaje entrante puede cambiar lastMessage y unreadCount:
-    // recargar en background sin mostrar spinner.
-    const onWsMessage = () => load(false);
-
-    chatWs.on('message', onWsMessage);
+    chatWs.on('message', silentRefresh);
 
     return () => {
-      chatWs.off('message', onWsMessage);
+      chatWs.off('message', silentRefresh);
     };
-  }, [load]);
+  }, [load, silentRefresh]);
 
   return {
     ...state,

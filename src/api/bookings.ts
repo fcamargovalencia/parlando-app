@@ -14,6 +14,9 @@ export const bookingsApi = {
   getByTrip: (tripId: string) =>
     api.get<ApiResponse<BookingResponse[]>>(`/v1/bookings/trip/${encodeURIComponent(tripId)}`),
 
+  getByTripAndUser: (tripId: string, userId: string) =>
+    api.get<ApiResponse<BookingResponse>>(`/v1/bookings/trip/${encodeURIComponent(tripId)}/users/${encodeURIComponent(userId)}`),
+
   cancel: (id: string) =>
     api.delete<ApiResponse<null>>(`/v1/bookings/${encodeURIComponent(id)}`),
 

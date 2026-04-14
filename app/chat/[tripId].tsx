@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, useCallback, useState } from 'react';
+import React, { useRef, useEffect, useCallback, useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -11,13 +11,12 @@ import {
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Ticket } from 'lucide-react-native';
 import { Spinner } from '@/components/ui';
 import { ChatBubble } from '@/components/chat/ChatBubble';
 import { ChatInput } from '@/components/chat/ChatInput';
 import { ChatHeader } from '@/components/chat/ChatHeader';
 import { ChatDisclaimers } from '@/components/chat/ChatDisclaimers';
-import { Colors } from '@/constants/colors';
+import { ChatBookingBar } from '@/components/chat/ChatBookingBar';
 import { useChat } from '@/hooks/useChat';
 
 export default function ChatScreen() {
@@ -33,8 +32,11 @@ export default function ChatScreen() {
   const flatListRef = useRef<FlatList>(null);
   const [keyboardHeight, setKeyboardHeight] = useState(0);
 
-  const { messages, trip, loading, sending, error, currentUserId, sendMessage, load } =
-    useChat(tripId, otherUserId);
+  const {
+    messages, trip, myBooking, counterpartBooking,
+    loading, sending, bookingActionLoading, error,
+    currentUserId, sendMessage, load, acceptBooking, rejectBooking,
+  } = useChat(tripId, otherUserId);
 
   // Track keyboard height on both platforms:
   //  - Android edge-to-edge: the window no longer auto-resizes, so we push the
@@ -57,7 +59,7 @@ export default function ChatScreen() {
         height = Math.max(height, screenHeight - keyboardTop);
       }
       setKeyboardHeight(height);
-      scrollTimer = setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 100);
+      scrollTimer = setTimeout(() => flatListRef.current?.scrollToOffset({ offset: 0, animated: true }), 100);
     });
     const hide = Keyboard.addListener(hideEvent, () => setKeyboardHeight(0));
     return () => {
@@ -67,12 +69,9 @@ export default function ChatScreen() {
     };
   }, []);
 
-  // Scroll to bottom when messages change
-  useEffect(() => {
-    if (messages.length === 0) return;
-    const t = setTimeout(() => flatListRef.current?.scrollToEnd({ animated: true }), 100);
-    return () => clearTimeout(t);
-  }, [messages.length]);
+  // Con FlatList invertido el mensaje más nuevo está en el índice 0 (abajo de la pantalla).
+  // No se necesita scrollToEnd — los nuevos mensajes aparecen abajo de forma natural.
+  const reversedMessages = useMemo(() => [...messages].reverse(), [messages]);
 
   const nameParts = (otherUserName ?? '').split(' ');
   const firstName = nameParts[0] ?? '';
@@ -124,7 +123,7 @@ export default function ChatScreen() {
         ) : (
           <FlatList
             ref={flatListRef}
-            data={messages}
+            data={reversedMessages}
             keyExtractor={(item) => item.id}
             renderItem={({ item }) => (
               <ChatBubble
@@ -132,15 +131,13 @@ export default function ChatScreen() {
                 isOwn={item.senderId === currentUserId}
               />
             )}
+            inverted
             contentContainerStyle={{
               flexGrow: 1,
               padding: 16,
               justifyContent: messages.length === 0 ? 'center' : undefined,
             }}
             ListEmptyComponent={<ChatDisclaimers />}
-            onContentSizeChange={() =>
-              flatListRef.current?.scrollToEnd({ animated: false })
-            }
             keyboardShouldPersistTaps="handled"
             keyboardDismissMode="interactive"
           />
@@ -148,17 +145,17 @@ export default function ChatScreen() {
 
         {/* Book trip CTA + input */}
         <View className="bg-white" style={{ paddingBottom: bottomPadding }}>
-          {!isDriver && trip && (
-            <TouchableOpacity
-              onPress={handleBookTrip}
-              className="flex-row items-center justify-center gap-2 mx-4 mt-2 mb-1 py-2.5 rounded-xl"
-              style={{ backgroundColor: Colors.semantic.infoLight }}
-            >
-              <Ticket size={16} color={Colors.semantic.info} />
-              <Text className="text-sm font-semibold" style={{ color: Colors.semantic.info }}>
-                Reservar cupo · ${trip.pricePerSeat.toLocaleString()} {trip.currency}
-              </Text>
-            </TouchableOpacity>
+          {trip && (
+            <ChatBookingBar
+              isDriver={isDriver}
+              trip={trip}
+              myBooking={myBooking}
+              counterpartBooking={counterpartBooking}
+              actionLoading={bookingActionLoading}
+              onReserve={handleBookTrip}
+              onAccept={acceptBooking}
+              onReject={rejectBooking}
+            />
           )}
           <ChatInput onSend={sendMessage} sending={sending} />
         </View>

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useRef, useState } from 'react';
 import {
   View,
   TextInput,
@@ -14,39 +14,61 @@ interface ChatInputProps {
 }
 
 export function ChatInput({ onSend, sending }: ChatInputProps) {
-  const [text, setText] = useState('');
+  const inputRef = useRef<TextInput>(null);
+  // Ref para el texto real — siempre en sync con la capa nativa, sin lag de autocorrect
+  const textRef = useRef('');
+  // Estado mínimo solo para habilitar/colorear el botón de enviar
+  const [hasText, setHasText] = useState(false);
+  // Guard para ignorar el onChangeText que iOS dispara al hacer commit del autocorrect
+  // justo después de clear() — se libera en el siguiente frame de animación.
+  const ignoringRef = useRef(false);
+
+  const handleChangeText = (value: string) => {
+    if (ignoringRef.current) return;
+    textRef.current = value;
+    setHasText(value.trim().length > 0);
+  };
 
   const handleSend = () => {
-    if (!text.trim() || sending) return;
-    onSend(text);
-    setText('');
+    const message = textRef.current.trim();
+    if (!message || sending) return;
+    ignoringRef.current = true;
+    inputRef.current?.clear();
+    textRef.current = '';
+    setHasText(false);
+    onSend(message);
+    // Liberar el guard después de que iOS haya tenido oportunidad de disparar
+    // cualquier onChangeText pendiente del autocorrect.
+    requestAnimationFrame(() => {
+      ignoringRef.current = false;
+    });
   };
 
   return (
     <View className="flex-row items-end gap-2 px-4 py-2.5 bg-white border-t border-neutral-100">
       <TextInput
+        ref={inputRef}
         className="flex-1 bg-neutral-100 rounded-2xl px-4 py-2.5 text-base text-neutral-900 max-h-24"
         placeholder="Escribe un mensaje..."
         placeholderTextColor={Colors.neutral[400]}
         multiline
-        value={text}
-        onChangeText={setText}
+        onChangeText={handleChangeText}
         onSubmitEditing={handleSend}
         blurOnSubmit={false}
         editable={!sending}
       />
       <TouchableOpacity
         onPress={handleSend}
-        disabled={!text.trim() || sending}
+        disabled={!hasText || sending}
         className="w-10 h-10 rounded-full items-center justify-center"
         style={{
-          backgroundColor: text.trim() ? Colors.primary[500] : Colors.neutral[200],
+          backgroundColor: hasText ? Colors.primary[500] : Colors.neutral[200],
         }}
       >
         {sending ? (
           <ActivityIndicator size="small" color="#fff" />
         ) : (
-          <Send size={18} color={text.trim() ? '#fff' : Colors.neutral[400]} />
+          <Send size={18} color={hasText ? '#fff' : Colors.neutral[400]} />
         )}
       </TouchableOpacity>
     </View>

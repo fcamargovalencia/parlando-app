@@ -1,19 +1,25 @@
 import { useCallback, useReducer, useRef } from 'react';
 import { useFocusEffect } from 'expo-router';
 import { chatApi } from '@/api/chat';
+import { bookingsApi } from '@/api/bookings';
 import { tripsApi } from '@/api/trips';
 import { chatWs } from '@/lib/chat-ws';
 import { useAuthStore } from '@/stores/auth-store';
 import { extractApiError } from '@/lib/utils';
-import type { ChatMessageResponse, TripResponse, WsInboundFrame } from '@/types/api';
+import type { BookingResponse, ChatMessageResponse, TripResponse, WsInboundFrame } from '@/types/api';
 
 // ── State ──
 
 interface ChatState {
   messages: ChatMessageResponse[];
   trip: TripResponse | null;
+  /** Reserva propia (vista pasajero) */
+  myBooking: BookingResponse | null;
+  /** Reserva de la contraparte (vista conductor) */
+  counterpartBooking: BookingResponse | null;
   loading: boolean;
   sending: boolean;
+  bookingActionLoading: boolean;
   error: string | null;
 }
 
@@ -25,7 +31,12 @@ type ChatAction =
   | { type: 'SEND_START'; }
   | { type: 'SEND_SUCCESS'; message: ChatMessageResponse; }
   | { type: 'SEND_ERROR'; error: string; }
-  | { type: 'SET_TRIP'; trip: TripResponse; };
+  | { type: 'WS_MESSAGE'; message: ChatMessageResponse; }
+  | { type: 'SET_TRIP'; trip: TripResponse; }
+  | { type: 'SET_MY_BOOKING'; booking: BookingResponse | null; }
+  | { type: 'SET_COUNTERPART_BOOKING'; booking: BookingResponse | null; }
+  | { type: 'BOOKING_ACTION_START'; }
+  | { type: 'BOOKING_ACTION_DONE'; booking: BookingResponse; };
 
 function reducer(state: ChatState, action: ChatAction): ChatState {
   switch (action.type) {
@@ -34,8 +45,6 @@ function reducer(state: ChatState, action: ChatAction): ChatState {
     case 'FETCH_START':
       return { ...state, loading: true, error: null };
     case 'FETCH_SUCCESS':
-      // Mantener la referencia del array cuando no hay cambios para que
-      // FlatList/FlashList omita el re-render completo en cada tick.
       if (
         state.messages.length === action.messages.length &&
         state.messages.at(-1)?.id === action.messages.at(-1)?.id
@@ -49,14 +58,23 @@ function reducer(state: ChatState, action: ChatAction): ChatState {
       return { ...state, loading: false, error: action.error };
     case 'SEND_START':
       return { ...state, sending: true };
-    case 'SEND_SUCCESS': {
-      const updated = [...state.messages, action.message];
-      return { ...state, sending: false, messages: updated };
-    }
+    case 'SEND_SUCCESS':
+      return { ...state, sending: false, messages: [...state.messages, action.message] };
     case 'SEND_ERROR':
       return { ...state, sending: false, error: action.error };
+    case 'WS_MESSAGE':
+      if (state.messages.some((m) => m.id === action.message.id)) return state;
+      return { ...state, messages: [...state.messages, action.message] };
     case 'SET_TRIP':
       return { ...state, trip: action.trip };
+    case 'SET_MY_BOOKING':
+      return { ...state, myBooking: action.booking };
+    case 'SET_COUNTERPART_BOOKING':
+      return { ...state, counterpartBooking: action.booking };
+    case 'BOOKING_ACTION_START':
+      return { ...state, bookingActionLoading: true };
+    case 'BOOKING_ACTION_DONE':
+      return { ...state, bookingActionLoading: false, counterpartBooking: action.booking };
     default:
       return state;
   }
@@ -65,8 +83,11 @@ function reducer(state: ChatState, action: ChatAction): ChatState {
 const initial: ChatState = {
   messages: [],
   trip: null,
+  myBooking: null,
+  counterpartBooking: null,
   loading: true,
   sending: false,
+  bookingActionLoading: false,
   error: null,
 };
 
@@ -75,111 +96,120 @@ const initial: ChatState = {
 export function useChat(tripId: string, otherUserId: string) {
   const [state, dispatch] = useReducer(reducer, initial);
   const currentUserId = useAuthStore((s) => s.user?.id);
-  // Espejo del array de mensajes para que los callbacks de WS lean siempre
-  // la versión más reciente sin capturar referencias obsoletas.
-  const messagesRef = useRef<ChatMessageResponse[]>(state.messages);
+  const processedWsIds = useRef(new Set<string>());
 
   const load = useCallback(async () => {
     dispatch({ type: 'FETCH_START' });
+
+    // Mensajes
     try {
       const res = await chatApi.getMessages(tripId, otherUserId);
-      const loaded = res.data.data ?? [];
-      messagesRef.current = loaded;
-      dispatch({ type: 'FETCH_SUCCESS', messages: loaded });
+      dispatch({ type: 'FETCH_SUCCESS', messages: res.data.data ?? [] });
       chatApi.markAsRead(tripId, otherUserId).catch(() => { });
     } catch (e) {
       const status = (e as any)?.response?.status;
-      // 403/404 = sin reserva aún — tratar como conversación vacía
       if (status === 403 || status === 404) {
         dispatch({ type: 'FETCH_SUCCESS', messages: [] });
       } else {
-        dispatch({
-          type: 'FETCH_ERROR',
-          error: extractApiError(e, 'Error al cargar mensajes'),
-        });
+        dispatch({ type: 'FETCH_ERROR', error: extractApiError(e, 'Error al cargar mensajes') });
       }
     }
 
-    // Cargar datos del viaje de forma independiente
+    // Viaje + reservas en paralelo (no bloquean la carga de mensajes)
+    const [tripRes, myBookingRes, counterpartRes] = await Promise.allSettled([
+      tripsApi.getDetails(tripId).catch(() => tripsApi.getById(tripId)),
+      currentUserId
+        ? bookingsApi.getByTripAndUser(tripId, currentUserId)
+        : Promise.reject('no user'),
+      bookingsApi.getByTripAndUser(tripId, otherUserId),
+    ]);
+
+    if (tripRes.status === 'fulfilled' && tripRes.value.data.data) {
+      dispatch({ type: 'SET_TRIP', trip: tripRes.value.data.data });
+    }
+
+    dispatch({
+      type: 'SET_MY_BOOKING',
+      booking: myBookingRes.status === 'fulfilled'
+        ? (myBookingRes.value.data.data ?? null)
+        : null,
+    });
+
+    dispatch({
+      type: 'SET_COUNTERPART_BOOKING',
+      booking: counterpartRes.status === 'fulfilled'
+        ? (counterpartRes.value.data.data ?? null)
+        : null,
+    });
+  }, [tripId, otherUserId, currentUserId]);
+
+  const sendMessage = useCallback(async (content: string) => {
+    if (!content.trim()) return;
+    dispatch({ type: 'SEND_START' });
     try {
-      const tripRes = await tripsApi.getDetails(tripId);
-      if (tripRes.data.data) {
-        dispatch({ type: 'SET_TRIP', trip: tripRes.data.data });
-      }
-    } catch {
-      try {
-        const tripRes = await tripsApi.getById(tripId);
-        if (tripRes.data.data) {
-          dispatch({ type: 'SET_TRIP', trip: tripRes.data.data });
-        }
-      } catch {
-        // La info del viaje es opcional — no bloquear el chat
-      }
+      const res = await chatApi.sendMessage({
+        content: content.trim(),
+        recipientId: otherUserId,
+        tripId,
+        messageType: 'TEXT',
+      });
+      if (res.data.data) dispatch({ type: 'SEND_SUCCESS', message: res.data.data });
+    } catch (e) {
+      dispatch({ type: 'SEND_ERROR', error: extractApiError(e, 'Error al enviar mensaje') });
     }
   }, [tripId, otherUserId]);
 
-  const sendMessage = useCallback(
-    async (content: string) => {
-      if (!content.trim()) return;
-      dispatch({ type: 'SEND_START' });
-      try {
-        const res = await chatApi.sendMessage({
-          content: content.trim(),
-          recipientId: otherUserId,
-          tripId,
-          messageType: 'TEXT',
-        });
-        if (res.data.data) {
-          messagesRef.current = [...messagesRef.current, res.data.data];
-          dispatch({ type: 'SEND_SUCCESS', message: res.data.data });
-        }
-      } catch (e) {
-        dispatch({
-          type: 'SEND_ERROR',
-          error: extractApiError(e, 'Error al enviar mensaje'),
-        });
-      }
-    },
-    [tripId, otherUserId],
-  );
+  const acceptBooking = useCallback(async (bookingId: string) => {
+    dispatch({ type: 'BOOKING_ACTION_START' });
+    try {
+      const res = await bookingsApi.accept(bookingId);
+      if (res.data.data) dispatch({ type: 'BOOKING_ACTION_DONE', booking: res.data.data });
+    } catch {
+      dispatch({ type: 'BOOKING_ACTION_DONE', booking: state.counterpartBooking! });
+    }
+  }, [state.counterpartBooking]);
 
-  // Carga inicial y suscripción WS al enfocar la pantalla
+  const rejectBooking = useCallback(async (bookingId: string) => {
+    dispatch({ type: 'BOOKING_ACTION_START' });
+    try {
+      const res = await bookingsApi.reject(bookingId);
+      if (res.data.data) dispatch({ type: 'BOOKING_ACTION_DONE', booking: res.data.data });
+    } catch {
+      dispatch({ type: 'BOOKING_ACTION_DONE', booking: state.counterpartBooking! });
+    }
+  }, [state.counterpartBooking]);
+
   useFocusEffect(
     useCallback(() => {
       dispatch({ type: 'RESET' });
+      processedWsIds.current.clear();
       load();
 
       const onWsMessage = (frame: WsInboundFrame) => {
         if (frame.type !== 'MESSAGE') return;
-        // Solo procesar mensajes de esta conversación
-        if (frame.tripId !== tripId) return;
-        if (frame.senderId !== otherUserId && frame.senderId !== currentUserId) return;
+        if (String(frame.tripId) !== String(tripId)) return;
+        if (frame.senderId !== undefined && frame.senderId !== otherUserId) return;
+        if (frame.id && processedWsIds.current.has(frame.id)) return;
+        if (frame.id) processedWsIds.current.add(frame.id);
 
-        const incoming: ChatMessageResponse = {
-          id: frame.id!,
-          tripId: frame.tripId!,
-          senderId: frame.senderId!,
-          recipientId: frame.senderId === currentUserId ? otherUserId : currentUserId!,
-          content: frame.content!,
-          messageType: frame.messageType ?? 'TEXT',
-          sentAt: frame.sentAt!,
-          readAt: null,
-        };
-
-        // Evitar duplicados (el propio usuario ya ve su mensaje via SEND_SUCCESS)
-        if (messagesRef.current.some((m) => m.id === incoming.id)) return;
-
-        const updated = [...messagesRef.current, incoming];
-        messagesRef.current = updated;
-        dispatch({ type: 'FETCH_SUCCESS', messages: updated });
+        dispatch({
+          type: 'WS_MESSAGE',
+          message: {
+            id: frame.id ?? `ws-${tripId}-${frame.sentAt ?? Date.now()}`,
+            tripId: String(frame.tripId),
+            senderId: frame.senderId ?? '',
+            recipientId: currentUserId ?? '',
+            content: frame.content ?? '',
+            messageType: frame.messageType ?? 'TEXT',
+            sentAt: frame.sentAt ?? new Date().toISOString(),
+            readAt: null,
+          },
+        });
         chatApi.markAsRead(tripId, otherUserId).catch(() => { });
       };
 
       chatWs.on('message', onWsMessage);
-
-      return () => {
-        chatWs.off('message', onWsMessage);
-      };
+      return () => { chatWs.off('message', onWsMessage); };
     }, [load, tripId, otherUserId, currentUserId]),
   );
 
@@ -188,5 +218,7 @@ export function useChat(tripId: string, otherUserId: string) {
     currentUserId,
     load,
     sendMessage,
+    acceptBooking,
+    rejectBooking,
   };
 }
