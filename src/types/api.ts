@@ -427,6 +427,34 @@ export interface ConversationResponse {
   unreadCount: number;
 }
 
+// ── WebSocket ──
+
+export type WsFrameType = 'SUBSCRIBE' | 'SEND' | 'PING' | 'MESSAGE' | 'ERROR' | 'PONG';
+
+export interface WsInboundFrame {
+  type: WsFrameType;
+  // MESSAGE
+  id?: string;
+  tripId?: string;
+  senderId?: string;
+  content?: string;
+  messageType?: MessageType;
+  sentAt?: string;
+  // ERROR
+  message?: string;
+}
+
+export interface WsOutboundFrame {
+  type: WsFrameType;
+  // SUBSCRIBE
+  userId?: string;
+  // SEND
+  tripId?: string;
+  recipientId?: string;
+  content?: string;
+  messageType?: MessageType;
+}
+
 // ── Ratings ──
 
 export interface CreateRatingRequest {

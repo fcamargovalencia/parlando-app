@@ -8,12 +8,14 @@ import * as SplashScreen from 'expo-splash-screen';
 import * as NavigationBar from 'expo-navigation-bar';
 import Toast from 'react-native-toast-message';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { useChatWebSocket } from '@/hooks/useChatWebSocket';
 
 SplashScreen.preventAutoHideAsync();
 
 
 export default function RootLayout() {
   const [fontsLoaded, setFontsLoaded] = useState(false);
+  useChatWebSocket();
 
   useEffect(() => {
     (async () => {

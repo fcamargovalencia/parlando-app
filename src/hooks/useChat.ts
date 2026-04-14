@@ -2,9 +2,10 @@ import { useCallback, useReducer, useRef } from 'react';
 import { useFocusEffect } from 'expo-router';
 import { chatApi } from '@/api/chat';
 import { tripsApi } from '@/api/trips';
+import { chatWs } from '@/lib/chat-ws';
 import { useAuthStore } from '@/stores/auth-store';
 import { extractApiError } from '@/lib/utils';
-import type { ChatMessageResponse, TripResponse } from '@/types/api';
+import type { ChatMessageResponse, TripResponse, WsInboundFrame } from '@/types/api';
 
 // ── State ──
 
@@ -33,8 +34,8 @@ function reducer(state: ChatState, action: ChatAction): ChatState {
     case 'FETCH_START':
       return { ...state, loading: true, error: null };
     case 'FETCH_SUCCESS':
-      // Keep the existing array reference when nothing has changed so that
-      // FlatList/FlashList skips a full re-render on every poll tick.
+      // Mantener la referencia del array cuando no hay cambios para que
+      // FlatList/FlashList omita el re-render completo en cada tick.
       if (
         state.messages.length === action.messages.length &&
         state.messages.at(-1)?.id === action.messages.at(-1)?.id
@@ -74,9 +75,8 @@ const initial: ChatState = {
 export function useChat(tripId: string, otherUserId: string) {
   const [state, dispatch] = useReducer(reducer, initial);
   const currentUserId = useAuthStore((s) => s.user?.id);
-  const pollRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  // Mirrors the latest messages array so the polling closure can compare
-  // without capturing a stale reference from the initial render.
+  // Espejo del array de mensajes para que los callbacks de WS lean siempre
+  // la versión más reciente sin capturar referencias obsoletas.
   const messagesRef = useRef<ChatMessageResponse[]>(state.messages);
 
   const load = useCallback(async () => {
@@ -89,7 +89,7 @@ export function useChat(tripId: string, otherUserId: string) {
       chatApi.markAsRead(tripId, otherUserId).catch(() => { });
     } catch (e) {
       const status = (e as any)?.response?.status;
-      // 403/404 = no booking yet — treat as empty conversation, not an error
+      // 403/404 = sin reserva aún — tratar como conversación vacía
       if (status === 403 || status === 404) {
         dispatch({ type: 'FETCH_SUCCESS', messages: [] });
       } else {
@@ -100,7 +100,7 @@ export function useChat(tripId: string, otherUserId: string) {
       }
     }
 
-    // Load trip data independently — try /details first, fallback to /getById
+    // Cargar datos del viaje de forma independiente
     try {
       const tripRes = await tripsApi.getDetails(tripId);
       if (tripRes.data.data) {
@@ -113,7 +113,7 @@ export function useChat(tripId: string, otherUserId: string) {
           dispatch({ type: 'SET_TRIP', trip: tripRes.data.data });
         }
       } catch {
-        // Trip info is optional — don't block the chat
+        // La info del viaje es opcional — no bloquear el chat
       }
     }
   }, [tripId, otherUserId]);
@@ -143,37 +143,44 @@ export function useChat(tripId: string, otherUserId: string) {
     [tripId, otherUserId],
   );
 
-  // Reload on screen focus & start polling
+  // Carga inicial y suscripción WS al enfocar la pantalla
   useFocusEffect(
     useCallback(() => {
       dispatch({ type: 'RESET' });
       load();
 
-      pollRef.current = setInterval(async () => {
-        try {
-          const res = await chatApi.getMessages(tripId, otherUserId);
-          const incoming = res.data.data;
-          if (!incoming) return;
-          // Skip dispatch (and FlatList re-render) when nothing has changed.
-          const current = messagesRef.current;
-          const hasNew =
-            incoming.length !== current.length ||
-            incoming.at(-1)?.id !== current.at(-1)?.id;
-          if (hasNew) {
-            messagesRef.current = incoming;
-            dispatch({ type: 'FETCH_SUCCESS', messages: incoming });
-            chatApi.markAsRead(tripId, otherUserId).catch(() => { });
-          }
-        } catch {
-          // Silent fail on poll
-        }
-      }, 5000);
+      const onWsMessage = (frame: WsInboundFrame) => {
+        if (frame.type !== 'MESSAGE') return;
+        // Solo procesar mensajes de esta conversación
+        if (frame.tripId !== tripId) return;
+        if (frame.senderId !== otherUserId && frame.senderId !== currentUserId) return;
+
+        const incoming: ChatMessageResponse = {
+          id: frame.id!,
+          tripId: frame.tripId!,
+          senderId: frame.senderId!,
+          recipientId: frame.senderId === currentUserId ? otherUserId : currentUserId!,
+          content: frame.content!,
+          messageType: frame.messageType ?? 'TEXT',
+          sentAt: frame.sentAt!,
+          readAt: null,
+        };
+
+        // Evitar duplicados (el propio usuario ya ve su mensaje via SEND_SUCCESS)
+        if (messagesRef.current.some((m) => m.id === incoming.id)) return;
+
+        const updated = [...messagesRef.current, incoming];
+        messagesRef.current = updated;
+        dispatch({ type: 'FETCH_SUCCESS', messages: updated });
+        chatApi.markAsRead(tripId, otherUserId).catch(() => { });
+      };
+
+      chatWs.on('message', onWsMessage);
 
       return () => {
-        if (pollRef.current) clearInterval(pollRef.current);
-        pollRef.current = null;
+        chatWs.off('message', onWsMessage);
       };
-    }, [load]),
+    }, [load, tripId, otherUserId, currentUserId]),
   );
 
   return {

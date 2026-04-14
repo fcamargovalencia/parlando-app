@@ -6,6 +6,11 @@ export const Config = {
   TOMTOM_API_KEY: process.env.EXPO_PUBLIC_TOMTOM_API_KEY ?? '',
 } as const;
 
+// Deriva automáticamente wss:// o ws:// desde API_URL
+export const WS_BASE_URL = Config.API_URL
+  .replace(/^https:\/\//, 'wss://')
+  .replace(/^http:\/\//, 'ws://');
+
 export const APP = {
   NAME: 'ParlAndo',
   VERSION: '1.0.0',
