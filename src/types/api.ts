@@ -117,6 +117,28 @@ export interface UpdateProfileRequest {
   profilePhotoUrl?: string;
 }
 
+export interface EmergencyContactResponse {
+  id: string;
+  name: string;
+  phone: string;
+  relationship: string;
+  notifyOnTrip: boolean;
+}
+
+export interface CreateEmergencyContactRequest {
+  name: string;
+  phone: string;
+  relationship: string;
+  notifyOnTrip: boolean;
+}
+
+export interface UpdateEmergencyContactRequest {
+  name?: string;
+  phone?: string;
+  relationship?: string;
+  notifyOnTrip?: boolean;
+}
+
 // ── Vehicle ──
 
 export interface VehicleResponse {
