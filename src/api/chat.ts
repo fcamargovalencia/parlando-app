@@ -25,4 +25,7 @@ export const chatApi = {
 
   getUnreadCount: () =>
     api.get<ApiResponse<number>>('/v1/chat/unread-count'),
+
+  getWsTicket: () =>
+    api.post<ApiResponse<string>>('/v1/chat/ws-ticket'),
 };

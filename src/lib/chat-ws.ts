@@ -1,3 +1,4 @@
+import { chatApi } from '@/api/chat';
 import { WS_BASE_URL } from '@/constants/config';
 import type { WsInboundFrame, WsOutboundFrame } from '@/types/api';
 
@@ -18,7 +19,6 @@ const RECONNECT_MAX_ATTEMPTS = 10;
 class ChatWebSocketService {
   private ws: WebSocket | null = null;
   private userId: string | null = null;
-  private token: string | null = null;
   private listeners = new Map<WsEvent, Set<WsCallback<any>>>();
   private pingTimer: ReturnType<typeof setInterval> | null = null;
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
@@ -27,13 +27,11 @@ class ChatWebSocketService {
 
   // ── API pública ──
 
-  connect(token: string, userId: string): void {
-    // Guardar también contra CONNECTING para no abrir una segunda conexión paralela
+  connect(userId: string): void {
     if (
       this.ws?.readyState === WebSocket.OPEN ||
       this.ws?.readyState === WebSocket.CONNECTING
     ) return;
-    this.token = token;
     this.userId = userId;
     this.intentionalClose = false;
     this.reconnectAttempts = 0;
@@ -75,9 +73,7 @@ class ChatWebSocketService {
     this.listeners.get(event)?.forEach((cb) => cb(data));
   }
 
-  private open(): void {
-    // Anular handlers de la conexión anterior antes de reemplazarla,
-    // para que sus eventos no lleguen a la nueva instancia.
+  private async open(): Promise<void> {
     if (this.ws) {
       this.ws.onopen = null;
       this.ws.onmessage = null;
@@ -85,7 +81,18 @@ class ChatWebSocketService {
       this.ws.onclose = null;
       this.ws.close();
     }
-    const url = `${WS_BASE_URL}/ws/chat?token=${encodeURIComponent(this.token!)}`;
+
+    let ticket: string;
+    try {
+      const res = await chatApi.getWsTicket();
+      ticket = res.data.data!;
+    } catch {
+      this.emit('error', { type: 'ERROR', message: 'Failed to get WS ticket' } as WsInboundFrame);
+      if (!this.intentionalClose) this.scheduleReconnect();
+      return;
+    }
+
+    const url = `${WS_BASE_URL}/ws/chat?ticket=${encodeURIComponent(ticket)}`;
     this.ws = new WebSocket(url);
 
     this.ws.onopen = () => {

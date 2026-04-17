@@ -26,12 +26,12 @@ export function useChatWebSocket() {
 
     chatWs.on('connected', onConnected);
     chatWs.on('disconnected', onDisconnected);
-    chatWs.connect(accessToken, userId);
+    chatWs.connect(userId);
 
     // Reconectar cuando la app vuelve al primer plano
     const appStateSub = AppState.addEventListener('change', (nextState) => {
       if (nextState === 'active' && !chatWs.isConnected && accessToken) {
-        chatWs.connect(accessToken, userId);
+        chatWs.connect(userId);
       }
     });
 
