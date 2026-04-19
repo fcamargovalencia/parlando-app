@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, TouchableOpacity } from 'react-native';
-import { ArrowLeft, Star, Circle, MapPin } from 'lucide-react-native';
+import { ArrowLeft, Star } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Avatar } from '@/components/ui';
 import { Colors, Shadows } from '@/constants/colors';
@@ -32,9 +32,9 @@ export function ChatHeader({
       <View className="flex-row items-center gap-3">
         <TouchableOpacity
           onPress={onBack}
-          className="w-9 h-9 items-center justify-center"
+          className="w-9 h-9 rounded-full bg-neutral-100 items-center justify-center"
         >
-          <ArrowLeft size={24} color={Colors.neutral[700]} />
+          <ArrowLeft size={20} color={Colors.neutral[700]} />
         </TouchableOpacity>
 
         <Avatar
@@ -45,39 +45,34 @@ export function ChatHeader({
         />
 
         <View className="flex-1">
-          <View className="flex-row items-center gap-1.5">
-            <Text
-              className="text-base font-semibold text-neutral-900"
-              numberOfLines={1}
-            >
-              {firstName} {lastName}
-            </Text>
+          <Text className="text-base font-semibold text-neutral-900" numberOfLines={1}>
+            {firstName} {lastName}
+          </Text>
+
+          <View className="flex-row items-center gap-1 mt-0.5 flex-wrap">
             {trustScore != null && (
-              <View className="flex-row items-center gap-0.5 ml-1">
-                <Star size={13} color={Colors.accent[500]} fill={Colors.accent[500]} />
-                <Text className="text-xs font-medium text-neutral-600">
+              <>
+                <Star size={12} color={Colors.accent[500]} fill={Colors.accent[500]} />
+                <Text className="text-xs font-medium text-neutral-500">
                   {trustScore.toFixed(1)}
                 </Text>
-              </View>
+                {trip && <Text className="text-xs text-neutral-300 mx-0.5">·</Text>}
+              </>
             )}
+            {trip && (() => {
+              const origin = (trip.originSubtitle || trip.originName).split(',')[0].trim();
+              const dest = (trip.destinationSubtitle || trip.destinationName).split(',')[0].trim();
+              return (
+                <>
+                  <Text className="text-xs font-bold" style={{ color: Colors.primary[500] }}>●</Text>
+                  <Text className="text-xs text-neutral-500">{origin}</Text>
+                  <Text className="text-xs text-neutral-400 mx-0.5">→</Text>
+                  <Text className="text-xs font-bold" style={{ color: Colors.accent[500] }}>●</Text>
+                  <Text className="text-xs text-neutral-500">{dest}</Text>
+                </>
+              );
+            })()}
           </View>
-
-          {trip && (
-            <View className="gap-0.5 mt-0.5">
-              <View className="flex-row items-center gap-1">
-                <Circle size={8} color={Colors.semantic.success} fill={Colors.semantic.success} />
-                <Text className="text-xs text-neutral-500" numberOfLines={1}>
-                  {trip.originSubtitle || trip.originName}
-                </Text>
-              </View>
-              <View className="flex-row items-center gap-1">
-                <MapPin size={8} color={Colors.semantic.error} />
-                <Text className="text-xs text-neutral-500" numberOfLines={1}>
-                  {trip.destinationSubtitle || trip.destinationName}
-                </Text>
-              </View>
-            </View>
-          )}
         </View>
       </View>
     </View>

@@ -145,6 +145,20 @@ export default function ChatScreen() {
         onBack={() => router.back()}
       />
 
+      {/* Booking bar — fijo entre header y mensajes */}
+      {trip && !isHistoricalChat && (
+        <ChatBookingBar
+          isDriver={isDriver}
+          trip={trip}
+          myBooking={myBooking}
+          counterpartBooking={counterpartBooking}
+          actionLoading={bookingActionLoading}
+          onReserve={() => setBookVisible(true)}
+          onAccept={acceptBooking}
+          onReject={rejectBooking}
+        />
+      )}
+
       <KeyboardAvoidingView
         className="flex-1"
         behavior={isAndroid ? undefined : 'padding'}
@@ -187,20 +201,8 @@ export default function ChatScreen() {
           />
         )}
 
-        {/* Book trip CTA + input */}
+        {/* Input o aviso histórico */}
         <View className="bg-white" style={{ paddingBottom: bottomPadding }}>
-          {trip && !isHistoricalChat && (
-            <ChatBookingBar
-              isDriver={isDriver}
-              trip={trip}
-              myBooking={myBooking}
-              counterpartBooking={counterpartBooking}
-              actionLoading={bookingActionLoading}
-              onReserve={() => setBookVisible(true)}
-              onAccept={acceptBooking}
-              onReject={rejectBooking}
-            />
-          )}
           {isHistoricalChat ? (
             <View className="px-4 pt-3 pb-2 border-t border-neutral-100">
               <View

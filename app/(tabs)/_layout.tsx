@@ -1,9 +1,41 @@
 import React from 'react';
-import { Platform } from 'react-native';
+import { Platform, TouchableOpacity, View, Text } from 'react-native';
 import { Tabs } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Route, PlusCircle, User, Search, MessageCircle } from 'lucide-react-native';
+import { Route, Plus, User, Search, MessageCircle } from 'lucide-react-native';
 import { Colors } from '@/constants/colors';
+
+function PublishFABButton({ onPress }: { onPress?: () => void }) {
+  return (
+    <TouchableOpacity
+      onPress={onPress}
+      activeOpacity={0.85}
+      style={{ flex: 1, alignItems: 'center', justifyContent: 'flex-end', paddingBottom: 6 }}
+    >
+      <View
+        style={{
+          width: 48,
+          height: 48,
+          borderRadius: 24,
+          backgroundColor: Colors.primary[500],
+          alignItems: 'center',
+          justifyContent: 'center',
+          marginTop: -8,
+          shadowColor: Colors.primary[500],
+          shadowOffset: { width: 0, height: 4 },
+          shadowOpacity: 0.35,
+          shadowRadius: 8,
+          elevation: 6,
+        }}
+      >
+        <Plus size={24} color="#FFFFFF" strokeWidth={2.5} />
+      </View>
+      <Text style={{ fontSize: 11, fontWeight: '600', color: Colors.neutral[500], marginTop: 3 }}>
+        Publicar
+      </Text>
+    </TouchableOpacity>
+  );
+}
 
 export default function TabsLayout() {
   const insets = useSafeAreaInsets();
@@ -13,7 +45,7 @@ export default function TabsLayout() {
     <Tabs
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: Colors.primary[600],
+        tabBarActiveTintColor: Colors.primary[500],
         tabBarInactiveTintColor: Colors.neutral[400],
         tabBarStyle: {
           backgroundColor: '#FFFFFF',
@@ -33,31 +65,33 @@ export default function TabsLayout() {
         name="home"
         options={{
           title: 'Buscar',
-          tabBarIcon: ({ color, size }) => <Search size={size} color={color} />,
+          tabBarIcon: ({ color, size, focused }) => (
+            <Search size={size} color={color} strokeWidth={focused ? 2.5 : 2} />
+          ),
         }}
       />
       <Tabs.Screen
         name="my-trips"
         options={{
           title: 'Mis viajes',
-          tabBarIcon: ({ color, size }) => <Route size={size} color={color} />,
+          tabBarIcon: ({ color, size, focused }) => (
+            <Route size={size} color={color} strokeWidth={focused ? 2.5 : 2} />
+          ),
         }}
       />
       <Tabs.Screen
         name="publish"
         options={{
           title: 'Publicar',
-          tabBarIcon: ({ color, size }) => (
-            <PlusCircle size={size + 4} color={Colors.primary[500]} />
-          ),
+          tabBarButton: (props) => <PublishFABButton onPress={props.onPress ?? undefined} />,
         }}
       />
       <Tabs.Screen
         name="messages"
         options={{
           title: 'Mensajes',
-          tabBarIcon: ({ color, size }) => (
-            <MessageCircle size={size} color={color} />
+          tabBarIcon: ({ color, size, focused }) => (
+            <MessageCircle size={size} color={color} strokeWidth={focused ? 2.5 : 2} />
           ),
         }}
       />
@@ -65,7 +99,9 @@ export default function TabsLayout() {
         name="profile"
         options={{
           title: 'Perfil',
-          tabBarIcon: ({ color, size }) => <User size={size} color={color} />,
+          tabBarIcon: ({ color, size, focused }) => (
+            <User size={size} color={color} strokeWidth={focused ? 2.5 : 2} />
+          ),
         }}
       />
     </Tabs>

@@ -26,7 +26,14 @@ export function ChatBubble({ message, isOwn }: ChatBubbleProps) {
             : 'rounded-2xl rounded-bl-md'
           }`}
         style={{
-          backgroundColor: isOwn ? Colors.primary[500] : Colors.neutral[100],
+          backgroundColor: isOwn ? Colors.primary[500] : '#fff',
+          ...(isOwn ? {} : {
+            shadowColor: '#000',
+            shadowOffset: { width: 0, height: 1 },
+            shadowOpacity: 0.06,
+            shadowRadius: 2,
+            elevation: 1,
+          }),
         }}
       >
         <Text

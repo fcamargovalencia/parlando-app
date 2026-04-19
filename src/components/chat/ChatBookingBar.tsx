@@ -32,9 +32,9 @@ export function ChatBookingBar({
   if (isDriver) {
     if (!counterpartBooking) {
       return (
-        <View className="flex-row items-center gap-2 mx-4 mt-2 mb-1 px-3 py-2.5 rounded-xl bg-neutral-100">
+        <View className="flex-row items-center gap-2 px-4 py-2.5 border-b border-neutral-200 bg-neutral-100">
           <UserX size={15} color={Colors.neutral[400]} />
-          <Text className="text-sm text-neutral-400 flex-1">Sin reserva</Text>
+          <Text className="text-sm text-neutral-400 flex-1">Sin reserva del pasajero</Text>
         </View>
       );
     }
@@ -42,10 +42,13 @@ export function ChatBookingBar({
     const badge = BOOKING_STATUS_BADGE[counterpartBooking.status];
 
     return (
-      <View className="mx-4 mt-2 mb-1">
-        <View className="flex-row items-center gap-2 px-3 py-2 rounded-xl bg-neutral-50 border border-neutral-100">
+      <View
+        className="px-4 py-2.5 border-b border-primary-100"
+        style={{ backgroundColor: Colors.primary[50] }}
+      >
+        <View className="flex-row items-center gap-2">
           <Badge label={badge.label} variant={badge.variant} />
-          <Text className="text-xs text-neutral-500 flex-1">
+          <Text className="text-sm text-neutral-600 flex-1">
             {counterpartBooking.seatsBooked}{' '}
             {counterpartBooking.seatsBooked === 1 ? 'asiento' : 'asientos'}
           </Text>
@@ -82,11 +85,11 @@ export function ChatBookingBar({
     );
   }
 
-  // ── Vista pasajero ──
+  // ── Vista pasajero — sin reserva ──
   if (!myBooking) {
     if (trip.availableSeats <= 0) {
       return (
-        <View className="flex-row items-center gap-2 mx-4 mt-2 mb-1 px-3 py-2.5 rounded-xl bg-neutral-100">
+        <View className="flex-row items-center gap-2 px-4 py-2.5 border-b border-neutral-200 bg-neutral-100">
           <UserX size={15} color={Colors.neutral[400]} />
           <Text className="text-sm text-neutral-400 flex-1">Sin cupos disponibles</Text>
         </View>
@@ -99,23 +102,28 @@ export function ChatBookingBar({
           e.stopPropagation();
           onReserve();
         }}
-        className="flex-row items-center justify-center gap-2 mx-4 mt-2 mb-1 py-2.5 rounded-xl"
-        style={{ backgroundColor: Colors.semantic.infoLight }}
+        activeOpacity={0.8}
+        className="flex-row items-center gap-2 px-4 py-2.5 border-b border-primary-100"
+        style={{ backgroundColor: Colors.primary[50] }}
       >
         <Ticket size={16} color={Colors.semantic.info} />
-        <Text className="text-sm font-semibold" style={{ color: Colors.semantic.info }}>
+        <Text className="text-sm font-semibold flex-1" style={{ color: Colors.semantic.info }}>
           Reservar cupo · {formatCurrency(trip.pricePerSeat, trip.currency)} / asiento
         </Text>
       </TouchableOpacity>
     );
   }
 
+  // ── Vista pasajero — con reserva ──
   const badge = BOOKING_STATUS_BADGE[myBooking.status];
 
   return (
-    <View className="flex-row items-center gap-2 mx-4 mt-2 mb-1 px-3 py-2.5 rounded-xl bg-neutral-50 border border-neutral-100">
+    <View
+      className="flex-row items-center gap-2 px-4 py-2.5 border-b border-primary-100"
+      style={{ backgroundColor: Colors.primary[50] }}
+    >
       <Badge label={badge.label} variant={badge.variant} />
-      <Text className="text-xs text-neutral-500 flex-1">
+      <Text className="text-sm text-neutral-600 flex-1">
         {myBooking.seatsBooked}{' '}
         {myBooking.seatsBooked === 1 ? 'asiento solicitado' : 'asientos solicitados'}
       </Text>

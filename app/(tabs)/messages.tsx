@@ -59,7 +59,7 @@ export default function MessagesScreen() {
             />
           )}
           ItemSeparatorComponent={() => (
-            <View className="h-px bg-neutral-100 ml-16" />
+            <View className="h-px bg-neutral-100" />
           )}
           refreshControl={
             <RefreshControl
