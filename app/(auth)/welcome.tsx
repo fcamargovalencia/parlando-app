@@ -46,9 +46,9 @@ export default function WelcomeScreen() {
       <StatusBar style="light" />
       {/* Full-bleed gradient hero */}
       <LinearGradient
-        colors={['#1a1a1a', '#3a3a3a', '#5a5a5a']}
+        colors={['#1a1a2e', '#005660', '#007380']}
         start={{ x: 0, y: 0 }}
-        end={{ x: 0, y: 1 }}
+        end={{ x: 1, y: 1 }}
         style={[styles.hero, { paddingTop: insets.top + 32 }]}
       >
         <Image
@@ -105,7 +105,7 @@ export default function WelcomeScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#1a1a1a',
+    backgroundColor: '#1a1a2e',
   },
   hero: {
     alignItems: 'center',

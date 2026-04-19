@@ -21,7 +21,7 @@ export default function MessagesScreen() {
         className="px-4 bg-white border-b border-neutral-100"
         style={{ paddingTop: insets.top + 8, paddingBottom: 12, ...Shadows.sm }}
       >
-        <Text className="text-xl font-bold text-neutral-900">Mensajes</Text>
+        <Text className="text-3xl font-bold text-neutral-900">Mensajes</Text>
       </View>
 
       {loading ? (

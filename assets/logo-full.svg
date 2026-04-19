@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="200" height="260" viewBox="0 0 100 130">
+  
+  <path d="M50 4C30.1 4 14 20.1 14 40C14 65 50 104 50 104C50 104 86 65 86 40C86 20.1 69.9 4 50 4Z" fill="#007380"></path>
+  
+  <circle cx="50" cy="38" r="22" fill="white"></circle>
+  
+  <circle cx="43" cy="33" r="7" fill="#007380" opacity=".9"></circle>
+  <path d="M30 52c0-7.2 5.8-13 13-13" stroke="#007380" stroke-width="3" stroke-linecap="round" opacity=".35"></path>
+  
+  <circle cx="57" cy="35" r="5.5" fill="#FF7F60" opacity=".95"></circle>
+  <path d="M48 52c0-6.6 4-11 10-11" stroke="#FF7F60" stroke-width="3" stroke-linecap="round" opacity=".35"></path>
+  
+  <rect x="53" y="24" width="14" height="10" rx="5" fill="#FF7F60"></rect>
+  <path d="M58 34l-2 3 4-1" fill="#FF7F60"></path>
+  
+  <text x="50" y="120" text-anchor="middle" font-family="Roboto, sans-serif" font-size="13" font-weight="700" fill="#007380" letter-spacing="0.3">ParlAndo</text>
+</svg>

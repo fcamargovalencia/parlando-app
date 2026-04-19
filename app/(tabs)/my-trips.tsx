@@ -71,7 +71,7 @@ export default function MyTripsScreen() {
     <Screen edges={['top', 'left', 'right']}>
       {/* Header */}
       <View className="px-6 pt-4 pb-2">
-        <Text className="text-2xl font-bold text-neutral-900">Mis viajes</Text>
+        <Text className="text-3xl font-bold text-neutral-900">Mis viajes</Text>
         <Text className="text-sm text-neutral-500 mt-1">
           Todos tus viajes como conductor o pasajero
         </Text>

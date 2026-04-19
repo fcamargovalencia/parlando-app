@@ -26,7 +26,7 @@ const variantStyles: Record<ButtonVariant, string> = {
 };
 
 const variantTextStyles: Record<ButtonVariant, string> = {
-  primary: 'text-white',
+  primary: 'text-white tracking-wide',
   secondary: 'text-white',
   outline: 'text-primary-700',
   ghost: 'text-primary-700',

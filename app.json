@@ -11,7 +11,7 @@
     "splash": {
       "image": "./assets/parlando-icon.png",
       "resizeMode": "contain",
-      "backgroundColor": "#1a1a1a"
+      "backgroundColor": "#1a1a2e"
     },
     "ios": {
       "supportsTablet": false,
@@ -26,7 +26,7 @@
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#1a1a1a"
+        "backgroundColor": "#007380"
       },
       "package": "com.parlando.app",
       "navigationBarColor": "#FFFFFF",
