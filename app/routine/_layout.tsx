@@ -15,6 +15,8 @@ export default function RoutineLayout() {
     >
       <Stack.Screen name="create" options={{ headerShown: false }} />
       <Stack.Screen name="[id]" options={{ headerShown: false }} />
+      <Stack.Screen name="[id]/subscriptions" options={{ title: 'Suscripciones' }} />
+      <Stack.Screen name="[id]/occurrences" options={{ title: 'Ocurrencias' }} />
     </Stack>
   );
 }
