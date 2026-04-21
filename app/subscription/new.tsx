@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -7,6 +7,7 @@ import {
   TextInput,
   ActivityIndicator,
   KeyboardAvoidingView,
+  Modal,
   Platform,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
@@ -30,6 +31,7 @@ import { RoutePreview } from '@/components/RoutePreview';
 import { Colors } from '@/constants/colors';
 import { formatCurrency } from '@/lib/utils';
 import { useRoutineSubscription } from '@/hooks/useRoutineSubscription';
+import { useStudentVerification } from '@/hooks/useStudentVerification';
 import type { RecurrenceDay } from '@/types/api';
 
 // ── Helpers ──
@@ -72,6 +74,15 @@ export default function NewSubscriptionScreen() {
   const [pickupSelection, setPickupSelection] = useState<PickupSelection | null>(null);
   const [hasEndDate, setHasEndDate] = useState(false);
   const [pickerTarget, setPickerTarget] = useState<PickerTarget | null>(null);
+  const [showVerificationSheet, setShowVerificationSheet] = useState(false);
+
+  const { fetch: fetchVerifications, getForUniversity } = useStudentVerification();
+
+  // Pre-load verifications so the gate sheet can show the right state
+  useEffect(() => {
+    void fetchVerifications();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // ── Date picker values ──
   const today = new Date();
@@ -151,6 +162,16 @@ export default function NewSubscriptionScreen() {
   const globalError = errors.global;
   const isStudentVerificationRequired = globalError === 'STUDENT_VERIFICATION_REQUIRED';
   const isDuplicate = globalError === 'DUPLICATE_SUBSCRIPTION';
+
+  // Open the verification sheet whenever the 403 gate is hit
+  useEffect(() => {
+    if (isStudentVerificationRequired) setShowVerificationSheet(true);
+  }, [isStudentVerificationRequired]);
+
+  const universityId = routineTrip?.universityId;
+  const existingVerification = universityId ? getForUniversity(universityId) : undefined;
+  const hasPendingVerification = existingVerification?.status === 'PENDING';
+  const universityName = routineTrip?.destinationName ?? 'esta universidad';
 
   // ── Loading / Error states ──
   if (isLoading) {
@@ -435,24 +456,17 @@ export default function NewSubscriptionScreen() {
 
         {/* ── Error banners ── */}
         {isStudentVerificationRequired && (
-          <View className="mx-4 mt-4 bg-red-50 border border-red-200 rounded-2xl p-4 gap-2">
-            <View className="flex-row items-center gap-2">
-              <ShieldAlert size={18} color={Colors.semantic.error} />
+          <TouchableOpacity
+            onPress={() => setShowVerificationSheet(true)}
+            activeOpacity={0.8}
+            className="mx-4 mt-4 bg-red-50 border border-red-200 rounded-2xl p-4 flex-row items-center gap-3"
+          >
+            <ShieldAlert size={20} color={Colors.semantic.error} />
+            <View className="flex-1">
               <Text className="text-sm font-bold text-red-700">Verificación estudiantil requerida</Text>
+              <Text className="text-xs text-red-500 mt-0.5">Toca para ver opciones →</Text>
             </View>
-            <Text className="text-xs text-red-600 leading-4">
-              Esta ruta es solo para estudiantes verificados. Debes verificar tu condición estudiantil
-              para solicitar esta suscripción.
-            </Text>
-            <TouchableOpacity
-              onPress={() => router.push('/verification')}
-              className="mt-1 self-start"
-            >
-              <Text className="text-xs font-bold text-red-700 underline">
-                Verificar estado estudiantil →
-              </Text>
-            </TouchableOpacity>
-          </View>
+          </TouchableOpacity>
         )}
 
         {isDuplicate && (
@@ -526,6 +540,89 @@ export default function NewSubscriptionScreen() {
         onConfirm={handlePickerConfirm}
         onCancel={() => setPickerTarget(null)}
       />
+
+      {/* ── Student verification gate BottomSheet ── */}
+      <Modal
+        visible={showVerificationSheet}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setShowVerificationSheet(false)}
+      >
+        <TouchableOpacity
+          style={{ flex: 1, backgroundColor: Colors.overlay }}
+          activeOpacity={1}
+          onPress={() => setShowVerificationSheet(false)}
+        />
+        <View
+          style={{
+            backgroundColor: Colors.white,
+            borderTopLeftRadius: 24,
+            borderTopRightRadius: 24,
+            paddingBottom: insets.bottom + 24,
+            paddingHorizontal: 20,
+            paddingTop: 20,
+          }}
+        >
+          {/* Drag handle */}
+          <View className="w-10 h-1 rounded-full bg-neutral-200 self-center mb-5" />
+
+          {/* Icon + title */}
+          <View className="flex-row items-center gap-3 mb-4">
+            <View className="w-12 h-12 rounded-2xl bg-red-50 items-center justify-center">
+              <ShieldAlert size={24} color={Colors.semantic.error} />
+            </View>
+            <View className="flex-1">
+              <Text className="text-base font-bold text-neutral-900">
+                Verificación estudiantil requerida
+              </Text>
+              <Text className="text-xs text-neutral-500 mt-0.5" numberOfLines={2}>
+                Esta ruta es exclusiva para estudiantes verificados de {universityName}
+              </Text>
+            </View>
+          </View>
+
+          {hasPendingVerification ? (
+            <View className="bg-yellow-50 border border-yellow-200 rounded-2xl p-4 mb-4">
+              <View className="flex-row items-center gap-2 mb-1">
+                <Clock size={16} color={Colors.semantic.warning} />
+                <Text className="text-sm font-semibold text-yellow-800">En revisión</Text>
+              </View>
+              <Text className="text-xs text-yellow-700 leading-4">
+                Tu verificación está en revisión. Recibirás una notificación cuando sea aprobada.
+              </Text>
+            </View>
+          ) : (
+            <>
+              <Text className="text-sm text-neutral-600 leading-5 mb-5">
+                Para suscribirte necesitas verificar tu condición de estudiante universitario.
+                El proceso es rápido: solo necesitas tu carnet y tu correo institucional.
+              </Text>
+              <TouchableOpacity
+                onPress={() => {
+                  setShowVerificationSheet(false);
+                  router.push(
+                    universityId
+                      ? { pathname: '/student-verification/submit', params: { universityId } }
+                      : '/student-verification/submit',
+                  );
+                }}
+                activeOpacity={0.85}
+                className="bg-primary-500 rounded-2xl py-4 items-center mb-3"
+              >
+                <Text className="text-base font-bold text-white">Verificar ahora</Text>
+              </TouchableOpacity>
+            </>
+          )}
+
+          <TouchableOpacity
+            onPress={() => setShowVerificationSheet(false)}
+            activeOpacity={0.7}
+            className="py-3 items-center"
+          >
+            <Text className="text-sm font-medium text-neutral-500">Cerrar</Text>
+          </TouchableOpacity>
+        </View>
+      </Modal>
     </KeyboardAvoidingView>
   );
 }
