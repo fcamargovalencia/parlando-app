@@ -190,9 +190,8 @@ export default function StudentVerificationSubmitScreen() {
             Correo institucional
           </Text>
           <View
-            className={`flex-row items-center gap-2 px-4 py-3.5 rounded-2xl border bg-white ${
-              errors.email ? 'border-red-400' : 'border-neutral-200'
-            }`}
+            className={`flex-row items-center gap-2 px-4 py-3.5 rounded-2xl border bg-white ${errors.email ? 'border-red-400' : 'border-neutral-200'
+              }`}
           >
             <AtSign
               size={16}

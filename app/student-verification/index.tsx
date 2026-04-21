@@ -45,7 +45,7 @@ export default function StudentVerificationIndexScreen() {
     [router],
   );
 
-  const renderItem = ({ item }: { item: StudentVerificationResponse }) => (
+  const renderItem = ({ item }: { item: StudentVerificationResponse; }) => (
     <View className="px-4 mb-1">
       <StudentVerificationCard
         verification={item}

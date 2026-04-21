@@ -56,7 +56,7 @@ type PickerTarget = 'startDate' | 'endDate';
 export default function NewSubscriptionScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { routineTripId } = useLocalSearchParams<{ routineTripId: string }>();
+  const { routineTripId } = useLocalSearchParams<{ routineTripId: string; }>();
 
   const {
     routineTrip,
@@ -307,15 +307,13 @@ export default function NewSubscriptionScreen() {
               <TouchableOpacity
                 onPress={() => setPickerTarget('startDate')}
                 activeOpacity={0.7}
-                className={`flex-row items-center gap-3 px-4 py-3.5 rounded-2xl border ${
-                  errors.startDate ? 'border-red-400 bg-red-50' : 'border-neutral-200 bg-white'
-                }`}
+                className={`flex-row items-center gap-3 px-4 py-3.5 rounded-2xl border ${errors.startDate ? 'border-red-400 bg-red-50' : 'border-neutral-200 bg-white'
+                  }`}
               >
                 <Calendar size={16} color={errors.startDate ? Colors.semantic.error : Colors.neutral[400]} />
                 <Text
-                  className={`text-base flex-1 ${
-                    formData.startDate ? 'text-neutral-900' : 'text-neutral-400'
-                  }`}
+                  className={`text-base flex-1 ${formData.startDate ? 'text-neutral-900' : 'text-neutral-400'
+                    }`}
                 >
                   {startDateObj ? fmtDate(startDateObj) : 'Seleccionar fecha...'}
                 </Text>
@@ -339,14 +337,12 @@ export default function NewSubscriptionScreen() {
                 <TouchableOpacity
                   onPress={handleToggleEndDate}
                   activeOpacity={0.8}
-                  className={`w-12 h-7 rounded-full justify-center px-0.5 ${
-                    hasEndDate ? 'bg-primary-500' : 'bg-neutral-200'
-                  }`}
+                  className={`w-12 h-7 rounded-full justify-center px-0.5 ${hasEndDate ? 'bg-primary-500' : 'bg-neutral-200'
+                    }`}
                 >
                   <View
-                    className={`w-6 h-6 rounded-full bg-white ${
-                      hasEndDate ? 'self-end' : 'self-start'
-                    }`}
+                    className={`w-6 h-6 rounded-full bg-white ${hasEndDate ? 'self-end' : 'self-start'
+                      }`}
                     style={{ elevation: 2 }}
                   />
                 </TouchableOpacity>
@@ -360,9 +356,8 @@ export default function NewSubscriptionScreen() {
                 >
                   <Calendar size={16} color={Colors.neutral[400]} />
                   <Text
-                    className={`text-base flex-1 ${
-                      formData.endDate ? 'text-neutral-900' : 'text-neutral-400'
-                    }`}
+                    className={`text-base flex-1 ${formData.endDate ? 'text-neutral-900' : 'text-neutral-400'
+                      }`}
                   >
                     {endDateObj ? fmtDate(endDateObj) : 'Seleccionar fecha de fin...'}
                   </Text>

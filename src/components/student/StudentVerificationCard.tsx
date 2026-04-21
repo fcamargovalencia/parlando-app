@@ -16,7 +16,7 @@ import type { StudentVerificationResponse, StudentVerificationStatus } from '@/t
 interface StatusConfig {
   label: string;
   variant: 'success' | 'warning' | 'error' | 'neutral';
-  Icon: React.ComponentType<{ size: number; color: string }>;
+  Icon: React.ComponentType<{ size: number; color: string; }>;
   iconColor: string;
 }
 
