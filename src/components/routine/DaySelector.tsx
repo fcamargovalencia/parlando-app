@@ -17,10 +17,14 @@ const ALL_DAYS: RecurrenceDay[] = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SU
 interface DaySelectorProps {
   selected: RecurrenceDay[];
   onChange: (days: RecurrenceDay[]) => void;
+  /** If provided, only these days are shown and selectable. */
+  allowedDays?: RecurrenceDay[];
   error?: string;
 }
 
-export function DaySelector({ selected, onChange, error }: DaySelectorProps) {
+export function DaySelector({ selected, onChange, allowedDays, error }: DaySelectorProps) {
+  const visibleDays = allowedDays ?? ALL_DAYS;
+
   const toggle = (day: RecurrenceDay) => {
     if (selected.includes(day)) {
       onChange(selected.filter((d) => d !== day));
@@ -32,7 +36,7 @@ export function DaySelector({ selected, onChange, error }: DaySelectorProps) {
   return (
     <View>
       <View className="flex-row flex-wrap gap-2">
-        {ALL_DAYS.map((day) => {
+        {visibleDays.map((day) => {
           const active = selected.includes(day);
           return (
             <TouchableOpacity

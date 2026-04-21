@@ -62,6 +62,18 @@ export default function RootLayout() {
           name="chat"
           options={{ animation: 'slide_from_right' }}
         />
+        <Stack.Screen
+          name="subscription"
+          options={{ animation: 'slide_from_right' }}
+        />
+        <Stack.Screen
+          name="routine"
+          options={{ animation: 'slide_from_right' }}
+        />
+        <Stack.Screen
+          name="search"
+          options={{ animation: 'slide_from_right' }}
+        />
       </Stack>
       <StatusBar style="auto" />
       <Toast />
