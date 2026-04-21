@@ -608,6 +608,24 @@ export interface PickupOverrideRequest {
   name: string;
 }
 
+// ── RoutineBooking (occurrence booking) ──
+
+export type RoutineBookingStatus = 'ACCEPTED' | 'CANCELLED' | 'NO_SHOW' | 'COMPLETED';
+
+export interface RoutineBookingResponse {
+  id: string;
+  subscriptionId: string;
+  occurrenceDate: string;   // ISO date "YYYY-MM-DD"
+  status: RoutineBookingStatus;
+  estimatedPickupTime: string; // "HH:mm"
+  pickupLatitude?: number;
+  pickupLongitude?: number;
+  pickupName?: string;
+  pickupType?: PickupType;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface RoutineSubscriptionResponse {
   id: string;
   routineTripId: string;

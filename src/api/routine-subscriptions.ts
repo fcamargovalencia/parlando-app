@@ -8,6 +8,7 @@ import type {
   PauseSubscriptionRequest,
   PickupOverrideRequest,
   BookingResponse,
+  RoutineBookingResponse,
 } from '@/types/api';
 
 export const routineSubscriptionsApi = {
@@ -16,6 +17,16 @@ export const routineSubscriptionsApi = {
 
   getMine: () =>
     api.get<ApiResponse<RoutineSubscriptionResponse[]>>('/v1/routine-subscriptions/me'),
+
+  getById: (id: string) =>
+    api.get<ApiResponse<RoutineSubscriptionResponse>>(
+      `/v1/routine-subscriptions/${encodeURIComponent(id)}`,
+    ),
+
+  getBookings: (id: string) =>
+    api.get<ApiResponse<RoutineBookingResponse[]>>(
+      `/v1/routine-subscriptions/${encodeURIComponent(id)}/bookings`,
+    ),
 
   cancel: (id: string) =>
     api.delete<ApiResponse<null>>(`/v1/routine-subscriptions/${encodeURIComponent(id)}`),

@@ -13,6 +13,7 @@ export default function SubscriptionLayout() {
         animation: 'slide_from_right',
       }}
     >
+      <Stack.Screen name="index" options={{ headerShown: false }} />
       <Stack.Screen name="new" options={{ headerShown: false }} />
       <Stack.Screen name="[id]" options={{ headerShown: false }} />
     </Stack>
