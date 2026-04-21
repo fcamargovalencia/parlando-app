@@ -1,7 +1,9 @@
 import React from 'react';
 import { View, Text, ScrollView, TouchableOpacity } from 'react-native';
-import { Ticket } from 'lucide-react-native';
+import { useRouter } from 'expo-router';
+import { Ticket, Repeat2 } from 'lucide-react-native';
 import { Spinner, Button } from '@/components/ui';
+import { Colors } from '@/constants/colors';
 import { TripDetailHeader } from '@/components/trip/TripDetailHeader';
 import { TripRouteCard } from '@/components/trip/TripRouteCard';
 import { MyBookingCard } from '@/components/trip/MyBookingCard';
@@ -15,6 +17,33 @@ import { RouteMapModal } from '@/components/trip/RouteMapModal';
 import { RateModal } from '@/components/trip/RateModal';
 import { formatCurrency } from '@/lib/utils';
 import { useTripDetailScreen } from '@/hooks/useTripDetailScreen';
+
+function RoutineOccurrenceBanner({ routineTripId, departureAt }: { routineTripId: string; departureAt: string; }) {
+  const router = useRouter();
+  const date = new Date(departureAt);
+  const dateLabel = date.toLocaleDateString('es-CO', {
+    weekday: 'long', day: 'numeric', month: 'long',
+  });
+  return (
+    <TouchableOpacity
+      activeOpacity={0.8}
+      onPress={() => router.push({ pathname: '/routine/[id]', params: { id: routineTripId } } as any)}
+      className="flex-row items-center gap-3 rounded-2xl px-4 py-3"
+      style={{ backgroundColor: Colors.primary[50], borderWidth: 1, borderColor: Colors.primary[200] }}
+    >
+      <Repeat2 size={18} color={Colors.primary[600]} />
+      <View className="flex-1">
+        <Text className="text-xs font-semibold" style={{ color: Colors.primary[700] }}>
+          Viaje rutinario
+        </Text>
+        <Text className="text-xs text-neutral-500 mt-0.5 capitalize">{dateLabel}</Text>
+      </View>
+      <Text className="text-xs font-medium" style={{ color: Colors.primary[600] }}>
+        Ver plantilla
+      </Text>
+    </TouchableOpacity>
+  );
+}
 
 export default function TripDetailScreen() {
   const {
@@ -82,6 +111,13 @@ export default function TripDetailScreen() {
         showsVerticalScrollIndicator={false}
       >
         <TripRouteCard trip={trip} onOpenMap={handleOpenMap} />
+
+        {trip.tripType === 'ROUTINE' && trip.routineTripId && (
+          <RoutineOccurrenceBanner
+            routineTripId={trip.routineTripId}
+            departureAt={trip.departureAt}
+          />
+        )}
 
         {!isDriver && myBooking && (
           <MyBookingCard

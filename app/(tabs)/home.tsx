@@ -1,10 +1,10 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, RefreshControl } from 'react-native';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
-import { Bell, ChevronRight, GraduationCap } from 'lucide-react-native';
+import { Bell, ChevronRight, GraduationCap, Repeat2 } from 'lucide-react-native';
 import { Screen, Avatar, DatePickerModal } from '@/components/ui';
 import { LocationPickerModal } from '@/components/LocationPickerModal';
 import { SearchCard } from '@/components/home/SearchCard';
@@ -13,7 +13,20 @@ import { TripTypeQuickActions } from '@/components/home/TripTypeQuickActions';
 import { VerificationBanner } from '@/components/home/VerificationBanner';
 import { useAuthStore } from '@/stores/auth-store';
 import { useHomeSearch } from '@/hooks/useHomeSearch';
+import { useRoutineTripsStore } from '@/stores/routine-trips-store';
 import { Colors } from '@/constants/colors';
+import type { RecurrenceDay, RoutineTripResponse } from '@/types/api';
+
+const TODAY_DAY_MAP: Record<number, RecurrenceDay> = {
+  0: 'SUN', 1: 'MON', 2: 'TUE', 3: 'WED', 4: 'THU', 5: 'FRI', 6: 'SAT',
+};
+
+function getTodayRoutineTrips(trips: RoutineTripResponse[]): RoutineTripResponse[] {
+  const todayDay = TODAY_DAY_MAP[new Date().getDay()];
+  return trips.filter(
+    (t) => t.status === 'ACTIVE' && t.recurrenceDays.includes(todayDay),
+  );
+}
 
 export default function HomeScreen() {
   const router = useRouter();
@@ -21,6 +34,15 @@ export default function HomeScreen() {
   const insets = useSafeAreaInsets();
   const [refreshing, setRefreshing] = useState(false);
   const today = useMemo(() => new Date(), []);
+
+  const isDriver = user?.role === 'DRIVER';
+  const myRoutineTrips = useRoutineTripsStore((s) => s.myRoutineTrips);
+  const fetchMineRoutine = useRoutineTripsStore((s) => s.fetchMine);
+  const todayTrips = useMemo(() => getTodayRoutineTrips(myRoutineTrips), [myRoutineTrips]);
+
+  useEffect(() => {
+    if (isDriver) fetchMineRoutine();
+  }, [isDriver]);
 
   const {
     origin,
@@ -121,6 +143,38 @@ export default function HomeScreen() {
           tripType={tripType}
           onSelect={selectTripTypeAndSearch}
         />
+
+        {/* Tus rutas de hoy — only shown for drivers with active routine trips */}
+        {isDriver && todayTrips.length > 0 && (
+          <View className="px-5 pb-2">
+            <Text className="text-base font-bold text-neutral-900 mb-3">Tus rutas de hoy</Text>
+            {todayTrips.map((trip) => (
+              <TouchableOpacity
+                key={trip.id}
+                onPress={() => router.push({ pathname: '/routine/[id]/occurrences', params: { id: trip.id } } as any)}
+                activeOpacity={0.8}
+                className="flex-row items-center rounded-2xl p-4 mb-2 gap-3 bg-white"
+                style={{ borderWidth: 1.5, borderColor: Colors.primary[100] }}
+              >
+                <View
+                  className="w-10 h-10 rounded-xl items-center justify-center"
+                  style={{ backgroundColor: Colors.primary[100] }}
+                >
+                  <Repeat2 size={20} color={Colors.primary[600]} />
+                </View>
+                <View className="flex-1">
+                  <Text className="text-sm font-semibold text-neutral-900" numberOfLines={1}>
+                    {trip.originName} → {trip.destinationName}
+                  </Text>
+                  <Text className="text-xs text-neutral-500 mt-0.5">
+                    Salida: {trip.departureTime}
+                  </Text>
+                </View>
+                <ChevronRight size={16} color={Colors.neutral[400]} />
+              </TouchableOpacity>
+            ))}
+          </View>
+        )}
 
         {/* Routine trips entry point */}
         <View className="px-5 pb-2">

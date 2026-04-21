@@ -340,6 +340,7 @@ export interface TripResponse {
   universityId?: string | null;
   isRecurring: boolean;
   recurrencePattern?: string | null;
+  routineTripId?: string | null;
   waypoints?: RouteWaypoint[];
   routePolyline?: CoordinatePoint[];
   createdAt: string;
