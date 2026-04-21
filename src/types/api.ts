@@ -457,7 +457,7 @@ export interface CreateRoutineTripRequest {
   maxPickupDeviationMeters?: number;
   maxTimeOverheadSeconds?: number;
   autoApproveBookings: boolean;
-  routeLine?: string;
+  routePolyline?: CoordinatePoint[];
 }
 
 export interface UpdateRoutineTripRequest extends Partial<CreateRoutineTripRequest> { }
@@ -675,7 +675,7 @@ export interface UniversityResponse {
 }
 
 export interface SearchUniversitiesParams {
-  query?: string;
+  q?: string;
   city?: string;
   page?: number;
   size?: number;

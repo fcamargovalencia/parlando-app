@@ -6,7 +6,7 @@ const TOMTOM_ROUTING_BASE = 'https://api.tomtom.com/routing/1';
 const ROUTE_ALT_TITLES = ['Ruta recomendada', 'Alternativa A', 'Alternativa B'];
 const ROUTE_ALT_IDS = ['DIRECT', 'ALT_A', 'ALT_B'];
 
-type Stop = { latitude: number; longitude: number };
+type Stop = { latitude: number; longitude: number; };
 
 function buildRouteParams(extra: Record<string, string> = {}): URLSearchParams {
   return new URLSearchParams({
@@ -14,12 +14,11 @@ function buildRouteParams(extra: Record<string, string> = {}): URLSearchParams {
     routeRepresentation: 'polyline',
     routeType: 'fastest',
     traffic: 'false',
-    sectionType: 'tollRoad',
     ...extra,
   });
 }
 
-function hasTollSections(sections: Array<{ sectionType: string }> = []): boolean {
+function hasTollSections(sections: Array<{ sectionType: string; }> = []): boolean {
   return sections.some((s) => s.sectionType === 'TOLL_ROAD' || s.sectionType === 'tollRoad');
 }
 
@@ -29,16 +28,18 @@ export async function tomtomCalculateRoute(stops: Stop[]): Promise<TomTomRouteRe
 
   const response = await fetch(
     `${TOMTOM_ROUTING_BASE}/calculateRoute/${locations}/json?${params}`,
-    { method: 'GET', headers: { 'Content-Type': 'application/json' } },
   );
 
-  if (!response.ok) throw new Error(`TomTom Routing API error: ${response.status}`);
+  if (!response.ok) {
+    const body = await response.text().catch(() => '');
+    throw new Error(`TomTom Routing API error: ${response.status} — ${body}`);
+  }
 
   const data: {
     routes: Array<{
-      summary: { travelTimeInSeconds: number; lengthInMeters: number };
-      sections?: Array<{ sectionType: string }>;
-      legs: Array<{ points: TomTomRoutePoint[] }>;
+      summary: { travelTimeInSeconds: number; lengthInMeters: number; };
+      sections?: Array<{ sectionType: string; }>;
+      legs: Array<{ points: TomTomRoutePoint[]; }>;
     }>;
   } = await response.json();
 
@@ -68,16 +69,18 @@ export async function tomtomCalculateRouteAlternatives(
 
   const response = await fetch(
     `${TOMTOM_ROUTING_BASE}/calculateRoute/${locations}/json?${params}`,
-    { method: 'GET', headers: { 'Content-Type': 'application/json' } },
   );
 
-  if (!response.ok) throw new Error(`TomTom Routing API error: ${response.status}`);
+  if (!response.ok) {
+    const body = await response.text().catch(() => '');
+    throw new Error(`TomTom Routing API error: ${response.status} — ${body}`);
+  }
 
   const data: {
     routes: Array<{
-      summary: { travelTimeInSeconds: number; lengthInMeters: number };
-      sections?: Array<{ sectionType: string }>;
-      legs: Array<{ points: TomTomRoutePoint[] }>;
+      summary: { travelTimeInSeconds: number; lengthInMeters: number; };
+      sections?: Array<{ sectionType: string; }>;
+      legs: Array<{ points: TomTomRoutePoint[]; }>;
     }>;
   } = await response.json();
 

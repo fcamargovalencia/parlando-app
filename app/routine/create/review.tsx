@@ -143,7 +143,7 @@ export default function ReviewScreen() {
           ) : (
             <Text className="text-sm text-neutral-400 italic">Sin definir</Text>
           )}
-          {formData.routeLine ? (
+          {formData.routePolyline?.length ? (
             <Text className="text-xs text-primary-600 mt-2">✓ Ruta trazada</Text>
           ) : null}
         </Card>

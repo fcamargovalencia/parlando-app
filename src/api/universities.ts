@@ -9,5 +9,5 @@ export const universitiesApi = {
     api.get<ApiResponse<UniversityResponse>>(`/v1/universities/${encodeURIComponent(id)}`),
 
   search: (params: SearchUniversitiesParams) =>
-    api.get<ApiResponse<PageResponse<UniversityResponse>>>('/v1/universities/search', { params }),
+    api.get<ApiResponse<UniversityResponse[]>>('/v1/universities/search', { params }),
 };

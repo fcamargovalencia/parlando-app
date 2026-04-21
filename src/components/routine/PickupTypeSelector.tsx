@@ -29,7 +29,7 @@ export interface PickupSelection {
 interface PickupTypeSelectorProps {
   routineTrip: RoutineTripResponse;
   waypoints: RoutineWaypointResponse[];
-  passengerLocation?: { lat: number; lng: number };
+  passengerLocation?: { lat: number; lng: number; };
   selection: PickupSelection | null;
   onSelect: (config: PickupSelection) => void;
   previewDeviation: (lat: number, lng: number) => DeviationPreview;
@@ -53,25 +53,9 @@ function haversineMeters(lat1: number, lng1: number, lat2: number, lng2: number)
   const a =
     Math.sin(dLat / 2) ** 2 +
     Math.cos((lat1 * Math.PI) / 180) *
-      Math.cos((lat2 * Math.PI) / 180) *
-      Math.sin(dLng / 2) ** 2;
+    Math.cos((lat2 * Math.PI) / 180) *
+    Math.sin(dLng / 2) ** 2;
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-}
-
-function parseRouteLine(routeLineStr: string | undefined): { latitude: number; longitude: number }[] {
-  if (!routeLineStr) return [];
-  try {
-    const geo = JSON.parse(routeLineStr);
-    const coords: [number, number][] =
-      geo.type === 'LineString'
-        ? geo.coordinates
-        : geo.type === 'Feature' && geo.geometry?.type === 'LineString'
-          ? geo.geometry.coordinates
-          : [];
-    return coords.map(([lng, lat]) => ({ latitude: lat, longitude: lng }));
-  } catch {
-    return [];
-  }
 }
 
 // ── Custom Pickup Map Modal ──
@@ -100,9 +84,10 @@ function CustomPickupMapModal({
   const [isLocating, setIsLocating] = useState(false);
   const [mapReady, setMapReady] = useState(false);
 
-  const routePoints = parseRouteLine(
-    (routineTrip as unknown as Record<string, string>).routeLine,
-  );
+  const routePoints: { latitude: number; longitude: number; }[] =
+    Array.isArray((routineTrip as any).routePolyline) && (routineTrip as any).routePolyline.length >= 2
+      ? (routineTrip as any).routePolyline
+      : [];
   const deviation = previewDeviation(centerCoord.latitude, centerCoord.longitude);
   const maxDev = routineTrip.maxPickupDeviationMeters;
   const maxTimeSec = routineTrip.maxTimeOverheadSeconds;
@@ -378,13 +363,13 @@ export function PickupTypeSelector({
             const estimatedTime = formatTime(wp.estimatedMinutesOffset, routineTrip.departureTime);
             const distanceM = passengerLocation
               ? Math.round(
-                  haversineMeters(
-                    passengerLocation.lat,
-                    passengerLocation.lng,
-                    wp.latitude,
-                    wp.longitude,
-                  ),
-                )
+                haversineMeters(
+                  passengerLocation.lat,
+                  passengerLocation.lng,
+                  wp.latitude,
+                  wp.longitude,
+                ),
+              )
               : null;
 
             return (
@@ -392,16 +377,14 @@ export function PickupTypeSelector({
                 key={wp.id}
                 onPress={() => handleSelectWaypoint(wp)}
                 activeOpacity={0.75}
-                className={`flex-row items-center gap-3 p-3.5 rounded-2xl border ${
-                  isSelected
+                className={`flex-row items-center gap-3 p-3.5 rounded-2xl border ${isSelected
                     ? 'bg-primary-50 border-primary-400'
                     : 'bg-white border-neutral-200'
-                }`}
+                  }`}
               >
                 <View
-                  className={`w-5 h-5 rounded-full border-2 items-center justify-center ${
-                    isSelected ? 'border-primary-500' : 'border-neutral-300'
-                  }`}
+                  className={`w-5 h-5 rounded-full border-2 items-center justify-center ${isSelected ? 'border-primary-500' : 'border-neutral-300'
+                    }`}
                 >
                   {isSelected && (
                     <View className="w-2.5 h-2.5 rounded-full bg-primary-500" />
@@ -428,16 +411,14 @@ export function PickupTypeSelector({
             <TouchableOpacity
               onPress={() => setShowMapModal(true)}
               activeOpacity={0.75}
-              className={`flex-row items-center gap-3 p-3.5 rounded-2xl border ${
-                selection?.pickupType === 'SUGGESTED'
+              className={`flex-row items-center gap-3 p-3.5 rounded-2xl border ${selection?.pickupType === 'SUGGESTED'
                   ? 'bg-amber-50 border-amber-400'
                   : 'bg-white border-neutral-200'
-              }`}
+                }`}
             >
               <View
-                className={`w-5 h-5 rounded-full border-2 items-center justify-center ${
-                  selection?.pickupType === 'SUGGESTED' ? 'border-amber-500' : 'border-neutral-300'
-                }`}
+                className={`w-5 h-5 rounded-full border-2 items-center justify-center ${selection?.pickupType === 'SUGGESTED' ? 'border-amber-500' : 'border-neutral-300'
+                  }`}
               >
                 {selection?.pickupType === 'SUGGESTED' && (
                   <View className="w-2.5 h-2.5 rounded-full bg-amber-500" />
@@ -445,9 +426,8 @@ export function PickupTypeSelector({
               </View>
               <View className="flex-1">
                 <Text
-                  className={`text-sm font-semibold ${
-                    selection?.pickupType === 'SUGGESTED' ? 'text-amber-800' : 'text-neutral-800'
-                  }`}
+                  className={`text-sm font-semibold ${selection?.pickupType === 'SUGGESTED' ? 'text-amber-800' : 'text-neutral-800'
+                    }`}
                 >
                   {selection?.pickupType === 'SUGGESTED'
                     ? selection.customPickupName ?? 'Punto personalizado'

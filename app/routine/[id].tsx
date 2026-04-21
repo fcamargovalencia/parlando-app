@@ -8,6 +8,7 @@ import {
   RefreshControl,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useSafeAreaInsets, SafeAreaView } from 'react-native-safe-area-context';
 import {
   MapPin,
   Clock,
@@ -18,9 +19,10 @@ import {
   Plus,
   AlertTriangle,
 } from 'lucide-react-native';
-import { Screen, Button, Card, Badge, Spinner } from '@/components/ui';
+import { Button, Card, Badge, Spinner } from '@/components/ui';
 import { RoutePreview } from '@/components/RoutePreview';
 import { WaypointListItem } from '@/components/routine/WaypointListItem';
+import { RoutineTripDetailHeader } from '@/components/routine/RoutineTripDetailHeader';
 import { useRoutineTrips } from '@/hooks/useRoutineTrips';
 import { useRoutineWaypoints } from '@/hooks/useRoutineWaypoints';
 import { useRoutineTripsStore } from '@/stores/routine-trips-store';
@@ -95,6 +97,7 @@ export default function RoutineTripDetailScreen() {
   const { waypoints, fetchWaypoints } = useRoutineWaypoints();
   const { pauseTrip, resumeTrip, cancelTrip, publishTrip } = useRoutineTrips();
 
+  const insets = useSafeAreaInsets();
   const [isActioning, setIsActioning] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
 
@@ -216,17 +219,19 @@ export default function RoutineTripDetailScreen() {
 
   if (storeLoading && !selectedTrip) {
     return (
-      <Screen safe>
+      <View className="flex-1 bg-neutral-50">
+        <RoutineTripDetailHeader paddingTop={insets.top} canEdit={false} onBack={() => router.back()} onEdit={() => { }} />
         <View className="flex-1 items-center justify-center">
           <Spinner />
         </View>
-      </Screen>
+      </View>
     );
   }
 
   if (!selectedTrip || selectedTrip.id !== id) {
     return (
-      <Screen safe>
+      <View className="flex-1 bg-neutral-50">
+        <RoutineTripDetailHeader paddingTop={insets.top} canEdit={false} onBack={() => router.back()} onEdit={() => { }} />
         <View className="flex-1 items-center justify-center px-6">
           <AlertTriangle size={40} color={Colors.neutral[400]} />
           <Text className="text-base text-neutral-500 mt-3 text-center">
@@ -236,7 +241,7 @@ export default function RoutineTripDetailScreen() {
             Volver
           </Button>
         </View>
-      </Screen>
+      </View>
     );
   }
 
@@ -245,34 +250,32 @@ export default function RoutineTripDetailScreen() {
   const isReadOnly = status === 'COMPLETED' || status === 'CANCELLED';
 
   return (
-    <Screen safe={false}>
+    <SafeAreaView className="flex-1 bg-neutral-50" edges={['bottom']}>
+      <RoutineTripDetailHeader
+        paddingTop={insets.top}
+        canEdit={!isReadOnly}
+        onBack={() => router.back()}
+        onEdit={() => router.push(`/routine/create/step-1-route?tripId=${id}` as never)}
+      />
       <ScrollView
         className="flex-1"
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
       >
-        {/* Header */}
-        <View className="bg-white px-5 pt-14 pb-4 border-b border-neutral-100">
-          <View className="flex-row items-center justify-between mb-1">
-            <TouchableOpacity onPress={() => router.back()} className="mr-3">
-              <Text className="text-primary-600 text-sm font-medium">← Volver</Text>
-            </TouchableOpacity>
-            <View
-              className={`px-3 py-1 rounded-full ${STATUS_COLORS[status]}`}
-            >
+        <View className="p-5 gap-4">
+          {/* Status + route preview */}
+          <Card className="p-4">
+            <View className={`self-start px-3 py-1 rounded-full mb-3 ${STATUS_COLORS[status]}`}>
               <Text className={`text-xs font-semibold ${STATUS_TEXT_COLORS[status]}`}>
                 {STATUS_LABELS[status]}
               </Text>
             </View>
-          </View>
-          <RoutePreview
-            originName={trip.originName}
-            originSubtitle={trip.originSubtitle}
-            destinationName={trip.destinationName}
-            destinationSubtitle={trip.destinationSubtitle}
-          />
-        </View>
-
-        <View className="p-5 gap-4">
+            <RoutePreview
+              originName={trip.originName}
+              originSubtitle={trip.originSubtitle}
+              destinationName={trip.destinationName}
+              destinationSubtitle={trip.destinationSubtitle}
+            />
+          </Card>
           {/* Schedule */}
           <Card className="p-4">
             <SectionHeader
@@ -501,6 +504,6 @@ export default function RoutineTripDetailScreen() {
           )}
         </View>
       </ScrollView>
-    </Screen>
+    </SafeAreaView>
   );
 }

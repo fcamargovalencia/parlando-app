@@ -10,13 +10,14 @@ import {
 } from 'react-native';
 import { Search, X, ChevronRight } from 'lucide-react-native';
 import { universitiesApi } from '@/api/universities';
+import { tomtomService } from '@/lib/tomtom';
 import type { UniversityResponse } from '@/types/api';
 import { Colors } from '@/constants/colors';
 
 interface UniversityPickerProps {
   value?: string;
   selectedLabel?: string;
-  onChange: (id: string, university: UniversityResponse | null) => void;
+  onChange: (id: string, university: (UniversityResponse & { latitude: number; longitude: number; address: string; }) | null) => void;
   placeholder?: string;
 }
 
@@ -29,7 +30,8 @@ export function UniversityPicker({
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<UniversityResponse[]>([]);
-  const [loading, setLoading] = useState(false);
+  const [searchLoading, setSearchLoading] = useState(false);
+  const [geocoding, setGeocoding] = useState(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const search = useCallback((q: string) => {
@@ -39,14 +41,14 @@ export function UniversityPicker({
         setResults([]);
         return;
       }
-      setLoading(true);
+      setSearchLoading(true);
       try {
-        const res = await universitiesApi.search({ query: q });
-        setResults(res.data.data?.content ?? []);
+        const res = await universitiesApi.search({ q });
+        setResults(Array.isArray(res.data.data) ? res.data.data : []);
       } catch {
         setResults([]);
       } finally {
-        setLoading(false);
+        setSearchLoading(false);
       }
     }, 300);
   }, []);
@@ -62,9 +64,31 @@ export function UniversityPicker({
     setResults([]);
   };
 
-  const handleSelect = (university: UniversityResponse) => {
-    onChange(university.id, university);
+  const handleSelect = async (university: UniversityResponse) => {
     handleClose();
+    setGeocoding(true);
+    try {
+      const geoResults = await tomtomService.searchLocations(
+        `${university.name}, ${university.city}`,
+      );
+      const geo = geoResults?.[0];
+      if (!geo) throw new Error('No se encontraron coordenadas');
+      onChange(university.id, {
+        ...university,
+        latitude: geo.latitude,
+        longitude: geo.longitude,
+        address: geo.address ?? university.city,
+      });
+    } catch {
+      onChange(university.id, {
+        ...university,
+        latitude: 0,
+        longitude: 0,
+        address: university.city,
+      });
+    } finally {
+      setGeocoding(false);
+    }
   };
 
   const handleClear = () => {
@@ -85,7 +109,9 @@ export function UniversityPicker({
         >
           {(value && selectedLabel) ? selectedLabel : placeholder}
         </Text>
-        {value ? (
+        {geocoding ? (
+          <ActivityIndicator size="small" color={Colors.primary[500]} />
+        ) : value ? (
           <TouchableOpacity
             onPress={handleClear}
             hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
@@ -126,7 +152,7 @@ export function UniversityPicker({
                 returnKeyType="search"
                 placeholderTextColor={Colors.neutral[400]}
               />
-              {loading ? (
+              {searchLoading ? (
                 <ActivityIndicator size="small" color={Colors.primary[500]} />
               ) : null}
             </View>
@@ -155,7 +181,7 @@ export function UniversityPicker({
               </TouchableOpacity>
             )}
             ListEmptyComponent={
-              query.length > 0 && !loading ? (
+              query.length > 0 && !searchLoading ? (
                 <View className="items-center py-8">
                   <Text className="text-neutral-500 text-base">
                     Sin resultados para "{query}"

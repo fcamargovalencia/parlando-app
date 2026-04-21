@@ -11,6 +11,7 @@ export interface SelectedLocation {
   latitude: number;
   longitude: number;
   name: string;
+  subtitle?: string;
   city?: string;
   state?: string;
   country?: string;
@@ -31,7 +32,7 @@ interface UseLocationPickerOptions {
   visible: boolean;
   initial?: SelectedLocation | null;
   mode?: 'full' | 'map-only';
-  municipalityFocus?: { latitude: number; longitude: number; name: string };
+  municipalityFocus?: { latitude: number; longitude: number; name: string; };
   allowCitySelection?: boolean;
   onConfirm: (loc: SelectedLocation) => void;
 }
@@ -49,13 +50,13 @@ export function useLocationPicker({
   const [results, setResults] = useState<LocationSearchResult[]>([]);
   const [searching, setSearching] = useState(false);
   const [locating, setLocating] = useState(false);
-  const [userCoords, setUserCoords] = useState<{ latitude: number; longitude: number } | null>(null);
+  const [userCoords, setUserCoords] = useState<{ latitude: number; longitude: number; } | null>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const abortRef = useRef<AbortController | null>(null);
 
   // ── Map state ──
   const [mapVisible, setMapVisible] = useState(false);
-  const [centerCoord, setCenterCoord] = useState<{ latitude: number; longitude: number } | null>(null);
+  const [centerCoord, setCenterCoord] = useState<{ latitude: number; longitude: number; } | null>(null);
   const [isDragging, setIsDragging] = useState(false);
   const [mapName, setMapName] = useState('');
   const [mapCity, setMapCity] = useState<string | undefined>(undefined);
@@ -71,7 +72,7 @@ export function useLocationPicker({
   const mapRef = useRef<MapView>(null);
   const reverseSeqRef = useRef(0);
   const reverseDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const lastGeocodedCoordRef = useRef<{ latitude: number; longitude: number } | null>(null);
+  const lastGeocodedCoordRef = useRef<{ latitude: number; longitude: number; } | null>(null);
   const isProgrammaticRef = useRef(false);
   const mapReadyRef = useRef(false);
   const pendingRegionRef = useRef<Region | null>(null);
@@ -130,7 +131,7 @@ export function useLocationPicker({
         if (loc) {
           setUserCoords({ latitude: loc.coords.latitude, longitude: loc.coords.longitude });
         }
-      } catch {}
+      } catch { }
     })();
   }, [visible, initial, mode, municipalityFocus]);
 
@@ -242,7 +243,7 @@ export function useLocationPicker({
           setMapCountry(result.country);
           lastGeocodedCoordRef.current = coord;
         }
-      } catch {}
+      } catch { }
       if (reverseSeqRef.current === seq) setReverseGeocoding(false);
     }, 700);
   }, []);

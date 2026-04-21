@@ -4,24 +4,20 @@ import {
   Text,
   ScrollView,
   TouchableOpacity,
+  Alert,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { MapPin, ChevronRight, Map as MapIcon } from 'lucide-react-native';
 import { Screen, Button, Card, Toggle } from '@/components/ui';
 import { LocationPickerModal, type SelectedLocation } from '@/components/LocationPickerModal';
 import { RoutePreview } from '@/components/RoutePreview';
+import { RouteLineMapModal } from '@/components/routine/RouteLineMapModal';
 import { UniversityPicker } from '@/components/university/UniversityPicker';
 import { usePublishRoutineTrip } from '@/hooks/usePublishRoutineTrip';
 import { tomtomService } from '@/lib/tomtom';
+import { compactPolyline } from '@/lib/geo';
 import type { UniversityResponse } from '@/types/api';
 import { Colors } from '@/constants/colors';
-
-function geoJsonLineString(points: { latitude: number; longitude: number; }[]): string {
-  return JSON.stringify({
-    type: 'LineString',
-    coordinates: points.map((p) => [p.longitude, p.latitude]),
-  });
-}
 
 export default function Step1RouteScreen() {
   const router = useRouter();
@@ -60,6 +56,7 @@ export default function Step1RouteScreen() {
   const [originOpen, setOriginOpen] = useState(false);
   const [destOpen, setDestOpen] = useState(false);
   const [drawingRoute, setDrawingRoute] = useState(false);
+  const [routeMapOpen, setRouteMapOpen] = useState(false);
 
   const handleOriginConfirm = (loc: SelectedLocation) => {
     setOriginLoc(loc);
@@ -80,13 +77,13 @@ export default function Step1RouteScreen() {
       destinationLatitude: loc.latitude,
       destinationLongitude: loc.longitude,
       universityId: undefined,
-      routeLine: undefined,
+      routePolyline: undefined,
     });
     setSelectedUniversity(null);
     setDestOpen(false);
   };
 
-  const handleUniversitySelect = (id: string, university: UniversityResponse | null) => {
+  const handleUniversitySelect = (id: string, university: (UniversityResponse & { latitude: number; longitude: number; address: string; }) | null) => {
     if (!id || !university) {
       setDestLoc(null);
       setSelectedUniversity(null);
@@ -96,7 +93,7 @@ export default function Step1RouteScreen() {
         destinationSubtitle: undefined,
         destinationLatitude: undefined,
         destinationLongitude: undefined,
-        routeLine: undefined,
+        routePolyline: undefined,
       });
       return;
     }
@@ -114,7 +111,7 @@ export default function Step1RouteScreen() {
       destinationSubtitle: university.address,
       destinationLatitude: university.latitude,
       destinationLongitude: university.longitude,
-      routeLine: undefined,
+      routePolyline: undefined,
     });
   };
 
@@ -131,7 +128,7 @@ export default function Step1RouteScreen() {
         destinationSubtitle: undefined,
         destinationLatitude: undefined,
         destinationLongitude: undefined,
-        routeLine: undefined,
+        routePolyline: undefined,
       });
     }
   };
@@ -140,21 +137,20 @@ export default function Step1RouteScreen() {
     if (!originLoc || !destLoc) return;
     setDrawingRoute(true);
     try {
-      const routes = await tomtomService.calculateRoute([
+      const result = await tomtomService.calculateRoute([
         { latitude: originLoc.latitude, longitude: originLoc.longitude },
         { latitude: destLoc.latitude, longitude: destLoc.longitude },
       ]);
-      if (routes?.length) {
-        const route = routes[0] as { legs?: Array<{ points: Array<{ latitude: number; longitude: number; }>; }>; };
-        const points =
-          route.legs?.flatMap((leg) => leg.points) ?? [
-            { latitude: originLoc.latitude, longitude: originLoc.longitude },
-            { latitude: destLoc.latitude, longitude: destLoc.longitude },
-          ];
-        updateForm({ routeLine: geoJsonLineString(points) });
-      }
-    } catch {
-      // routeLine is optional; fail silently
+      const points = result.points?.length
+        ? result.points
+        : [
+          { latitude: originLoc.latitude, longitude: originLoc.longitude },
+          { latitude: destLoc.latitude, longitude: destLoc.longitude },
+        ];
+      updateForm({ routePolyline: compactPolyline(points, 300) });
+      setRouteMapOpen(true);
+    } catch (err) {
+      console.log('Error al trazar ruta', err instanceof Error ? err.message : 'No se pudo calcular la ruta');
     } finally {
       setDrawingRoute(false);
     }
@@ -241,7 +237,7 @@ export default function Step1RouteScreen() {
 
         {/* Route preview + draw */}
         {originLoc && destLoc ? (
-          <Card className="p-4">
+          <Card className={`p-4 ${errors.routePolyline ? 'border border-red-400' : ''}`}>
             <RoutePreview
               originName={originLoc.name}
               originSubtitle={originLoc.subtitle}
@@ -256,10 +252,13 @@ export default function Step1RouteScreen() {
                 onPress={handleDrawRoute}
                 icon={<MapIcon size={16} color={Colors.primary[500]} />}
               >
-                {formData.routeLine ? 'Ruta trazada ✓' : 'Trazar ruta'}
+                {formData.routePolyline?.length ? 'Ruta trazada ✓' : 'Trazar ruta'}
               </Button>
             </View>
           </Card>
+        ) : null}
+        {errors.routePolyline ? (
+          <Text className="text-red-500 text-xs mt-2">{errors.routePolyline}</Text>
         ) : null}
       </ScrollView>
 
@@ -281,6 +280,15 @@ export default function Step1RouteScreen() {
         onClose={() => setDestOpen(false)}
         initial={destLoc}
       />
+      {formData.routePolyline?.length && originLoc && destLoc ? (
+        <RouteLineMapModal
+          visible={routeMapOpen}
+          onClose={() => setRouteMapOpen(false)}
+          routePolyline={formData.routePolyline}
+          origin={{ latitude: originLoc.latitude, longitude: originLoc.longitude, name: originLoc.name }}
+          destination={{ latitude: destLoc.latitude, longitude: destLoc.longitude, name: destLoc.name }}
+        />
+      ) : null}
     </Screen>
   );
 }

@@ -23,8 +23,8 @@ function haversineMeters(
   const a =
     Math.sin(dLat / 2) ** 2 +
     Math.cos((lat1 * Math.PI) / 180) *
-      Math.cos((lat2 * Math.PI) / 180) *
-      Math.sin(dLng / 2) ** 2;
+    Math.cos((lat2 * Math.PI) / 180) *
+    Math.sin(dLng / 2) ** 2;
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
@@ -62,19 +62,6 @@ function minDistanceToPolyline(
     if (d < min) min = d;
   }
   return min;
-}
-
-function parseRouteLine(routeLine: string | undefined): [number, number][] {
-  if (!routeLine) return [];
-  try {
-    const geo = JSON.parse(routeLine);
-    if (geo.type === 'LineString') return geo.coordinates as [number, number][];
-    if (geo.type === 'Feature' && geo.geometry?.type === 'LineString')
-      return geo.geometry.coordinates as [number, number][];
-  } catch {
-    // ignore parse errors
-  }
-  return [];
 }
 
 // ── Types ──
@@ -153,12 +140,12 @@ export function useRoutineSubscription(routineTripId: string): UseRoutineSubscri
 
   const previewDeviation = useCallback(
     (lat: number, lng: number): DeviationPreview => {
-      // Build effective route coordinates from routeLine or origin→destination
+      // Build effective route coordinates from routePolyline or origin→destination
       let coords: [number, number][] = [];
       if (routineTrip) {
-        const parsed = parseRouteLine((routineTrip as unknown as Record<string, string>).routeLine);
-        if (parsed.length >= 2) {
-          coords = parsed;
+        const polyline = (routineTrip as any).routePolyline as { latitude: number; longitude: number; }[] | undefined;
+        if (Array.isArray(polyline) && polyline.length >= 2) {
+          coords = polyline.map((p) => [p.longitude, p.latitude]);
         } else {
           // Fallback: straight line origin → destination
           coords = [

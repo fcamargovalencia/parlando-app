@@ -34,7 +34,7 @@ export const routineTripsApi = {
     api.delete<ApiResponse<null>>(`/v1/routine-trips/${encodeURIComponent(id)}`),
 
   publish: (id: string) =>
-    api.patch<ApiResponse<RoutineTripResponse>>(`/v1/routine-trips/${encodeURIComponent(id)}/publish`, {}),
+    api.patch<ApiResponse<RoutineTripResponse>>(`/v1/routine-trips/${encodeURIComponent(id)}/publish`),
 
   pause: (id: string) =>
     api.patch<ApiResponse<RoutineTripResponse>>(`/v1/routine-trips/${encodeURIComponent(id)}/pause`, {}),
