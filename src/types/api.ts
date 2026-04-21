@@ -417,6 +417,273 @@ export interface BookingResponse {
   };
 }
 
+// ── Fase 4: Viajes Rutinarios ──
+
+export type RoutineTripStatus = 'DRAFT' | 'ACTIVE' | 'PAUSED' | 'COMPLETED' | 'CANCELLED';
+
+export type SubscriptionStatus = 'PENDING' | 'ACCEPTED' | 'PAUSED' | 'COMPLETED' | 'CANCELLED';
+
+export type PickupType = 'WAYPOINT' | 'SUGGESTED' | 'ACCEPTED_CUSTOM';
+
+export type StudentVerificationStatus = 'PENDING' | 'APPROVED' | 'REJECTED' | 'EXPIRED';
+
+export type RecurrenceDay = 'MON' | 'TUE' | 'WED' | 'THU' | 'FRI' | 'SAT' | 'SUN';
+
+// ── RoutineTrip ──
+
+export interface CreateRoutineTripRequest {
+  vehicleId: string;
+  originName: string;
+  originSubtitle?: string;
+  originLatitude: number;
+  originLongitude: number;
+  destinationName: string;
+  destinationSubtitle?: string;
+  destinationLatitude: number;
+  destinationLongitude: number;
+  universityId?: string;
+  studentsOnly: boolean;
+  departureTime: string;
+  requiredArrivalTime: string;
+  recurrenceDays: RecurrenceDay[];
+  validFrom: string;
+  validUntil?: string;
+  availableSeats: number;
+  pricePerSeat: number;
+  currency?: string;
+  allowsLuggage: boolean;
+  allowsCustomPickup: boolean;
+  maxPickupDeviationMeters?: number;
+  maxTimeOverheadSeconds?: number;
+  autoApproveBookings: boolean;
+  routeLine?: string;
+}
+
+export interface UpdateRoutineTripRequest extends Partial<CreateRoutineTripRequest> {}
+
+export interface RoutineTripResponse {
+  id: string;
+  driverId: string;
+  vehicleId: string;
+  originName: string;
+  originSubtitle?: string;
+  originLatitude: number;
+  originLongitude: number;
+  destinationName: string;
+  destinationSubtitle?: string;
+  destinationLatitude: number;
+  destinationLongitude: number;
+  universityId?: string;
+  studentsOnly: boolean;
+  departureTime: string;
+  requiredArrivalTime: string;
+  recurrenceDays: RecurrenceDay[];
+  validFrom: string;
+  validUntil?: string;
+  availableSeats: number;
+  pricePerSeat: number;
+  currency: string;
+  allowsLuggage: boolean;
+  allowsCustomPickup: boolean;
+  maxPickupDeviationMeters: number;
+  maxTimeOverheadSeconds: number;
+  autoApproveBookings: boolean;
+  status: RoutineTripStatus;
+  createdAt: string;
+  updatedAt: string;
+}
+
+// ── RoutineTripWaypoint ──
+
+export interface CreateRoutineWaypointRequest {
+  orderIndex: number;
+  latitude: number;
+  longitude: number;
+  name: string;
+  subtitle?: string;
+  isPickupPoint: boolean;
+  estimatedMinutesOffset: number;
+}
+
+export interface ReorderRoutineWaypointsRequest {
+  waypointIds: string[];
+}
+
+export interface RoutineWaypointResponse {
+  id: string;
+  routineTripId: string;
+  orderIndex: number;
+  latitude: number;
+  longitude: number;
+  name: string;
+  subtitle?: string;
+  isPickupPoint: boolean;
+  estimatedMinutesOffset: number;
+}
+
+// ── Búsqueda de RoutineTrip ──
+
+export interface SearchRoutineTripsParams {
+  universityId?: string;
+  destinationLat?: number;
+  destinationLng?: number;
+  destinationRadiusMeters?: number;
+  days: RecurrenceDay[];
+  requiredArrivalBefore: string;
+  passengerLat?: number;
+  passengerLng?: number;
+  maxWalkDistanceMeters?: number;
+  page?: number;
+  size?: number;
+}
+
+export interface RoutineTripSearchResult {
+  routineTripId: string;
+  driver: {
+    id: string;
+    name: string;
+    rating: number;
+    reliabilityScore: number;
+    verified: boolean;
+  };
+  vehicle: {
+    plate: string;
+    model: string;
+    color: string;
+  };
+  origin: { name: string; lat: number; lng: number };
+  destination: { name: string; lat: number; lng: number };
+  departureTime: string;
+  requiredArrivalTime: string;
+  recurrenceDays: RecurrenceDay[];
+  pricePerSeat: number;
+  currency: string;
+  availableSeatsForDays: Partial<Record<RecurrenceDay, number>>;
+  studentsOnly: boolean;
+  requiresStudentVerification: boolean;
+  allowsCustomPickup: boolean;
+  maxPickupDeviationMeters: number;
+  nearestWaypointDistanceMeters?: number;
+  nearestWaypoint?: {
+    id: string;
+    name: string;
+    estimatedPickupTime: string;
+  };
+  predefinedWaypoints: RoutineWaypointResponse[];
+}
+
+// ── RoutineSubscription ──
+
+export interface CreateRoutineSubscriptionRequest {
+  routineTripId: string;
+  subscribedDays: RecurrenceDay[];
+  startDate: string;
+  endDate?: string;
+  seatsRequired?: number;
+  specialRequirements?: string;
+  pickupWaypointId?: string;
+  customPickupLatitude?: number;
+  customPickupLongitude?: number;
+  customPickupName?: string;
+  dropoffWaypointId?: string;
+}
+
+export interface AcceptSubscriptionRequest {
+  notes?: string;
+}
+
+export interface RejectSubscriptionRequest {
+  reason?: string;
+}
+
+export interface PauseSubscriptionRequest {
+  fromDate: string;
+  toDate?: string;
+  reason?: string;
+}
+
+export interface PickupOverrideRequest {
+  latitude: number;
+  longitude: number;
+  name: string;
+}
+
+export interface RoutineSubscriptionResponse {
+  id: string;
+  routineTripId: string;
+  passengerId: string;
+  subscribedDays: RecurrenceDay[];
+  startDate: string;
+  endDate?: string;
+  seatsRequired: number;
+  specialRequirements?: string;
+  pickupWaypointId?: string;
+  customPickupLatitude?: number;
+  customPickupLongitude?: number;
+  customPickupName?: string;
+  routeDeviationMeters?: number;
+  timeOverheadSeconds?: number;
+  pickupType: PickupType;
+  dropoffWaypointId?: string;
+  status: SubscriptionStatus;
+  consecutiveNoShows: number;
+  createdAt: string;
+  updatedAt: string;
+  routineTrip?: RoutineTripResponse;
+  passenger?: {
+    id: string;
+    name: string;
+    rating: number;
+    verified: boolean;
+  };
+}
+
+// ── University ──
+
+export interface UniversityResponse {
+  id: string;
+  name: string;
+  shortName: string;
+  city: string;
+  department: string;
+  address: string;
+  latitude: number;
+  longitude: number;
+  domainEmail: string;
+  typicalArrivalWindows: { label: string; time: string }[];
+  logoUrl?: string;
+  isActive: boolean;
+}
+
+export interface SearchUniversitiesParams {
+  query?: string;
+  city?: string;
+  page?: number;
+  size?: number;
+}
+
+// ── StudentVerification ──
+
+export interface CreateStudentVerificationRequest {
+  universityId: string;
+  studentEmail: string;
+  studentCardUrl: string;
+}
+
+export interface StudentVerificationResponse {
+  id: string;
+  userId: string;
+  universityId: string;
+  studentEmail: string;
+  studentCardUrl: string;
+  status: StudentVerificationStatus;
+  expiresAt?: string;
+  rejectionReason?: string;
+  createdAt: string;
+  updatedAt: string;
+  university?: UniversityResponse;
+}
+
 // ── Chat ──
 
 export type MessageType = 'TEXT';
