@@ -5,7 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Route, Plus, User, Search, MessageCircle } from 'lucide-react-native';
 import { Colors } from '@/constants/colors';
 
-function PublishFABButton({ onPress }: { onPress?: () => void }) {
+function PublishFABButton({ onPress }: { onPress?: () => void; }) {
   return (
     <TouchableOpacity
       onPress={onPress}
@@ -80,10 +80,16 @@ export default function TabsLayout() {
         }}
       />
       <Tabs.Screen
+        name="routine-trips"
+        options={{ href: null }}
+      />
+      <Tabs.Screen
         name="publish"
         options={{
           title: 'Publicar',
-          tabBarButton: (props) => <PublishFABButton onPress={props.onPress ?? undefined} />,
+          tabBarButton: (props) => (
+            <PublishFABButton onPress={props.onPress ? () => props.onPress!(undefined as never) : undefined} />
+          ),
         }}
       />
       <Tabs.Screen

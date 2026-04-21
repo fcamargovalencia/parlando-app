@@ -18,6 +18,7 @@ export default function CreateRoutineLayout() {
       <Stack.Screen name="step-3-seats" options={{ title: 'Paso 3 de 4 — Cupos y precio' }} />
       <Stack.Screen name="step-4-pickup-config" options={{ title: 'Paso 4 de 4 — Recogida' }} />
       <Stack.Screen name="review" options={{ title: 'Revisar y publicar' }} />
+      <Stack.Screen name="step-5-waypoints" options={{ title: 'Paradas predefinidas' }} />
     </Stack>
   );
 }

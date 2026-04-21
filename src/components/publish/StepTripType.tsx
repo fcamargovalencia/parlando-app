@@ -18,26 +18,30 @@ export function StepTripType({ tripType, onSelect }: Props) {
           <TouchableOpacity
             key={opt.type}
             onPress={() => onSelect(opt.type)}
-            className={`flex-1 items-center py-4 rounded-xl border-2 ${
-              tripType === opt.type
+            className={`flex-1 items-center py-4 rounded-xl border-2 ${tripType === opt.type
                 ? 'border-primary-500 bg-primary-50'
                 : 'border-neutral-200 bg-white'
-            }`}
+              }`}
           >
             <TripTypeIcon type={opt.type} size={20} />
             <Text
-              className={`text-xs font-medium mt-1 ${
-                tripType === opt.type ? 'text-primary-700' : 'text-neutral-600'
-              }`}
+              className={`text-xs font-medium mt-1 ${tripType === opt.type ? 'text-primary-700' : 'text-neutral-600'
+                }`}
             >
               {opt.label}
             </Text>
           </TouchableOpacity>
         ))}
       </View>
-      <Text className="text-xs text-neutral-500">
-        Puedes cambiarlo más adelante antes de publicar.
-      </Text>
+      {tripType === 'ROUTINE' ? (
+        <Text className="text-xs text-primary-600 mt-1">
+          Serás guiado por el flujo de configuración de ruta rutinaria. ›
+        </Text>
+      ) : (
+        <Text className="text-xs text-neutral-500">
+          Puedes cambiarlo más adelante antes de publicar.
+        </Text>
+      )}
     </>
   );
 }

@@ -10,6 +10,7 @@ import {
 } from 'react-native';
 import Animated, { useAnimatedStyle } from 'react-native-reanimated';
 import { ChevronRight } from 'lucide-react-native';
+import { useRouter } from 'expo-router';
 import { Screen, Button, Card } from '@/components/ui';
 import { LocationPickerModal } from '@/components/LocationPickerModal';
 import { usePublishForm } from '@/hooks/usePublishForm';
@@ -27,6 +28,7 @@ import { TripSummary } from '@/components/publish/TripSummary';
 
 export default function PublishScreen() {
   const { height: windowHeight } = useWindowDimensions();
+  const router = useRouter();
 
   const {
     tripType,
@@ -191,7 +193,13 @@ export default function PublishScreen() {
           <View className={step < TOTAL_STEPS ? 'items-end' : 'items-center'}>
             {step === 5 ? null : step < TOTAL_STEPS ? (
               <TouchableOpacity
-                onPress={goNext}
+                onPress={() => {
+                  if (step === 1 && tripType === 'ROUTINE') {
+                    router.push('/routine/create/step-1-route' as never);
+                    return;
+                  }
+                  goNext();
+                }}
                 disabled={submitting}
                 activeOpacity={0.85}
                 className="w-14 h-14 rounded-full bg-primary-500 items-center justify-center"
