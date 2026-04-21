@@ -4,7 +4,7 @@ import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
-import { Bell } from 'lucide-react-native';
+import { Bell, ChevronRight, GraduationCap } from 'lucide-react-native';
 import { Screen, Avatar, DatePickerModal } from '@/components/ui';
 import { LocationPickerModal } from '@/components/LocationPickerModal';
 import { SearchCard } from '@/components/home/SearchCard';
@@ -121,6 +121,35 @@ export default function HomeScreen() {
           tripType={tripType}
           onSelect={selectTripTypeAndSearch}
         />
+
+        {/* Routine trips entry point */}
+        <View className="px-5 pb-2">
+          <Text className="text-base font-bold text-neutral-900 mb-3">Viajes universitarios</Text>
+          <TouchableOpacity
+            onPress={() => router.push('/search/routine')}
+            activeOpacity={0.8}
+            className="flex-row items-center rounded-2xl p-4 gap-3"
+            style={{
+              backgroundColor: Colors.primary[50],
+              borderWidth: 1.5,
+              borderColor: Colors.primary[200],
+            }}
+          >
+            <View
+              className="w-10 h-10 rounded-xl items-center justify-center"
+              style={{ backgroundColor: Colors.primary[100] }}
+            >
+              <GraduationCap size={22} color={Colors.primary[600]} />
+            </View>
+            <View className="flex-1">
+              <Text className="text-sm font-semibold text-neutral-900">Rutas rutinarias</Text>
+              <Text className="text-xs text-neutral-500 mt-0.5">
+                Suscríbete a rutas universitarias recurrentes
+              </Text>
+            </View>
+            <ChevronRight size={18} color={Colors.primary[400]} />
+          </TouchableOpacity>
+        </View>
 
         <View style={{ height: 32 }} />
       </ScrollView>
