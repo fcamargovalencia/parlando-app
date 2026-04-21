@@ -459,7 +459,7 @@ export interface CreateRoutineTripRequest {
   routeLine?: string;
 }
 
-export interface UpdateRoutineTripRequest extends Partial<CreateRoutineTripRequest> {}
+export interface UpdateRoutineTripRequest extends Partial<CreateRoutineTripRequest> { }
 
 export interface RoutineTripResponse {
   id: string;
@@ -551,8 +551,8 @@ export interface RoutineTripSearchResult {
     model: string;
     color: string;
   };
-  origin: { name: string; lat: number; lng: number };
-  destination: { name: string; lat: number; lng: number };
+  origin: { name: string; lat: number; lng: number; };
+  destination: { name: string; lat: number; lng: number; };
   departureTime: string;
   requiredArrivalTime: string;
   recurrenceDays: RecurrenceDay[];
@@ -650,7 +650,7 @@ export interface UniversityResponse {
   latitude: number;
   longitude: number;
   domainEmail: string;
-  typicalArrivalWindows: { label: string; time: string }[];
+  typicalArrivalWindows: { label: string; time: string; }[];
   logoUrl?: string;
   isActive: boolean;
 }
