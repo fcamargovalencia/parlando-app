@@ -39,7 +39,7 @@ interface StatusConfig {
   bgClass: string;
   textClass: string;
   borderClass: string;
-  icon: React.ComponentType<{ size: number; color: string }>;
+  icon: React.ComponentType<{ size: number; color: string; }>;
   iconColor: string;
 }
 

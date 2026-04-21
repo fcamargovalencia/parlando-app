@@ -73,7 +73,7 @@ type ActionModal = 'pause' | 'resume' | 'cancel' | 'bookingDetail';
 export default function SubscriptionDetailScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const { id } = useLocalSearchParams<{ id: string; }>();
 
   const { pauseSubscription, resumeSubscription, cancelSubscription, overridePickup } =
     useMySubscriptions();
@@ -120,7 +120,7 @@ export default function SubscriptionDetailScreen() {
           setBookings(bkgRes.data.data ?? []);
         }
       } catch (err: unknown) {
-        const anyErr = err as { response?: { data?: { message?: string } }; message?: string };
+        const anyErr = err as { response?: { data?: { message?: string; }; }; message?: string; };
         const msg = anyErr?.response?.data?.message ?? anyErr?.message ?? 'Error al cargar la suscripción';
         if (!cancelled) setLoadError(msg);
       } finally {
@@ -146,7 +146,7 @@ export default function SubscriptionDetailScreen() {
       await reloadSubscription();
       setActiveModal(null);
     } catch (err: unknown) {
-      const anyErr = err as { response?: { data?: { message?: string } } };
+      const anyErr = err as { response?: { data?: { message?: string; }; }; };
       Alert.alert('Error', anyErr?.response?.data?.message ?? 'Error al pausar');
     } finally {
       setIsSubmitting(false);
@@ -163,7 +163,7 @@ export default function SubscriptionDetailScreen() {
       await reloadSubscription();
       setActiveModal(null);
     } catch (err: unknown) {
-      const anyErr = err as { response?: { data?: { message?: string } } };
+      const anyErr = err as { response?: { data?: { message?: string; }; }; };
       Alert.alert('Error', anyErr?.response?.data?.message ?? 'Error al reactivar');
     } finally {
       setIsSubmitting(false);
@@ -180,7 +180,7 @@ export default function SubscriptionDetailScreen() {
       setActiveModal(null);
       router.back();
     } catch (err: unknown) {
-      const anyErr = err as { response?: { data?: { message?: string } } };
+      const anyErr = err as { response?: { data?: { message?: string; }; }; };
       Alert.alert('Error', anyErr?.response?.data?.message ?? 'Error al cancelar');
     } finally {
       setIsSubmitting(false);
@@ -228,7 +228,7 @@ export default function SubscriptionDetailScreen() {
       Alert.alert('¡Cambio enviado!', 'El conductor recibirá la solicitud y responderá pronto.');
       setActiveModal(null);
     } catch (err: unknown) {
-      const anyErr = err as { response?: { data?: { message?: string } } };
+      const anyErr = err as { response?: { data?: { message?: string; }; }; };
       Alert.alert('Error', anyErr?.response?.data?.message ?? 'Error al enviar el cambio');
     } finally {
       setIsSubmitting(false);

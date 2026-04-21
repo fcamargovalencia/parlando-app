@@ -15,7 +15,7 @@ interface SubscriptionStatusConfig {
   bgClass: string;
   textClass: string;
   iconColor: string;
-  Icon: React.ComponentType<{ size: number; color: string }>;
+  Icon: React.ComponentType<{ size: number; color: string; }>;
 }
 
 const STATUS_CONFIG: Record<SubscriptionStatus, SubscriptionStatusConfig> = {
