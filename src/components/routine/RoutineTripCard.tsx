@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Text, TouchableOpacity } from 'react-native';
-import { Banknote, Clock, Lock, MapPin, Users } from 'lucide-react-native';
+import { Banknote, Clock, Lock, Map, MapPin, Users } from 'lucide-react-native';
 import { Avatar, Card } from '@/components/ui';
 import { Colors } from '@/constants/colors';
 import { formatCurrency } from '@/lib/utils';
@@ -19,9 +19,10 @@ const DAY_LABELS: Record<RecurrenceDay, string> = {
 interface RoutineTripCardProps {
   result: RoutineTripSearchResult;
   onPress: () => void;
+  onRoutePress?: () => void;
 }
 
-export function RoutineTripCard({ result, onPress }: RoutineTripCardProps) {
+export function RoutineTripCard({ result, onPress, onRoutePress }: RoutineTripCardProps) {
   const {
     driverName, originName, destinationName, departureTime, requiredArrivalTime,
     recurrenceDays, pricePerSeat, currency, availableSeats,
@@ -94,7 +95,7 @@ export function RoutineTripCard({ result, onPress }: RoutineTripCardProps) {
           </View>
         )}
 
-        {/* Footer: price */}
+        {/* Footer: price + route button */}
         <View className="flex-row items-center justify-between pt-3 border-t border-neutral-100">
           <View className="flex-row items-center gap-1.5">
             <Banknote size={14} color={Colors.neutral[500]} />
@@ -103,9 +104,21 @@ export function RoutineTripCard({ result, onPress }: RoutineTripCardProps) {
             </Text>
             <Text className="text-xs text-neutral-400">/ cupo</Text>
           </View>
-          <View className="flex-row items-center gap-1">
-            <Users size={14} color={Colors.neutral[400]} />
-            <Text className="text-xs text-neutral-500">{availableSeats} cupos</Text>
+          <View className="flex-row items-center gap-3">
+            <View className="flex-row items-center gap-1">
+              <Users size={14} color={Colors.neutral[400]} />
+              <Text className="text-xs text-neutral-500">{availableSeats} cupos</Text>
+            </View>
+            {onRoutePress && (
+              <TouchableOpacity
+                onPress={(e) => { e.stopPropagation(); onRoutePress(); }}
+                activeOpacity={0.7}
+                className="flex-row items-center gap-1 bg-primary-50 px-2.5 py-1.5 rounded-full"
+              >
+                <Map size={12} color={Colors.primary[600]} />
+                <Text className="text-xs font-semibold text-primary-700">Ver ruta</Text>
+              </TouchableOpacity>
+            )}
           </View>
         </View>
       </Card>

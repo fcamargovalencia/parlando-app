@@ -14,11 +14,12 @@ import { ChevronLeft, MapPin, Search, SlidersHorizontal } from 'lucide-react-nat
 import { FlashList } from '@shopify/flash-list';
 import { DaySelector } from '@/components/routine/DaySelector';
 import { RoutineTripCard } from '@/components/routine/RoutineTripCard';
+import { RoutineRouteMapModal } from '@/components/routine/RoutineRouteMapModal';
 import { UniversityPicker } from '@/components/university/UniversityPicker';
 import { DatePickerModal, EmptyState, Spinner } from '@/components/ui';
 import { Colors } from '@/constants/colors';
 import { useSearchRoutineTrips } from '@/hooks/useSearchRoutineTrips';
-import type { RecurrenceDay, UniversityResponse } from '@/types/api';
+import type { RecurrenceDay, RoutineTripSearchResult, UniversityResponse } from '@/types/api';
 
 const WALK_DISTANCE_STEPS = [250, 500, 750, 1000, 1500, 2000];
 
@@ -61,6 +62,7 @@ export default function RoutineSearchScreen() {
   const [nearMe, setNearMe] = useState(false);
   const [walkDistanceIndex, setWalkDistanceIndex] = useState(1); // default 500m
   const [locationError, setLocationError] = useState<string | null>(null);
+  const [selectedRouteTrip, setSelectedRouteTrip] = useState<RoutineTripSearchResult | null>(null);
 
   // Derived — time value as Date for the picker
   const arrivalTimeDate = React.useMemo(() => {
@@ -324,6 +326,7 @@ export default function RoutineSearchScreen() {
                     key={result.id}
                     result={result}
                     onPress={() => handleCardPress(result.id)}
+                    onRoutePress={() => setSelectedRouteTrip(result)}
                   />
                 ))}
               </>
@@ -343,6 +346,19 @@ export default function RoutineSearchScreen() {
         onConfirm={handleArrivalTimeConfirm}
         onCancel={() => setShowTimePicker(false)}
       />
+
+      {selectedRouteTrip && (
+        <RoutineRouteMapModal
+          visible={!!selectedRouteTrip}
+          onClose={() => setSelectedRouteTrip(null)}
+          originName={selectedRouteTrip.originName}
+          originLatitude={selectedRouteTrip.originLatitude}
+          originLongitude={selectedRouteTrip.originLongitude}
+          destinationName={selectedRouteTrip.destinationName}
+          destinationLatitude={selectedRouteTrip.destinationLatitude}
+          destinationLongitude={selectedRouteTrip.destinationLongitude}
+        />
+      )}
     </View>
   );
 }
