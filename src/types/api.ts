@@ -529,7 +529,7 @@ export interface SearchRoutineTripsParams {
   destinationLat?: number;
   destinationLng?: number;
   destinationRadiusMeters?: number;
-  days: RecurrenceDay[];
+  days: string;
   requiredArrivalBefore: string;
   passengerLat?: number;
   passengerLng?: number;
@@ -539,38 +539,25 @@ export interface SearchRoutineTripsParams {
 }
 
 export interface RoutineTripSearchResult {
-  routineTripId: string;
-  driver: {
-    id: string;
-    name: string;
-    rating: number;
-    reliabilityScore: number;
-    verified: boolean;
-  };
-  vehicle: {
-    plate: string;
-    model: string;
-    color: string;
-  };
-  origin: { name: string; lat: number; lng: number; };
-  destination: { name: string; lat: number; lng: number; };
+  id: string;
+  driverName: string;
+  driverId: string;
+  originName: string;
+  originLatitude: number;
+  originLongitude: number;
+  destinationName: string;
+  destinationLatitude: number;
+  destinationLongitude: number;
+  studentsOnly: boolean;
   departureTime: string;
   requiredArrivalTime: string;
   recurrenceDays: RecurrenceDay[];
+  availableSeats: number;
   pricePerSeat: number;
   currency: string;
-  availableSeatsForDays: Partial<Record<RecurrenceDay, number>>;
-  studentsOnly: boolean;
-  requiresStudentVerification: boolean;
+  allowsLuggage: boolean;
   allowsCustomPickup: boolean;
-  maxPickupDeviationMeters: number;
-  nearestWaypointDistanceMeters?: number;
-  nearestWaypoint?: {
-    id: string;
-    name: string;
-    estimatedPickupTime: string;
-  };
-  predefinedWaypoints: RoutineWaypointResponse[];
+  requiresStudentVerification: boolean;
 }
 
 // ── RoutineSubscription ──

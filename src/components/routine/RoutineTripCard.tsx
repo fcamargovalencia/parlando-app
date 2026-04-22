@@ -1,8 +1,7 @@
 import React from 'react';
 import { View, Text, TouchableOpacity } from 'react-native';
-import { Banknote, Clock, Lock, MapPin, Star, Users } from 'lucide-react-native';
-import { Avatar, Badge, Card } from '@/components/ui';
-import { ReliabilityBadge } from './ReliabilityBadge';
+import { Banknote, Clock, Lock, MapPin, Users } from 'lucide-react-native';
+import { Avatar, Card } from '@/components/ui';
 import { Colors } from '@/constants/colors';
 import { formatCurrency } from '@/lib/utils';
 import type { RecurrenceDay, RoutineTripSearchResult } from '@/types/api';
@@ -23,9 +22,14 @@ interface RoutineTripCardProps {
 }
 
 export function RoutineTripCard({ result, onPress }: RoutineTripCardProps) {
-  const { driver, vehicle, origin, destination, departureTime, requiredArrivalTime,
-    recurrenceDays, pricePerSeat, currency, availableSeatsForDays,
-    nearestWaypointDistanceMeters, nearestWaypoint, requiresStudentVerification } = result;
+  const {
+    driverName, originName, destinationName, departureTime, requiredArrivalTime,
+    recurrenceDays, pricePerSeat, currency, availableSeats,
+    requiresStudentVerification, allowsLuggage, allowsCustomPickup,
+  } = result;
+
+  const firstName = driverName.split(' ')[0];
+  const lastName = driverName.split(' ')[1] ?? '';
 
   return (
     <TouchableOpacity onPress={onPress} activeOpacity={0.8}>
@@ -33,15 +37,8 @@ export function RoutineTripCard({ result, onPress }: RoutineTripCardProps) {
         {/* Header: driver info + student-only badge */}
         <View className="flex-row items-center justify-between mb-3">
           <View className="flex-row items-center gap-2.5">
-            <Avatar firstName={driver.name.split(' ')[0]} lastName={driver.name.split(' ')[1] ?? ''} size="sm" />
-            <View>
-              <Text className="text-sm font-semibold text-neutral-900">{driver.name}</Text>
-              <View className="flex-row items-center gap-1.5 mt-0.5">
-                <Star size={12} color="#F59E0B" fill="#F59E0B" />
-                <Text className="text-xs text-neutral-500">{driver.rating.toFixed(1)}</Text>
-                <ReliabilityBadge score={driver.reliabilityScore * 100} />
-              </View>
-            </View>
+            <Avatar firstName={firstName} lastName={lastName} size="sm" />
+            <Text className="text-sm font-semibold text-neutral-900">{driverName}</Text>
           </View>
           {requiresStudentVerification && (
             <View className="flex-row items-center gap-1 bg-blue-50 px-2 py-1 rounded-full">
@@ -59,51 +56,41 @@ export function RoutineTripCard({ result, onPress }: RoutineTripCardProps) {
             <MapPin size={12} color={Colors.accent[500]} />
           </View>
           <View className="flex-1">
-            <Text className="text-sm text-neutral-700" numberOfLines={1}>{origin.name}</Text>
-            <Text className="text-sm font-semibold text-neutral-900 mt-2" numberOfLines={1}>{destination.name}</Text>
+            <Text className="text-sm text-neutral-700" numberOfLines={1}>{originName}</Text>
+            <Text className="text-sm font-semibold text-neutral-900 mt-2" numberOfLines={1}>{destinationName}</Text>
           </View>
         </View>
 
         {/* Schedule */}
-        <View className="flex-row items-center gap-1.5 mb-2">
+        <View className="flex-row items-center gap-1.5 mb-3">
           <Clock size={13} color={Colors.neutral[400]} />
           <Text className="text-sm text-neutral-600">
             {departureTime} → llega antes de {requiredArrivalTime}
           </Text>
         </View>
 
-        {/* Vehicle */}
-        <Text className="text-xs text-neutral-500 mb-3">
-          {vehicle.model} · {vehicle.color} · {vehicle.plate}
-        </Text>
-
-        {/* Days with seats */}
+        {/* Days */}
         <View className="flex-row flex-wrap gap-1.5 mb-3">
-          {recurrenceDays.map((day) => {
-            const seats = availableSeatsForDays[day];
-            const hasSeats = seats !== undefined && seats > 0;
-            return (
-              <View
-                key={day}
-                className={`px-2.5 py-1 rounded-full ${hasSeats ? 'bg-primary-50' : 'bg-neutral-100'}`}
-              >
-                <Text className={`text-xs font-semibold ${hasSeats ? 'text-primary-700' : 'text-neutral-400'}`}>
-                  {DAY_LABELS[day]} {hasSeats ? `(${seats})` : '—'}
-                </Text>
-              </View>
-            );
-          })}
+          {recurrenceDays.map((day) => (
+            <View key={day} className="px-2.5 py-1 rounded-full bg-primary-50">
+              <Text className="text-xs font-semibold text-primary-700">{DAY_LABELS[day]}</Text>
+            </View>
+          ))}
         </View>
 
-        {/* Nearest waypoint info */}
-        {nearestWaypoint && nearestWaypointDistanceMeters !== undefined && (
-          <View className="flex-row items-center gap-1.5 bg-neutral-50 rounded-xl px-3 py-2 mb-3">
-            <MapPin size={12} color={Colors.primary[500]} />
-            <Text className="text-xs text-neutral-600 flex-1" numberOfLines={1}>
-              Parada más cercana:{' '}
-              <Text className="font-semibold">{nearestWaypoint.name}</Text>
-              {' '}a {Math.round(nearestWaypointDistanceMeters)}m · paso a las {nearestWaypoint.estimatedPickupTime}
-            </Text>
+        {/* Extras */}
+        {(allowsLuggage || allowsCustomPickup) && (
+          <View className="flex-row gap-2 mb-3">
+            {allowsLuggage && (
+              <View className="px-2.5 py-1 rounded-full bg-neutral-100">
+                <Text className="text-xs text-neutral-500">Equipaje</Text>
+              </View>
+            )}
+            {allowsCustomPickup && (
+              <View className="px-2.5 py-1 rounded-full bg-neutral-100">
+                <Text className="text-xs text-neutral-500">Recogida flexible</Text>
+              </View>
+            )}
           </View>
         )}
 
@@ -116,9 +103,10 @@ export function RoutineTripCard({ result, onPress }: RoutineTripCardProps) {
             </Text>
             <Text className="text-xs text-neutral-400">/ cupo</Text>
           </View>
-          {driver.verified && (
-            <Badge label="Verificado" variant="success" />
-          )}
+          <View className="flex-row items-center gap-1">
+            <Users size={14} color={Colors.neutral[400]} />
+            <Text className="text-xs text-neutral-500">{availableSeats} cupos</Text>
+          </View>
         </View>
       </Card>
     </TouchableOpacity>

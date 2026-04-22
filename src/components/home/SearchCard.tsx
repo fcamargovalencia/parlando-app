@@ -83,6 +83,7 @@ export function SearchCard({
   onOpenTripTypeSheet,
   onSearch,
 }: SearchCardProps) {
+  const isRoutine = tripType === 'ROUTINE';
   const dateLabel = dayjs(departureDate).isSame(dayjs(), 'day')
     ? 'Hoy'
     : dayjs(departureDate).isSame(dayjs().add(1, 'day'), 'day')
@@ -134,20 +135,22 @@ export function SearchCard({
 
       {/* Date & trip type */}
       <View className="flex-row gap-2 mb-4">
-        <TouchableOpacity
-          onPress={onOpenDatePicker}
-          activeOpacity={0.75}
-          className="flex-1 flex-row items-center bg-neutral-50 rounded-2xl px-3 py-3.5"
-          style={{ borderWidth: 1, borderColor: '#E5E7EB' }}
-        >
-          <Calendar size={16} color={Colors.primary[500]} />
-          <View className="ml-2 flex-1">
-            <Text className="text-xs font-medium" style={{ color: Colors.neutral[400] }}>
-              Fecha
-            </Text>
-            <Text className="text-sm font-semibold text-neutral-900">{dateLabel}</Text>
-          </View>
-        </TouchableOpacity>
+        {!isRoutine && (
+          <TouchableOpacity
+            onPress={onOpenDatePicker}
+            activeOpacity={0.75}
+            className="flex-1 flex-row items-center bg-neutral-50 rounded-2xl px-3 py-3.5"
+            style={{ borderWidth: 1, borderColor: '#E5E7EB' }}
+          >
+            <Calendar size={16} color={Colors.primary[500]} />
+            <View className="ml-2 flex-1">
+              <Text className="text-xs font-medium" style={{ color: Colors.neutral[400] }}>
+                Fecha
+              </Text>
+              <Text className="text-sm font-semibold text-neutral-900">{dateLabel}</Text>
+            </View>
+          </TouchableOpacity>
+        )}
 
         <TouchableOpacity
           onPress={onOpenTripTypeSheet}

@@ -1,7 +1,6 @@
 import { api } from './client';
 import type {
   ApiResponse,
-  PageResponse,
   CreateRoutineTripRequest,
   UpdateRoutineTripRequest,
   RoutineTripResponse,
@@ -22,7 +21,7 @@ export const routineTripsApi = {
     api.get<ApiResponse<RoutineTripResponse[]>>('/v1/routine-trips/me'),
 
   search: (params: SearchRoutineTripsParams) =>
-    api.get<ApiResponse<PageResponse<RoutineTripSearchResult>>>('/v1/routine-trips/search', { params }),
+    api.get<ApiResponse<RoutineTripSearchResult[]>>('/v1/routine-trips/search', { params }),
 
   getById: (id: string) =>
     api.get<ApiResponse<RoutineTripResponse>>(`/v1/routine-trips/${encodeURIComponent(id)}`),

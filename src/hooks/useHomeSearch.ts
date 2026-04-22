@@ -40,6 +40,21 @@ export function useHomeSearch() {
   const handleSearch = useCallback(() => {
     if (!origin || !destination) return;
 
+    if (tripType === 'ROUTINE') {
+      router.push({
+        pathname: '/search/routine',
+        params: {
+          originLat: String(origin.latitude),
+          originLng: String(origin.longitude),
+          originName: origin.name,
+          destLat: String(destination.latitude),
+          destLng: String(destination.longitude),
+          destName: destination.name,
+        },
+      });
+      return;
+    }
+
     const isToday = dayjs(departureDate).isSame(dayjs(), 'day');
     const from = isToday
       ? toLocalISOString(dayjs().add(1, 'hour').toDate())

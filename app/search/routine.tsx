@@ -8,7 +8,7 @@ import {
   Platform,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import * as Location from 'expo-location';
 import { ChevronLeft, MapPin, Search, SlidersHorizontal } from 'lucide-react-native';
 import { FlashList } from '@shopify/flash-list';
@@ -25,9 +25,35 @@ const WALK_DISTANCE_STEPS = [250, 500, 750, 1000, 1500, 2000];
 export default function RoutineSearchScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const {
+    originLat, originLng, originName,
+    destLat, destLng, destName,
+  } = useLocalSearchParams<{
+    originLat?: string; originLng?: string; originName?: string;
+    destLat?: string; destLng?: string; destName?: string;
+  }>();
 
   const { params, setParams, results, isLoading, error, search, hasSearched } =
     useSearchRoutineTrips();
+
+  // Pre-populate from home search params
+  React.useEffect(() => {
+    const updates: Partial<typeof params> = {};
+    if (originLat && originLng) {
+      updates.passengerLat = parseFloat(originLat);
+      updates.passengerLng = parseFloat(originLng);
+      updates.maxWalkDistanceMeters = WALK_DISTANCE_STEPS[1];
+    }
+    if (destLat && destLng) {
+      updates.destinationLat = parseFloat(destLat);
+      updates.destinationLng = parseFloat(destLng);
+      updates.destinationRadiusMeters = 1000;
+    }
+    if (Object.keys(updates).length > 0) setParams((prev) => ({ ...prev, ...updates }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const hasPrefilledRoute = !!(originName && destName);
 
   // UI state
   const [showTimePicker, setShowTimePicker] = useState(false);
@@ -47,7 +73,7 @@ export default function RoutineSearchScreen() {
 
   const canSearch =
     (!!params.universityId || (!!params.destinationLat && !!params.destinationLng)) &&
-    !!params.days?.length &&
+    !!params.days &&
     !!params.requiredArrivalBefore;
 
   const handleUniversityChange = useCallback(
@@ -77,7 +103,7 @@ export default function RoutineSearchScreen() {
 
   const handleDaysChange = useCallback(
     (days: RecurrenceDay[]) => {
-      setParams((prev) => ({ ...prev, days }));
+      setParams((prev) => ({ ...prev, days: days.join(',') }));
     },
     [setParams],
   );
@@ -163,6 +189,17 @@ export default function RoutineSearchScreen() {
         <View className="bg-white mx-4 mt-4 rounded-2xl p-4 border border-neutral-100"
           style={{ shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.06, shadowRadius: 8, elevation: 2 }}
         >
+          {/* Pre-filled route banner */}
+          {hasPrefilledRoute && (
+            <View className="flex-row items-center bg-primary-50 rounded-xl px-3 py-2.5 mb-4 gap-2">
+              <MapPin size={14} color={Colors.primary[600]} />
+              <Text className="flex-1 text-xs text-primary-700" numberOfLines={1}>
+                <Text className="font-semibold">{originName}</Text>
+                <Text> → </Text>
+                <Text className="font-semibold">{destName}</Text>
+              </Text>
+            </View>
+          )}
           <Text className="text-sm font-semibold text-neutral-700 mb-2">Destino</Text>
           <UniversityPicker
             value={params.universityId}
@@ -175,7 +212,7 @@ export default function RoutineSearchScreen() {
 
           <Text className="text-sm font-semibold text-neutral-700 mb-2">Días que necesitas</Text>
           <DaySelector
-            selected={params.days ?? []}
+            selected={(params.days ? params.days.split(',') : []) as RecurrenceDay[]}
             onChange={handleDaysChange}
           />
 
@@ -284,9 +321,9 @@ export default function RoutineSearchScreen() {
                 </Text>
                 {results.map((result) => (
                   <RoutineTripCard
-                    key={result.routineTripId}
+                    key={result.id}
                     result={result}
-                    onPress={() => handleCardPress(result.routineTripId)}
+                    onPress={() => handleCardPress(result.id)}
                   />
                 ))}
               </>
