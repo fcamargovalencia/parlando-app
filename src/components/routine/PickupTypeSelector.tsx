@@ -85,8 +85,8 @@ function CustomPickupMapModal({
   const [mapReady, setMapReady] = useState(false);
 
   const routePoints: { latitude: number; longitude: number; }[] =
-    Array.isArray((routineTrip as any).routePolyline) && (routineTrip as any).routePolyline.length >= 2
-      ? (routineTrip as any).routePolyline
+    Array.isArray(routineTrip.routeLine) && routineTrip.routeLine.length >= 2
+      ? routineTrip.routeLine.map((p) => ({ latitude: p[0], longitude: p[1] }))
       : [];
   const deviation = previewDeviation(centerCoord.latitude, centerCoord.longitude);
   const maxDev = routineTrip.maxPickupDeviationMeters;
@@ -378,8 +378,8 @@ export function PickupTypeSelector({
                 onPress={() => handleSelectWaypoint(wp)}
                 activeOpacity={0.75}
                 className={`flex-row items-center gap-3 p-3.5 rounded-2xl border ${isSelected
-                    ? 'bg-primary-50 border-primary-400'
-                    : 'bg-white border-neutral-200'
+                  ? 'bg-primary-50 border-primary-400'
+                  : 'bg-white border-neutral-200'
                   }`}
               >
                 <View
@@ -412,8 +412,8 @@ export function PickupTypeSelector({
               onPress={() => setShowMapModal(true)}
               activeOpacity={0.75}
               className={`flex-row items-center gap-3 p-3.5 rounded-2xl border ${selection?.pickupType === 'SUGGESTED'
-                  ? 'bg-amber-50 border-amber-400'
-                  : 'bg-white border-neutral-200'
+                ? 'bg-amber-50 border-amber-400'
+                : 'bg-white border-neutral-200'
                 }`}
             >
               <View

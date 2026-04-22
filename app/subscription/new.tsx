@@ -56,10 +56,10 @@ type PickerTarget = 'startDate' | 'endDate';
 export default function NewSubscriptionScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { routineTripId } = useLocalSearchParams<{ routineTripId: string; }>();
+  const { routineTripId, routeLine: routeLineParam } = useLocalSearchParams<{ routineTripId: string; routeLine?: string; }>();
 
   const {
-    routineTrip,
+    routineTrip: routineTripRaw,
     waypoints,
     formData,
     updateForm,
@@ -70,6 +70,10 @@ export default function NewSubscriptionScreen() {
     errors,
     loadingError,
   } = useRoutineSubscription(routineTripId!);
+
+  const routineTrip = routineTripRaw && !routineTripRaw.routeLine && routeLineParam
+    ? { ...routineTripRaw, routeLine: JSON.parse(routeLineParam) as [number, number][] }
+    : routineTripRaw;
 
   const [pickupSelection, setPickupSelection] = useState<PickupSelection | null>(null);
   const [hasEndDate, setHasEndDate] = useState(false);

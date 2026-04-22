@@ -163,8 +163,14 @@ export default function RoutineSearchScreen() {
     [nearMe, setParams],
   );
 
-  const handleCardPress = (routineTripId: string) => {
-    router.push({ pathname: '/subscription/new', params: { routineTripId } });
+  const handleCardPress = (result: RoutineTripSearchResult) => {
+    router.push({
+      pathname: '/subscription/new',
+      params: {
+        routineTripId: result.id,
+        ...(result.routeLine ? { routeLine: JSON.stringify(result.routeLine) } : {}),
+      },
+    });
   };
 
   return (
@@ -325,7 +331,7 @@ export default function RoutineSearchScreen() {
                   <RoutineTripCard
                     key={result.id}
                     result={result}
-                    onPress={() => handleCardPress(result.id)}
+                    onPress={() => handleCardPress(result)}
                     onRoutePress={() => setSelectedRouteTrip(result)}
                   />
                 ))}

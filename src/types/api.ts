@@ -492,6 +492,7 @@ export interface RoutineTripResponse {
   status: RoutineTripStatus;
   createdAt: string;
   updatedAt: string;
+  routeLine?: [number, number][];
 }
 
 // ── RoutineTripWaypoint ──

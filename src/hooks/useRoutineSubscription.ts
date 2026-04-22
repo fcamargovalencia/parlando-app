@@ -140,12 +140,11 @@ export function useRoutineSubscription(routineTripId: string): UseRoutineSubscri
 
   const previewDeviation = useCallback(
     (lat: number, lng: number): DeviationPreview => {
-      // Build effective route coordinates from routePolyline or origin→destination
+      // Build effective route coordinates from routeLine (GeoJSON format: [lng, lat]) or origin→destination
       let coords: [number, number][] = [];
       if (routineTrip) {
-        const polyline = (routineTrip as any).routePolyline as { latitude: number; longitude: number; }[] | undefined;
-        if (Array.isArray(polyline) && polyline.length >= 2) {
-          coords = polyline.map((p) => [p.longitude, p.latitude]);
+        if (Array.isArray(routineTrip.routeLine) && routineTrip.routeLine.length >= 2) {
+          coords = routineTrip.routeLine;
         } else {
           // Fallback: straight line origin → destination
           coords = [
