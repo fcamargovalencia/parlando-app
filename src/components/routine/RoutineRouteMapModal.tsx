@@ -10,7 +10,6 @@ import {
 import { ArrowLeft } from 'lucide-react-native';
 import MapView, { Polyline, Marker } from 'react-native-maps';
 import { Colors, Shadows } from '@/constants/colors';
-import { tomtomService } from '@/lib/tomtom';
 
 interface RoutineRouteMapModalProps {
   visible: boolean;
@@ -36,7 +35,6 @@ export function RoutineRouteMapModal({
   routeLine,
 }: RoutineRouteMapModalProps) {
   const mapRef = useRef<MapView>(null);
-  const [polylineCoords, setPolylineCoords] = useState<Array<{ latitude: number; longitude: number; }>>([]);
   const [routeLineCoords, setRouteLineCoords] = useState<Array<{ latitude: number; longitude: number; }>>([]);
   const [loading, setLoading] = useState(false);
 
@@ -45,46 +43,20 @@ export function RoutineRouteMapModal({
     { latitude: destinationLatitude, longitude: destinationLongitude },
   ];
 
-  const renderedPolyline = polylineCoords.length >= 2 ? polylineCoords : fallbackCoords;
   const renderedRouteLine = routeLineCoords.length >= 2 ? routeLineCoords : fallbackCoords;
 
   useEffect(() => {
     if (!visible) return;
-    setPolylineCoords([]);
     setRouteLineCoords([]);
 
-    if (!tomtomService.isConfigured()) return;
-
-    let cancelled = false;
     setLoading(true);
-
-    tomtomService
-      .calculateRoute([
-        { latitude: originLatitude, longitude: originLongitude },
-        { latitude: destinationLatitude, longitude: destinationLongitude },
-      ])
-      .then((result) => {
-        if (cancelled) return;
-        setPolylineCoords(result.points.map((p) => (
-          //console.log('Provided poly line point:', p),
-          { latitude: p.latitude, longitude: p.longitude }
-        )));
-        //console.log('Provided poly line:', renderedPolyline);
-      })
-      .catch((err) => {
-        if (cancelled) return;
-        console.warn('[RoutineRouteMapModal] TomTom route failed:', err);
-      })
-      .finally(() => {
-        if (!cancelled) setLoading(false);
-      });
 
     setRouteLineCoords(routeLine?.map((p) => (
       { latitude: p[0], longitude: p[1] }
     )) ?? []);
 
+    setLoading(false);
 
-    return () => { cancelled = true; };
   }, [visible, originLatitude, originLongitude, destinationLatitude, destinationLongitude, routeLine]);
 
   useEffect(() => {
