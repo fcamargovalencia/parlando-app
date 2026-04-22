@@ -21,6 +21,7 @@ interface RoutineRouteMapModalProps {
   destinationName: string;
   destinationLatitude: number;
   destinationLongitude: number;
+  routeLine?: [number, number][];
 }
 
 export function RoutineRouteMapModal({
@@ -32,9 +33,11 @@ export function RoutineRouteMapModal({
   destinationName,
   destinationLatitude,
   destinationLongitude,
+  routeLine,
 }: RoutineRouteMapModalProps) {
   const mapRef = useRef<MapView>(null);
   const [polylineCoords, setPolylineCoords] = useState<Array<{ latitude: number; longitude: number; }>>([]);
+  const [routeLineCoords, setRouteLineCoords] = useState<Array<{ latitude: number; longitude: number; }>>([]);
   const [loading, setLoading] = useState(false);
 
   const fallbackCoords = [
@@ -43,10 +46,12 @@ export function RoutineRouteMapModal({
   ];
 
   const renderedPolyline = polylineCoords.length >= 2 ? polylineCoords : fallbackCoords;
+  const renderedRouteLine = routeLineCoords.length >= 2 ? routeLineCoords : fallbackCoords;
 
   useEffect(() => {
     if (!visible) return;
     setPolylineCoords([]);
+    setRouteLineCoords([]);
 
     if (!tomtomService.isConfigured()) return;
 
@@ -60,7 +65,11 @@ export function RoutineRouteMapModal({
       ])
       .then((result) => {
         if (cancelled) return;
-        setPolylineCoords(result.points.map((p) => ({ latitude: p.latitude, longitude: p.longitude })));
+        setPolylineCoords(result.points.map((p) => (
+          //console.log('Provided poly line point:', p),
+          { latitude: p.latitude, longitude: p.longitude }
+        )));
+        //console.log('Provided poly line:', renderedPolyline);
       })
       .catch((err) => {
         if (cancelled) return;
@@ -70,19 +79,24 @@ export function RoutineRouteMapModal({
         if (!cancelled) setLoading(false);
       });
 
+    setRouteLineCoords(routeLine?.map((p) => (
+      { latitude: p[0], longitude: p[1] }
+    )) ?? []);
+
+
     return () => { cancelled = true; };
-  }, [visible, originLatitude, originLongitude, destinationLatitude, destinationLongitude]);
+  }, [visible, originLatitude, originLongitude, destinationLatitude, destinationLongitude, routeLine]);
 
   useEffect(() => {
     if (!visible || loading) return;
     const timer = setTimeout(() => {
-      mapRef.current?.fitToCoordinates(renderedPolyline, {
+      mapRef.current?.fitToCoordinates(renderedRouteLine, {
         edgePadding: { top: 80, right: 48, bottom: 220, left: 48 },
         animated: true,
       });
     }, 400);
     return () => clearTimeout(timer);
-  }, [visible, loading, renderedPolyline]);
+  }, [visible, loading, renderedRouteLine]);
 
   return (
     <Modal
@@ -134,10 +148,10 @@ export function RoutineRouteMapModal({
                 longitudeDelta: Math.abs(originLongitude - destinationLongitude) * 2.5 + 0.05,
               }}
             >
-              {renderedPolyline.length >= 2 && (
+              {renderedRouteLine.length >= 2 && (
                 <>
                   <Polyline
-                    coordinates={renderedPolyline}
+                    coordinates={renderedRouteLine}
                     strokeColor="rgba(15, 23, 42, 0.45)"
                     strokeWidth={9}
                     lineCap="round"
@@ -145,7 +159,7 @@ export function RoutineRouteMapModal({
                     zIndex={1}
                   />
                   <Polyline
-                    coordinates={renderedPolyline}
+                    coordinates={renderedRouteLine}
                     strokeColor="#2563EB"
                     strokeWidth={5.5}
                     lineCap="round"

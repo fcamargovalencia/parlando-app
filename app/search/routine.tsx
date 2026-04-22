@@ -357,6 +357,7 @@ export default function RoutineSearchScreen() {
           destinationName={selectedRouteTrip.destinationName}
           destinationLatitude={selectedRouteTrip.destinationLatitude}
           destinationLongitude={selectedRouteTrip.destinationLongitude}
+          routeLine={selectedRouteTrip.routeLine}
         />
       )}
     </View>
