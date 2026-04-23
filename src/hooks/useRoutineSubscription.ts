@@ -56,8 +56,8 @@ function minDistanceToPolyline(
     return haversineMeters(lat, lng, coords[0][1], coords[0][0]);
   let min = Infinity;
   for (let i = 0; i < coords.length - 1; i++) {
-    const [aLng, aLat] = coords[i];
-    const [bLng, bLat] = coords[i + 1];
+    const [aLat, aLng] = coords[i];
+    const [bLat, bLng] = coords[i + 1];
     const d = pointToSegmentDistanceMeters(lat, lng, aLat, aLng, bLat, bLng);
     if (d < min) min = d;
   }
@@ -185,6 +185,7 @@ export function useRoutineSubscription(routineTripId: string): UseRoutineSubscri
     setIsSubmitting(true);
     setErrors({});
     try {
+      console.log('Submitting subscription with data:', formData);
       const response = await routineSubscriptionsApi.create(
         formData as CreateRoutineSubscriptionRequest,
       );
