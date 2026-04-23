@@ -1,4 +1,4 @@
-import { useCallback } from 'react';
+import { useCallback, useMemo } from 'react';
 import { routineSubscriptionsApi } from '@/api/routine-subscriptions';
 import { useRoutineSubscriptionsStore } from '@/stores/routine-subscriptions-store';
 import { extractApiError } from '@/lib/utils';
@@ -16,7 +16,7 @@ export interface UseMySubscriptionsHook {
   refetch: () => Promise<void>;
   pauseSubscription: (id: string, from: string, to?: string, reason?: string) => Promise<void>;
   resumeSubscription: (id: string) => Promise<void>;
-  cancelSubscription: (id: string, reason?: string) => Promise<void>;
+  cancelSubscription: (id: string) => Promise<void>;
   overridePickup: (bookingId: string, req: PickupOverrideRequest) => Promise<void>;
 }
 
@@ -27,8 +27,14 @@ export function useMySubscriptions(): UseMySubscriptionsHook {
   const updateInMine = useRoutineSubscriptionsStore((s) => s.updateInMine);
   const removeFromMine = useRoutineSubscriptionsStore((s) => s.removeFromMine);
 
-  const activeCount = mySubscriptions.filter((s) => s.status === 'ACCEPTED').length;
-  const pendingCount = mySubscriptions.filter((s) => s.status === 'PENDING').length;
+  const activeCount = useMemo(
+    () => mySubscriptions.filter((s) => s.status === 'ACCEPTED').length,
+    [mySubscriptions],
+  );
+  const pendingCount = useMemo(
+    () => mySubscriptions.filter((s) => s.status === 'PENDING').length,
+    [mySubscriptions],
+  );
 
   const refetch = useCallback(async () => {
     await fetchMine();
@@ -56,7 +62,7 @@ export function useMySubscriptions(): UseMySubscriptionsHook {
   );
 
   const cancelSubscription = useCallback(
-    async (id: string, _reason?: string) => {
+    async (id: string) => {
       await routineSubscriptionsApi.cancel(id);
       removeFromMine(id);
     },

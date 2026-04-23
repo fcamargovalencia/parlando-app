@@ -85,8 +85,7 @@ export default function NewSubscriptionScreen() {
   // Pre-load verifications so the gate sheet can show the right state
   useEffect(() => {
     void fetchVerifications();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [fetchVerifications]);
 
   // ── Date picker values ──
   const today = new Date();

@@ -150,7 +150,7 @@ export default function Step1RouteScreen() {
       updateForm({ routePolyline: compactPolyline(points, 300) });
       setRouteMapOpen(true);
     } catch (err) {
-      console.log('Error al trazar ruta', err instanceof Error ? err.message : 'No se pudo calcular la ruta');
+      Alert.alert('Error al trazar ruta', err instanceof Error ? err.message : 'No se pudo calcular la ruta');
     } finally {
       setDrawingRoute(false);
     }

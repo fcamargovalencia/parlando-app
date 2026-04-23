@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -101,14 +101,14 @@ export default function RoutineTripDetailScreen() {
   const [isActioning, setIsActioning] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
 
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     if (!id) return;
     await Promise.all([fetchById(id), fetchWaypoints(id)]);
-  };
+  }, [id, fetchById, fetchWaypoints]);
 
   useEffect(() => {
     loadData();
-  }, [id]);
+  }, [loadData]);
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -131,7 +131,6 @@ export default function RoutineTripDetailScreen() {
             setIsActioning(true);
             try {
               await publishTrip(id);
-              await fetchById(id);
             } catch (err) {
               Alert.alert('Error', err instanceof Error ? err.message : 'No se pudo publicar');
             } finally {
@@ -157,7 +156,6 @@ export default function RoutineTripDetailScreen() {
             setIsActioning(true);
             try {
               await pauseTrip(id);
-              await fetchById(id);
             } catch (err) {
               Alert.alert('Error', err instanceof Error ? err.message : 'No se pudo pausar');
             } finally {
@@ -179,7 +177,6 @@ export default function RoutineTripDetailScreen() {
           setIsActioning(true);
           try {
             await resumeTrip(id);
-            await fetchById(id);
           } catch (err) {
             Alert.alert('Error', err instanceof Error ? err.message : 'No se pudo reactivar');
           } finally {

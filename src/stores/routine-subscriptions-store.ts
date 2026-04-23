@@ -16,6 +16,7 @@ interface RoutineSubscriptionsState {
   updateInMine: (subscription: RoutineSubscriptionResponse) => void;
   removeFromMine: (id: string) => void;
   updateInTrip: (routineTripId: string, subscription: RoutineSubscriptionResponse) => void;
+  clearTripSubscriptions: (routineTripId: string) => void;
 
   // Derived selectors
   pendingForTrip: (routineTripId: string) => RoutineSubscriptionResponse[];
@@ -81,6 +82,13 @@ export const useRoutineSubscriptionsStore = create<RoutineSubscriptionsState>((s
       return {
         subscriptionsByTrip: { ...state.subscriptionsByTrip, [routineTripId]: updated },
       };
+    }),
+
+  clearTripSubscriptions: (routineTripId) =>
+    set((state) => {
+      const next = { ...state.subscriptionsByTrip };
+      delete next[routineTripId];
+      return { subscriptionsByTrip: next };
     }),
 
   pendingForTrip: (routineTripId) => {

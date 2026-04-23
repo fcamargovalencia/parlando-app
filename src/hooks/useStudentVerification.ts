@@ -25,9 +25,11 @@ export function useStudentVerification(): UseStudentVerificationHook {
   const [error, setError] = useState<string | null>(null);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const initialized = useRef(false);
+  const fetchingRef = useRef(false);
 
   const fetch = useCallback(async () => {
-    if (isLoading) return;
+    if (fetchingRef.current) return;
+    fetchingRef.current = true;
     setIsLoading(true);
     setError(null);
     try {
@@ -37,9 +39,10 @@ export function useStudentVerification(): UseStudentVerificationHook {
     } catch (err) {
       setError(extractApiError(err, 'No se pudieron cargar tus verificaciones estudiantiles'));
     } finally {
+      fetchingRef.current = false;
       setIsLoading(false);
     }
-  }, [isLoading]);
+  }, []);
 
   const submit = useCallback(
     async (req: CreateStudentVerificationRequest) => {

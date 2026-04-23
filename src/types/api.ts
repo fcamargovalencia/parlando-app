@@ -530,7 +530,7 @@ export interface SearchRoutineTripsParams {
   destinationLat?: number;
   destinationLng?: number;
   destinationRadiusMeters?: number;
-  days: string;
+  days: RecurrenceDay[];
   requiredArrivalBefore: string;
   passengerLat?: number;
   passengerLng?: number;
@@ -559,7 +559,7 @@ export interface RoutineTripSearchResult {
   allowsLuggage: boolean;
   allowsCustomPickup: boolean;
   requiresStudentVerification: boolean;
-  /** GeoJSON coordinate pairs [longitude, latitude] describing the route polyline. */
+  /** Coordinate pairs [latitude, longitude] describing the route polyline. Backend format — NOT standard GeoJSON order. */
   routeLine?: [number, number][];
 }
 

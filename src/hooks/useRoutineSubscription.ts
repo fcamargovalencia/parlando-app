@@ -2,6 +2,7 @@ import { useState, useCallback, useEffect } from 'react';
 import { routineTripsApi } from '@/api/routine-trips';
 import { routineSubscriptionsApi } from '@/api/routine-subscriptions';
 import { extractApiError } from '@/lib/utils';
+import { haversineMeters } from '@/lib/geo';
 import type {
   RoutineTripResponse,
   RoutineWaypointResponse,
@@ -10,23 +11,6 @@ import type {
 } from '@/types/api';
 
 // ── Geometry helpers ──
-
-function haversineMeters(
-  lat1: number,
-  lng1: number,
-  lat2: number,
-  lng2: number,
-): number {
-  const R = 6371000;
-  const dLat = ((lat2 - lat1) * Math.PI) / 180;
-  const dLng = ((lng2 - lng1) * Math.PI) / 180;
-  const a =
-    Math.sin(dLat / 2) ** 2 +
-    Math.cos((lat1 * Math.PI) / 180) *
-    Math.cos((lat2 * Math.PI) / 180) *
-    Math.sin(dLng / 2) ** 2;
-  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-}
 
 function pointToSegmentDistanceMeters(
   pLat: number,
@@ -49,7 +33,7 @@ function pointToSegmentDistanceMeters(
 function minDistanceToPolyline(
   lat: number,
   lng: number,
-  coords: [number, number][], // [lng, lat] GeoJSON order
+  coords: [number, number][], // [lat, lng] — backend format (not GeoJSON)
 ): number {
   if (coords.length === 0) return Infinity;
   if (coords.length === 1)
@@ -185,7 +169,6 @@ export function useRoutineSubscription(routineTripId: string): UseRoutineSubscri
     setIsSubmitting(true);
     setErrors({});
     try {
-      console.log('Submitting subscription with data:', formData);
       const response = await routineSubscriptionsApi.create(
         formData as CreateRoutineSubscriptionRequest,
       );

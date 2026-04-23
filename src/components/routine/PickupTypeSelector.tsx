@@ -1,4 +1,4 @@
-import React, { useCallback, useRef, useState } from 'react';
+import React, { useCallback, useMemo, useRef, useState } from 'react';
 import {
   Modal,
   StyleSheet,
@@ -15,6 +15,7 @@ import { Button } from '@/components/ui';
 import { Colors } from '@/constants/colors';
 import type { DeviationPreview } from '@/hooks/useRoutineSubscription';
 import type { PickupType, RoutineTripResponse, RoutineWaypointResponse } from '@/types/api';
+import { haversineMeters } from '@/lib/geo';
 
 // ── Types ──
 
@@ -44,18 +45,6 @@ function formatTime(minutesOffset: number, departureTime: string): string {
   const rh = Math.floor(totalMinutes / 60) % 24;
   const rm = totalMinutes % 60;
   return `${String(rh).padStart(2, '0')}:${String(rm).padStart(2, '0')}`;
-}
-
-function haversineMeters(lat1: number, lng1: number, lat2: number, lng2: number): number {
-  const R = 6371000;
-  const dLat = ((lat2 - lat1) * Math.PI) / 180;
-  const dLng = ((lng2 - lng1) * Math.PI) / 180;
-  const a =
-    Math.sin(dLat / 2) ** 2 +
-    Math.cos((lat1 * Math.PI) / 180) *
-    Math.cos((lat2 * Math.PI) / 180) *
-    Math.sin(dLng / 2) ** 2;
-  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
 // ── Custom Pickup Map Modal ──
@@ -94,22 +83,25 @@ function CustomPickupMapModal({
   const maxTimeMin = Math.round(maxTimeSec / 60);
   const overheadMin = Math.round(deviation.timeOverheadSeconds / 60);
 
-  const initialRegion: Region = {
-    latitude:
-      (routineTrip.originLatitude + routineTrip.destinationLatitude) / 2,
-    longitude:
-      (routineTrip.originLongitude + routineTrip.destinationLongitude) / 2,
-    latitudeDelta:
-      Math.max(
-        Math.abs(routineTrip.originLatitude - routineTrip.destinationLatitude) * 1.8,
-        0.02,
-      ),
-    longitudeDelta:
-      Math.max(
-        Math.abs(routineTrip.originLongitude - routineTrip.destinationLongitude) * 1.8,
-        0.02,
-      ),
-  };
+  const initialRegion = useMemo<Region>(
+    () => ({
+      latitude:
+        (routineTrip.originLatitude + routineTrip.destinationLatitude) / 2,
+      longitude:
+        (routineTrip.originLongitude + routineTrip.destinationLongitude) / 2,
+      latitudeDelta:
+        Math.max(
+          Math.abs(routineTrip.originLatitude - routineTrip.destinationLatitude) * 1.8,
+          0.02,
+        ),
+      longitudeDelta:
+        Math.max(
+          Math.abs(routineTrip.originLongitude - routineTrip.destinationLongitude) * 1.8,
+          0.02,
+        ),
+    }),
+    [routineTrip],
+  );
 
   const handleRegionChange = useCallback(
     (region: Region) => {
@@ -315,21 +307,6 @@ export function PickupTypeSelector({
   const hasWaypoints = pickupWaypoints.length > 0;
   const allowsCustom = routineTrip.allowsCustomPickup;
 
-  // ── Case C — no options at all ──
-  if (!hasWaypoints && !allowsCustom) {
-    return (
-      <View className="bg-blue-50 rounded-2xl p-4 border border-blue-100">
-        <View className="flex-row items-start gap-3">
-          <MapPin size={18} color="#3B82F6" style={{ marginTop: 1 }} />
-          <Text className="flex-1 text-sm text-blue-800">
-            El conductor te recogerá en el origen de la ruta:{' '}
-            <Text className="font-semibold">{routineTrip.originName}</Text>
-          </Text>
-        </View>
-      </View>
-    );
-  }
-
   const handleConfirmCustom = useCallback(
     (lat: number, lng: number, name: string) => {
       setShowMapModal(false);
@@ -352,6 +329,21 @@ export function PickupTypeSelector({
     },
     [onSelect],
   );
+
+  // ── Case C — no options at all ──
+  if (!hasWaypoints && !allowsCustom) {
+    return (
+      <View className="bg-blue-50 rounded-2xl p-4 border border-blue-100">
+        <View className="flex-row items-start gap-3">
+          <MapPin size={18} color="#3B82F6" style={{ marginTop: 1 }} />
+          <Text className="flex-1 text-sm text-blue-800">
+            El conductor te recogerá en el origen de la ruta:{' '}
+            <Text className="font-semibold">{routineTrip.originName}</Text>
+          </Text>
+        </View>
+      </View>
+    );
+  }
 
   return (
     <View>

@@ -21,7 +21,9 @@ export const routineTripsApi = {
     api.get<ApiResponse<RoutineTripResponse[]>>('/v1/routine-trips/me'),
 
   search: (params: SearchRoutineTripsParams) =>
-    api.get<ApiResponse<RoutineTripSearchResult[]>>('/v1/routine-trips/search', { params }),
+    api.get<ApiResponse<RoutineTripSearchResult[]>>('/v1/routine-trips/search', {
+      params: { ...params, days: params.days.join(',') },
+    }),
 
   getById: (id: string) =>
     api.get<ApiResponse<RoutineTripResponse>>(`/v1/routine-trips/${encodeURIComponent(id)}`),

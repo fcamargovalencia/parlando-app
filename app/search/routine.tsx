@@ -75,7 +75,7 @@ export default function RoutineSearchScreen() {
 
   const canSearch =
     (!!params.universityId || (!!params.destinationLat && !!params.destinationLng)) &&
-    !!params.days &&
+    (params.days?.length ?? 0) > 0 &&
     !!params.requiredArrivalBefore;
 
   const handleUniversityChange = useCallback(
@@ -105,7 +105,7 @@ export default function RoutineSearchScreen() {
 
   const handleDaysChange = useCallback(
     (days: RecurrenceDay[]) => {
-      setParams((prev) => ({ ...prev, days: days.join(',') }));
+      setParams((prev) => ({ ...prev, days }));
     },
     [setParams],
   );
@@ -220,7 +220,7 @@ export default function RoutineSearchScreen() {
 
           <Text className="text-sm font-semibold text-neutral-700 mb-2">Días que necesitas</Text>
           <DaySelector
-            selected={(params.days ? params.days.split(',') : []) as RecurrenceDay[]}
+            selected={params.days ?? []}
             onChange={handleDaysChange}
           />
 

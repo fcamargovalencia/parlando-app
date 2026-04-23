@@ -82,6 +82,8 @@ export const useRoutineTripsStore = create<RoutineTripsState>((set, get) => ({
       myRoutineTrips: state.myRoutineTrips.some((t) => t.id === trip.id)
         ? state.myRoutineTrips.map((t) => (t.id === trip.id ? trip : t))
         : [...state.myRoutineTrips, trip],
+      selectedRoutineTrip:
+        state.selectedRoutineTrip?.id === trip.id ? trip : state.selectedRoutineTrip,
     })),
 
   removeFromList: (id) =>

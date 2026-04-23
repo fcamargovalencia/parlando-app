@@ -176,7 +176,7 @@ export default function SubscriptionDetailScreen() {
     if (!id) return;
     setIsSubmitting(true);
     try {
-      await cancelSubscription(id, cancelReason || undefined);
+      await cancelSubscription(id);
       setActiveModal(null);
       router.back();
     } catch (err: unknown) {

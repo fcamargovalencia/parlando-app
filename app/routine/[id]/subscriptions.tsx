@@ -47,10 +47,14 @@ export default function SubscriptionsScreen() {
     useSubscriptionRequests(routineTripId ?? '');
 
   const fetchForTrip = useRoutineSubscriptionsStore((s) => s.fetchForTrip);
+  const clearTripSubscriptions = useRoutineSubscriptionsStore((s) => s.clearTripSubscriptions);
 
   useEffect(() => {
     if (routineTripId) fetchForTrip(routineTripId);
-  }, [routineTripId]);
+    return () => {
+      if (routineTripId) clearTripSubscriptions(routineTripId);
+    };
+  }, [routineTripId, fetchForTrip, clearTripSubscriptions]);
 
   const onRefresh = async () => {
     setRefreshing(true);
