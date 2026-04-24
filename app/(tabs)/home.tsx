@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useEffect } from 'react';
+import React, { useMemo } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, RefreshControl } from 'react-native';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -11,38 +11,16 @@ import { SearchCard } from '@/components/home/SearchCard';
 import { TripTypeSheet } from '@/components/home/TripTypeSheet';
 import { TripTypeQuickActions } from '@/components/home/TripTypeQuickActions';
 import { VerificationBanner } from '@/components/home/VerificationBanner';
-import { useAuthStore } from '@/stores/auth-store';
 import { useHomeSearch } from '@/hooks/useHomeSearch';
-import { useRoutineTripsStore } from '@/stores/routine-trips-store';
+import { useHomeScreen } from '@/hooks/screens/useHomeScreen';
 import { Colors } from '@/constants/colors';
-import type { RecurrenceDay, RoutineTripResponse } from '@/types/api';
-
-const TODAY_DAY_MAP: Record<number, RecurrenceDay> = {
-  0: 'SUN', 1: 'MON', 2: 'TUE', 3: 'WED', 4: 'THU', 5: 'FRI', 6: 'SAT',
-};
-
-function getTodayRoutineTrips(trips: RoutineTripResponse[]): RoutineTripResponse[] {
-  const todayDay = TODAY_DAY_MAP[new Date().getDay()];
-  return trips.filter(
-    (t) => t.status === 'ACTIVE' && t.recurrenceDays.includes(todayDay),
-  );
-}
 
 export default function HomeScreen() {
   const router = useRouter();
-  const user = useAuthStore((s) => s.user);
   const insets = useSafeAreaInsets();
-  const [refreshing, setRefreshing] = useState(false);
   const today = useMemo(() => new Date(), []);
 
-  const isDriver = user?.role === 'DRIVER';
-  const myRoutineTrips = useRoutineTripsStore((s) => s.myRoutineTrips);
-  const fetchMineRoutine = useRoutineTripsStore((s) => s.fetchMine);
-  const todayTrips = useMemo(() => getTodayRoutineTrips(myRoutineTrips), [myRoutineTrips]);
-
-  useEffect(() => {
-    if (isDriver) fetchMineRoutine();
-  }, [isDriver]);
+  const { user, isDriver, refreshing, onRefresh, todayTrips, showVerificationBanner } = useHomeScreen();
 
   const {
     origin,
@@ -63,14 +41,6 @@ export default function HomeScreen() {
     handleSearch,
   } = useHomeSearch();
 
-  const onRefresh = async () => {
-    setRefreshing(true);
-    setTimeout(() => setRefreshing(false), 800);
-  };
-
-  const showVerificationBanner =
-    user && (user.verificationLevel === 'NONE' || user.verificationLevel === 'BASIC');
-
   return (
     <Screen safe={false}>
       <StatusBar style="light" />
@@ -86,7 +56,6 @@ export default function HomeScreen() {
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
-        {/* Header gradient */}
         <LinearGradient
           colors={['#003040', '#005660', '#007380']}
           start={{ x: 0, y: 0 }}
@@ -97,7 +66,6 @@ export default function HomeScreen() {
             paddingHorizontal: 20,
           }}
         >
-          {/* Top bar */}
           <View className="flex-row items-center justify-between mb-5">
             <View className="flex-row items-center">
               <Avatar
@@ -144,7 +112,6 @@ export default function HomeScreen() {
           onSelect={selectTripTypeAndSearch}
         />
 
-        {/* Tus rutas de hoy — only shown for drivers with active routine trips */}
         {isDriver && todayTrips.length > 0 && (
           <View className="px-5 pb-2">
             <Text className="text-base font-bold text-neutral-900 mb-3">Tus rutas de hoy</Text>
@@ -176,7 +143,6 @@ export default function HomeScreen() {
           </View>
         )}
 
-        {/* Routine trips entry point */}
         <View className="px-5 pb-2">
           <Text className="text-base font-bold text-neutral-900 mb-3">Viajes universitarios</Text>
           <TouchableOpacity
@@ -208,7 +174,6 @@ export default function HomeScreen() {
         <View style={{ height: 32 }} />
       </ScrollView>
 
-      {/* Location pickers */}
       <LocationPickerModal
         visible={activePicker === 'origin'}
         title="Origen"
@@ -226,7 +191,6 @@ export default function HomeScreen() {
         onClose={() => setActivePicker(null)}
       />
 
-      {/* Date picker */}
       <DatePickerModal
         visible={activePicker === 'date'}
         value={departureDate}
@@ -237,7 +201,6 @@ export default function HomeScreen() {
         onCancel={() => setActivePicker(null)}
       />
 
-      {/* Trip type sheet */}
       <TripTypeSheet
         visible={activePicker === 'tripType'}
         tripType={tripType}

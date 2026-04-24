@@ -1,7 +1,11 @@
-import { useState, useCallback } from 'react';
+import { useReducer, useCallback } from 'react';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTripDetail } from '@/hooks/useTripDetail';
+import {
+  tripDetailUIReducer,
+  initialTripDetailUIState,
+} from '@/reducers/trip-detail-ui.reducer';
 import type { BookingResponse } from '@/types/api';
 
 // ── Rate modal target ──
@@ -21,12 +25,32 @@ export function useTripDetailScreen() {
 
   const tripDetail = useTripDetail(id, { fromSearch: from === 'search' });
 
-  // ── Modal visibility ──
+  // ── Modal state ──
 
-  const [editVisible, setEditVisible] = useState(false);
-  const [bookVisible, setBookVisible] = useState(false);
-  const [mapVisible, setMapVisible] = useState(false);
-  const [rateModal, setRateModal] = useState<RateTarget | null>(null);
+  const [uiState, dispatch] = useReducer(tripDetailUIReducer, initialTripDetailUIState);
+
+  const editVisible = uiState.activeModal === 'edit';
+  const bookVisible = uiState.activeModal === 'book';
+  const mapVisible = uiState.activeModal === 'map';
+  const rateModal = uiState.rateTarget;
+
+  const setEditVisible = useCallback(
+    (v: boolean) => dispatch(v ? { type: 'OPEN_MODAL', modal: 'edit' } : { type: 'CLOSE_MODAL' }),
+    [],
+  );
+  const setBookVisible = useCallback(
+    (v: boolean) => dispatch(v ? { type: 'OPEN_MODAL', modal: 'book' } : { type: 'CLOSE_MODAL' }),
+    [],
+  );
+  const setMapVisible = useCallback(
+    (v: boolean) => dispatch(v ? { type: 'OPEN_MODAL', modal: 'map' } : { type: 'CLOSE_MODAL' }),
+    [],
+  );
+  const setRateModal = useCallback(
+    (target: RateTarget | null) =>
+      dispatch(target ? { type: 'OPEN_RATE', target } : { type: 'CLOSE_RATE' }),
+    [],
+  );
 
   // ── Map ──
 

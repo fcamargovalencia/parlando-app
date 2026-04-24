@@ -1,6 +1,5 @@
-import React, { useCallback, useMemo, useState } from 'react';
+import React, { useMemo } from 'react';
 import {
-  Alert,
   View,
   Text,
   TouchableOpacity,
@@ -8,7 +7,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { FlashList } from '@shopify/flash-list';
-import { useFocusEffect, useRouter } from 'expo-router';
+import { useRouter } from 'expo-router';
 import {
   Banknote,
   ChevronRight,
@@ -25,15 +24,16 @@ import { MyTripCard } from '@/components/trip/MyTripCard';
 import { RateModal } from '@/components/trip/RateModal';
 import { RoutePreview } from '@/components/RoutePreview';
 import { Colors } from '@/constants/colors';
-import { useMyTrips } from '@/hooks/useMyTrips';
-import { useRoutineTrips } from '@/hooks/useRoutineTrips';
 import { formatCurrency } from '@/lib/utils';
+import {
+  useMyTripsScreen,
+  ROUTINE_FILTERS,
+  type Segment,
+} from '@/hooks/screens/useMyTripsScreen';
 import type { MyTripFilter } from '@/types/my-trips';
 import type { RoutineTripResponse, RoutineTripStatus, RecurrenceDay } from '@/types/api';
 
 // ── Segmented control ──
-
-type Segment = 'unique' | 'routine';
 
 function SegmentedControl({ active, onChange }: { active: Segment; onChange: (s: Segment) => void; }) {
   return (
@@ -92,20 +92,6 @@ const EMPTY_COPY: Record<MyTripFilter, { title: string; description: string; act
 };
 
 // ── Routine trips config ──
-
-type RoutineFilterKey = 'active' | 'draft' | 'paused';
-
-const ROUTINE_FILTERS: { key: RoutineFilterKey; label: string; }[] = [
-  { key: 'active', label: 'Activas' },
-  { key: 'draft', label: 'Borradores' },
-  { key: 'paused', label: 'Pausadas' },
-];
-
-const ROUTINE_FILTER_STATUSES: Record<RoutineFilterKey, RoutineTripStatus[] | null> = {
-  active: ['ACTIVE'],
-  draft: ['DRAFT'],
-  paused: ['PAUSED'],
-};
 
 const DAY_SHORT: Record<RecurrenceDay, string> = {
   MON: 'Lun', TUE: 'Mar', WED: 'Mié', THU: 'Jue',
@@ -197,12 +183,10 @@ function RoutineCard({ trip, actioning, onPress, onEdit, onPause, onResume, onVi
         shadowRadius: 8,
         elevation: 2,
       }}>
-        {/* Accent bar + content */}
         <View style={{ flexDirection: 'row' }}>
           <View style={{ width: 4, backgroundColor: accentColor }} />
 
           <View style={{ flex: 1, padding: 14 }}>
-            {/* Top row: icon + badge + actions */}
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
                 <View style={{
@@ -244,7 +228,6 @@ function RoutineCard({ trip, actioning, onPress, onEdit, onPause, onResume, onVi
               )}
             </View>
 
-            {/* Route */}
             <RoutePreview
               originName={trip.originName}
               originSubtitle={trip.originSubtitle}
@@ -253,7 +236,6 @@ function RoutineCard({ trip, actioning, onPress, onEdit, onPause, onResume, onVi
               compact
             />
 
-            {/* Day pills */}
             <View style={{ flexDirection: 'row', gap: 4, marginTop: 10 }}>
               {ALL_DAYS.map((day) => {
                 const isActive = activeDaySet.has(day);
@@ -271,7 +253,6 @@ function RoutineCard({ trip, actioning, onPress, onEdit, onPause, onResume, onVi
               })}
             </View>
 
-            {/* Time + price */}
             <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginTop: 10 }}>
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
                 <Clock size={12} color={Colors.neutral[400]} />
@@ -290,7 +271,6 @@ function RoutineCard({ trip, actioning, onPress, onEdit, onPause, onResume, onVi
           </View>
         </View>
 
-        {/* Footer: próximo viaje (ACTIVE) */}
         {status === 'ACTIVE' && (
           <View style={{
             borderTopWidth: 1,
@@ -330,7 +310,6 @@ function RoutineCard({ trip, actioning, onPress, onEdit, onPause, onResume, onVi
           </View>
         )}
 
-        {/* Footer: pausada */}
         {status === 'PAUSED' && (
           <View style={{
             borderTopWidth: 1,
@@ -364,147 +343,25 @@ function RoutineCard({ trip, actioning, onPress, onEdit, onPause, onResume, onVi
 
 export default function MyTripsScreen() {
   const router = useRouter();
-  const [segment, setSegment] = useState<Segment>('unique');
-  const [routineFilter, setRoutineFilter] = useState<RoutineFilterKey>('active');
-  const [actioningId, setActioningId] = useState<string | null>(null);
-
   const {
-    items: allItems,
-    counts,
-    filter,
-    setFilter,
-    loading,
-    refreshing,
-    error,
-    cancellingId,
-    refresh,
-    reload,
-    cancelItem,
-    rateModal,
-    openRateModal,
-    closeRateModal,
-    submitRating,
-  } = useMyTrips();
-
-  // Exclude routine-generated trips from unique trips tab
-  const items = useMemo(
-    () => allItems.filter((i) => !i.trip?.isRecurring && i.trip?.tripType !== 'ROUTINE'),
-    [allItems],
-  );
-
-  const { myTrips: routineTrips, isLoading: routineLoading, refetch: refetchRoutine, pauseTrip, resumeTrip } =
-    useRoutineTrips();
-
-  useFocusEffect(
-    useCallback(() => {
-      void reload(false);
-      refetchRoutine();
-    }, [reload, refetchRoutine]),
-  );
-
-  const onRefresh = useCallback(() => {
-    refresh();
-    refetchRoutine();
-  }, [refresh, refetchRoutine]);
-
-  const handleTripPress = useCallback(
-    (tripId: string) => router.push({ pathname: '/trip/[id]', params: { id: tripId } }),
-    [router],
-  );
-
-  const handleRoutinePress = useCallback(
-    (routineId: string) => router.push(`/routine/${routineId}` as never),
-    [router],
-  );
-
-  const handleRoutineEdit = useCallback(
-    (routineId: string) => router.push(`/routine/create/step-1-route?tripId=${routineId}` as never),
-    [router],
-  );
-
-  const handleViewTrips = useCallback(
-    (routineId: string) => router.push(`/routine/${routineId}/occurrences` as never),
-    [router],
-  );
-
-  const handlePause = useCallback(
-    (routineId: string) => {
-      Alert.alert(
-        '¿Pausar la ruta?',
-        'Las ocurrencias futuras sin reservas activas serán canceladas.',
-        [
-          { text: 'Cancelar', style: 'cancel' },
-          {
-            text: 'Pausar',
-            style: 'destructive',
-            onPress: async () => {
-              setActioningId(routineId);
-              try {
-                await pauseTrip(routineId);
-              } catch {
-                Alert.alert('Error', 'No se pudo pausar la ruta');
-              } finally {
-                setActioningId(null);
-              }
-            },
-          },
-        ],
-      );
-    },
-    [pauseTrip],
-  );
-
-  const handleResume = useCallback(
-    (routineId: string) => {
-      Alert.alert('¿Reactivar la ruta?', 'La ruta volverá a estar activa y visible.', [
-        { text: 'Cancelar', style: 'cancel' },
-        {
-          text: 'Reactivar',
-          onPress: async () => {
-            setActioningId(routineId);
-            try {
-              await resumeTrip(routineId);
-            } catch {
-              Alert.alert('Error', 'No se pudo reactivar la ruta');
-            } finally {
-              setActioningId(null);
-            }
-          },
-        },
-      ]);
-    },
-    [resumeTrip],
-  );
-
-  const filteredRoutine = useMemo(() => {
-    const statuses = ROUTINE_FILTER_STATUSES[routineFilter];
-    return statuses
-      ? routineTrips.filter((t) => statuses.includes(t.status as RoutineTripStatus))
-      : routineTrips;
-  }, [routineTrips, routineFilter]);
-
-  const routineTabs = useMemo(
-    () => ROUTINE_FILTERS.map((f) => {
-      const statuses = ROUTINE_FILTER_STATUSES[f.key];
-      const count = statuses
-        ? routineTrips.filter((t) => statuses.includes(t.status as RoutineTripStatus)).length
-        : routineTrips.length;
-      return { key: f.key, label: f.label, count };
-    }),
-    [routineTrips],
-  );
+    segment, setSegment,
+    items, counts, filter, setFilter, loading, refreshing, error, cancellingId,
+    reload, cancelItem, rateModal, openRateModal, closeRateModal, submitRating,
+    routineFilter, setRoutineFilter, routineLoading, filteredRoutine, routineTabs,
+    actioningId, onRefresh,
+    handleTripPress, handleRoutinePress, handleRoutineEdit, handleViewTrips,
+    handlePause, handleResume,
+  } = useMyTripsScreen();
 
   const isUniqueSegment = segment === 'unique';
 
   return (
     <Screen edges={['top', 'left', 'right']}>
-      {/* Header */}
       <View className="px-5 pt-4 pb-0">
         <Text className="text-[26px] font-bold text-neutral-900 mb-2.5">Mis viajes</Text>
         <SegmentedControl active={segment} onChange={setSegment} />
       </View>
 
-      {/* ── Unique trips ── */}
       {isUniqueSegment && (
         <>
           <FilterTabs
@@ -559,7 +416,6 @@ export default function MyTripsScreen() {
         </>
       )}
 
-      {/* ── Routine trips ── */}
       {!isUniqueSegment && (
         <>
           <FilterTabs tabs={routineTabs} active={routineFilter} onSelect={setRoutineFilter} />
