@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React from 'react';
 import {
   View,
   Text,
@@ -10,7 +10,7 @@ import {
   Modal,
   Platform,
 } from 'react-native';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   AlertCircle,
@@ -26,157 +26,53 @@ import {
 } from 'lucide-react-native';
 import { Button, Card, DatePickerModal, Spinner } from '@/components/ui';
 import { DaySelector } from '@/components/routine/DaySelector';
-import { PickupTypeSelector, type PickupSelection } from '@/components/routine/PickupTypeSelector';
+import { PickupTypeSelector } from '@/components/routine/PickupTypeSelector';
 import { RoutePreview } from '@/components/RoutePreview';
 import { Colors } from '@/constants/colors';
 import { formatCurrency } from '@/lib/utils';
-import { useRoutineSubscription } from '@/hooks/useRoutineSubscription';
-import { useStudentVerification } from '@/hooks/useStudentVerification';
-import type { RecurrenceDay } from '@/types/api';
-
-// ── Helpers ──
-
-function dateToISODate(d: Date): string {
-  return d.toISOString().split('T')[0];
-}
-
-function parseISODate(s: string): Date {
-  const [y, m, day] = s.split('-').map(Number);
-  return new Date(y, m - 1, day);
-}
+import { useSubscriptionNewScreen } from '@/hooks/screens/useSubscriptionNewScreen';
 
 function fmtDate(d: Date): string {
   return d.toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric' });
 }
 
-type PickerTarget = 'startDate' | 'endDate';
-
-// ── Screen ──
-
 export default function NewSubscriptionScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { routineTripId, routeLine: routeLineParam } = useLocalSearchParams<{ routineTripId: string; routeLine?: string; }>();
 
   const {
-    routineTrip: routineTripRaw,
+    routineTrip,
     waypoints,
     formData,
-    updateForm,
-    previewDeviation,
-    submit,
+    errors,
     isLoading,
     isSubmitting,
-    errors,
     loadingError,
-  } = useRoutineSubscription(routineTripId!);
+    updateForm,
+    previewDeviation,
+    pickupSelection,
+    hasEndDate,
+    pickerTarget,
+    setPickerTarget,
+    showVerificationSheet,
+    setShowVerificationSheet,
+    startDateObj,
+    endDateObj,
+    minStartDate,
+    isStudentVerificationRequired,
+    isDuplicate,
+    universityId,
+    hasPendingVerification,
+    universityName,
+    handlePickerConfirm,
+    handleDaysChange,
+    handlePickupSelect,
+    handleToggleEndDate,
+    handleSeatsChange,
+    handleSpecialRequirementsChange,
+    handleSubmit,
+  } = useSubscriptionNewScreen();
 
-  const routineTrip = routineTripRaw && !routineTripRaw.routeLine && routeLineParam
-    ? { ...routineTripRaw, routeLine: JSON.parse(routeLineParam) as [number, number][] }
-    : routineTripRaw;
-
-  const [pickupSelection, setPickupSelection] = useState<PickupSelection | null>(null);
-  const [hasEndDate, setHasEndDate] = useState(false);
-  const [pickerTarget, setPickerTarget] = useState<PickerTarget | null>(null);
-  const [showVerificationSheet, setShowVerificationSheet] = useState(false);
-
-  const { fetch: fetchVerifications, getForUniversity } = useStudentVerification();
-
-  // Pre-load verifications so the gate sheet can show the right state
-  useEffect(() => {
-    void fetchVerifications();
-  }, [fetchVerifications]);
-
-  // ── Date picker values ──
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const startDateObj = formData.startDate ? parseISODate(formData.startDate) : undefined;
-  const endDateObj = formData.endDate ? parseISODate(formData.endDate) : undefined;
-  const minStartDate = routineTrip?.validFrom ? parseISODate(routineTrip.validFrom) : today;
-
-  const handlePickerConfirm = useCallback(
-    (date: Date) => {
-      if (pickerTarget === 'startDate') {
-        updateForm({ startDate: dateToISODate(date) });
-      } else if (pickerTarget === 'endDate') {
-        updateForm({ endDate: dateToISODate(date) });
-      }
-      setPickerTarget(null);
-    },
-    [pickerTarget, updateForm],
-  );
-
-  const handleDaysChange = useCallback(
-    (days: RecurrenceDay[]) => {
-      updateForm({ subscribedDays: days });
-    },
-    [updateForm],
-  );
-
-  const handlePickupSelect = useCallback(
-    (config: PickupSelection) => {
-      setPickupSelection(config);
-      updateForm({
-        pickupWaypointId: config.pickupWaypointId,
-        customPickupLatitude: config.customPickupLatitude,
-        customPickupLongitude: config.customPickupLongitude,
-        customPickupName: config.customPickupName,
-      });
-    },
-    [updateForm],
-  );
-
-  const handleToggleEndDate = useCallback(() => {
-    setHasEndDate((prev) => {
-      if (prev) updateForm({ endDate: undefined });
-      return !prev;
-    });
-  }, [updateForm]);
-
-  const handleSeatsChange = useCallback(
-    (text: string) => {
-      const n = parseInt(text, 10);
-      if (!isNaN(n) && n >= 1) updateForm({ seatsRequired: n });
-      else if (text === '') updateForm({ seatsRequired: 1 });
-    },
-    [updateForm],
-  );
-
-  const handleSpecialRequirementsChange = useCallback(
-    (text: string) => {
-      updateForm({ specialRequirements: text || undefined });
-    },
-    [updateForm],
-  );
-
-  const handleSubmit = useCallback(async () => {
-    try {
-      await submit();
-      router.replace({
-        pathname: '/(tabs)/my-trips',
-        params: { successMessage: 'Solicitud enviada. El conductor responderá pronto.' },
-      });
-    } catch {
-      // errors are set inside the hook
-    }
-  }, [submit, router]);
-
-  // ── Global error states ──
-  const globalError = errors.global;
-  const isStudentVerificationRequired = globalError === 'STUDENT_VERIFICATION_REQUIRED';
-  const isDuplicate = globalError === 'DUPLICATE_SUBSCRIPTION';
-
-  // Open the verification sheet whenever the 403 gate is hit
-  useEffect(() => {
-    if (isStudentVerificationRequired) setShowVerificationSheet(true);
-  }, [isStudentVerificationRequired]);
-
-  const universityId = routineTrip?.universityId;
-  const existingVerification = universityId ? getForUniversity(universityId) : undefined;
-  const hasPendingVerification = existingVerification?.status === 'PENDING';
-  const universityName = routineTrip?.destinationName ?? 'esta universidad';
-
-  // ── Loading / Error states ──
   if (isLoading) {
     return (
       <View className="flex-1 bg-neutral-50 items-center justify-center">
@@ -206,7 +102,6 @@ export default function NewSubscriptionScreen() {
       className="flex-1 bg-neutral-50"
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
-      {/* Header */}
       <View
         className="flex-row items-center px-4 py-3 bg-white border-b border-neutral-100"
         style={{ paddingTop: insets.top + 12 }}
@@ -229,7 +124,7 @@ export default function NewSubscriptionScreen() {
         keyboardShouldPersistTaps="handled"
         contentContainerStyle={{ paddingBottom: insets.bottom + 32 }}
       >
-        {/* Route summary card */}
+        {/* Route summary */}
         <View className="mx-4 mt-4">
           <Card className="p-4">
             <RoutePreview
@@ -255,7 +150,7 @@ export default function NewSubscriptionScreen() {
           </Card>
         </View>
 
-        {/* ── Sección 1: Punto de recogida ── */}
+        {/* Sección 1: Punto de recogida */}
         <View className="mx-4 mt-5">
           <View className="flex-row items-center gap-2 mb-3">
             <View className="w-6 h-6 rounded-full bg-primary-500 items-center justify-center">
@@ -263,7 +158,6 @@ export default function NewSubscriptionScreen() {
             </View>
             <Text className="text-base font-bold text-neutral-900">Punto de recogida</Text>
           </View>
-
           <PickupTypeSelector
             routineTrip={routineTrip}
             waypoints={waypoints}
@@ -274,7 +168,7 @@ export default function NewSubscriptionScreen() {
           />
         </View>
 
-        {/* ── Sección 2: Días, fechas y cupos ── */}
+        {/* Sección 2: Días, fechas y cupos */}
         <View className="mx-4 mt-6">
           <View className="flex-row items-center gap-2 mb-3">
             <View className="w-6 h-6 rounded-full bg-primary-500 items-center justify-center">
@@ -284,7 +178,6 @@ export default function NewSubscriptionScreen() {
           </View>
 
           <Card className="p-4 gap-4">
-            {/* Days */}
             <View>
               <Text className="text-sm font-semibold text-neutral-700 mb-2">
                 Días que necesitas
@@ -302,7 +195,6 @@ export default function NewSubscriptionScreen() {
               )}
             </View>
 
-            {/* Start date */}
             <View>
               <Text className="text-sm font-semibold text-neutral-700 mb-1.5">
                 Fecha de inicio
@@ -310,14 +202,10 @@ export default function NewSubscriptionScreen() {
               <TouchableOpacity
                 onPress={() => setPickerTarget('startDate')}
                 activeOpacity={0.7}
-                className={`flex-row items-center gap-3 px-4 py-3.5 rounded-2xl border ${errors.startDate ? 'border-red-400 bg-red-50' : 'border-neutral-200 bg-white'
-                  }`}
+                className={`flex-row items-center gap-3 px-4 py-3.5 rounded-2xl border ${errors.startDate ? 'border-red-400 bg-red-50' : 'border-neutral-200 bg-white'}`}
               >
                 <Calendar size={16} color={errors.startDate ? Colors.semantic.error : Colors.neutral[400]} />
-                <Text
-                  className={`text-base flex-1 ${formData.startDate ? 'text-neutral-900' : 'text-neutral-400'
-                    }`}
-                >
+                <Text className={`text-base flex-1 ${formData.startDate ? 'text-neutral-900' : 'text-neutral-400'}`}>
                   {startDateObj ? fmtDate(startDateObj) : 'Seleccionar fecha...'}
                 </Text>
               </TouchableOpacity>
@@ -326,7 +214,6 @@ export default function NewSubscriptionScreen() {
               )}
             </View>
 
-            {/* End date toggle */}
             <View>
               <View className="flex-row items-center justify-between">
                 <View className="flex-1 mr-3">
@@ -340,12 +227,10 @@ export default function NewSubscriptionScreen() {
                 <TouchableOpacity
                   onPress={handleToggleEndDate}
                   activeOpacity={0.8}
-                  className={`w-12 h-7 rounded-full justify-center px-0.5 ${hasEndDate ? 'bg-primary-500' : 'bg-neutral-200'
-                    }`}
+                  className={`w-12 h-7 rounded-full justify-center px-0.5 ${hasEndDate ? 'bg-primary-500' : 'bg-neutral-200'}`}
                 >
                   <View
-                    className={`w-6 h-6 rounded-full bg-white ${hasEndDate ? 'self-end' : 'self-start'
-                      }`}
+                    className={`w-6 h-6 rounded-full bg-white ${hasEndDate ? 'self-end' : 'self-start'}`}
                     style={{ elevation: 2 }}
                   />
                 </TouchableOpacity>
@@ -358,26 +243,20 @@ export default function NewSubscriptionScreen() {
                   className="flex-row items-center gap-3 px-4 py-3.5 rounded-2xl border border-neutral-200 bg-white mt-3"
                 >
                   <Calendar size={16} color={Colors.neutral[400]} />
-                  <Text
-                    className={`text-base flex-1 ${formData.endDate ? 'text-neutral-900' : 'text-neutral-400'
-                      }`}
-                  >
+                  <Text className={`text-base flex-1 ${formData.endDate ? 'text-neutral-900' : 'text-neutral-400'}`}>
                     {endDateObj ? fmtDate(endDateObj) : 'Seleccionar fecha de fin...'}
                   </Text>
                 </TouchableOpacity>
               )}
             </View>
 
-            {/* Seats required */}
             <View>
               <Text className="text-sm font-semibold text-neutral-700 mb-1.5">
                 Cupos requeridos
               </Text>
               <View className="flex-row items-center gap-3">
                 <TouchableOpacity
-                  onPress={() =>
-                    updateForm({ seatsRequired: Math.max(1, (formData.seatsRequired ?? 1) - 1) })
-                  }
+                  onPress={() => updateForm({ seatsRequired: Math.max(1, (formData.seatsRequired ?? 1) - 1) })}
                   activeOpacity={0.75}
                   className="w-10 h-10 rounded-full bg-neutral-100 items-center justify-center border border-neutral-200"
                 >
@@ -394,14 +273,7 @@ export default function NewSubscriptionScreen() {
                   <Text className="text-xs text-neutral-400">cupo(s)</Text>
                 </View>
                 <TouchableOpacity
-                  onPress={() =>
-                    updateForm({
-                      seatsRequired: Math.min(
-                        routineTrip.availableSeats,
-                        (formData.seatsRequired ?? 1) + 1,
-                      ),
-                    })
-                  }
+                  onPress={() => updateForm({ seatsRequired: Math.min(routineTrip.availableSeats, (formData.seatsRequired ?? 1) + 1) })}
                   activeOpacity={0.75}
                   className="w-10 h-10 rounded-full bg-neutral-100 items-center justify-center border border-neutral-200"
                 >
@@ -418,7 +290,7 @@ export default function NewSubscriptionScreen() {
           </Card>
         </View>
 
-        {/* ── Sección 3: Necesidades especiales ── */}
+        {/* Sección 3: Necesidades especiales */}
         <View className="mx-4 mt-6">
           <View className="flex-row items-center gap-2 mb-3">
             <View className="w-6 h-6 rounded-full bg-primary-500 items-center justify-center">
@@ -439,7 +311,6 @@ export default function NewSubscriptionScreen() {
               className="text-sm text-neutral-800 min-h-[72px]"
               style={{ lineHeight: 20 }}
             />
-
             {hasSpecialRequirements && (
               <View className="flex-row items-start gap-2 mt-3 pt-3 border-t border-neutral-100 bg-amber-50 rounded-xl p-3 -mx-1">
                 <AlertTriangle size={14} color="#D97706" style={{ marginTop: 1 }} />
@@ -452,7 +323,7 @@ export default function NewSubscriptionScreen() {
           </Card>
         </View>
 
-        {/* ── Error banners ── */}
+        {/* Error banners */}
         {isStudentVerificationRequired && (
           <TouchableOpacity
             onPress={() => setShowVerificationSheet(true)}
@@ -484,15 +355,13 @@ export default function NewSubscriptionScreen() {
           </View>
         )}
 
-        {globalError &&
-          !isStudentVerificationRequired &&
-          !isDuplicate && (
-            <View className="mx-4 mt-4 bg-red-50 border border-red-200 rounded-2xl p-3">
-              <Text className="text-sm text-red-700">{globalError}</Text>
-            </View>
-          )}
+        {errors.global && !isStudentVerificationRequired && !isDuplicate && (
+          <View className="mx-4 mt-4 bg-red-50 border border-red-200 rounded-2xl p-3">
+            <Text className="text-sm text-red-700">{errors.global}</Text>
+          </View>
+        )}
 
-        {/* ── Submit ── */}
+        {/* Submit */}
         <View className="mx-4 mt-6">
           <Button
             title={isSubmitting ? 'Enviando solicitud...' : 'Enviar solicitud'}
@@ -501,15 +370,10 @@ export default function NewSubscriptionScreen() {
             variant="primary"
           />
           {isSubmitting && (
-            <ActivityIndicator
-              size="small"
-              color={Colors.primary[500]}
-              style={{ marginTop: 8 }}
-            />
+            <ActivityIndicator size="small" color={Colors.primary[500]} style={{ marginTop: 8 }} />
           )}
         </View>
 
-        {/* Info note */}
         <View className="mx-4 mt-4 flex-row items-start gap-2">
           <Info size={13} color={Colors.neutral[400]} style={{ marginTop: 1 }} />
           <Text className="flex-1 text-xs text-neutral-400 leading-4">
@@ -539,7 +403,7 @@ export default function NewSubscriptionScreen() {
         onCancel={() => setPickerTarget(null)}
       />
 
-      {/* ── Student verification gate BottomSheet ── */}
+      {/* Student verification gate */}
       <Modal
         visible={showVerificationSheet}
         transparent
@@ -561,10 +425,8 @@ export default function NewSubscriptionScreen() {
             paddingTop: 20,
           }}
         >
-          {/* Drag handle */}
           <View className="w-10 h-1 rounded-full bg-neutral-200 self-center mb-5" />
 
-          {/* Icon + title */}
           <View className="flex-row items-center gap-3 mb-4">
             <View className="w-12 h-12 rounded-2xl bg-red-50 items-center justify-center">
               <ShieldAlert size={24} color={Colors.semantic.error} />
