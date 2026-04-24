@@ -3,6 +3,7 @@ import { Modal } from 'react-native';
 import { useLocationPicker } from '@/hooks/useLocationPicker';
 import { LocationSearchView } from '@/components/location-picker/LocationSearchView';
 import { LocationMapView } from '@/components/location-picker/LocationMapView';
+import type { RoutineTripResponse } from '@/types/api';
 
 // Re-export for backward compatibility — 8 files import SelectedLocation from here.
 export type { SelectedLocation } from '@/hooks/useLocationPicker';
@@ -17,6 +18,7 @@ interface Props {
   mapHintText?: string;
   municipalityFocus?: { latitude: number; longitude: number; name: string };
   allowCitySelection?: boolean;
+  routeLine?: RoutineTripResponse['routeLine'];
 }
 
 export function LocationPickerModal({
@@ -29,6 +31,7 @@ export function LocationPickerModal({
   mapHintText,
   municipalityFocus,
   allowCitySelection = false,
+  routeLine,
 }: Props) {
   const picker = useLocationPicker({
     visible,
@@ -36,6 +39,7 @@ export function LocationPickerModal({
     mode,
     municipalityFocus,
     allowCitySelection,
+    baseRouteLine: routeLine,
     onConfirm,
   });
 
@@ -72,6 +76,7 @@ export function LocationPickerModal({
           isDragging={picker.isDragging}
           reverseGeocoding={picker.reverseGeocoding}
           municipalityCenter={picker.municipalityCenter}
+          routeCoordinates={picker.routeCoordinates}
           mapHintText={mapHintText}
           mode={mode}
           onBack={mode === 'map-only' ? onClose : () => picker.setMapVisible(false)}

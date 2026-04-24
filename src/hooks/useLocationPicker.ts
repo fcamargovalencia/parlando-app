@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { Alert } from 'react-native';
 import MapView from 'react-native-maps';
 import type { Region } from 'react-native-maps';
@@ -34,7 +34,26 @@ interface UseLocationPickerOptions {
   mode?: 'full' | 'map-only';
   municipalityFocus?: { latitude: number; longitude: number; name: string; };
   allowCitySelection?: boolean;
+  baseRouteLine?: Array<[number, number]>;
   onConfirm: (loc: SelectedLocation) => void;
+}
+
+function getRegionFromCoordinates(coords: Array<{ latitude: number; longitude: number; }>): Region | null {
+  if (coords.length < 2) return null;
+
+  const lats = coords.map((p) => p.latitude);
+  const lngs = coords.map((p) => p.longitude);
+  const minLat = Math.min(...lats);
+  const maxLat = Math.max(...lats);
+  const minLng = Math.min(...lngs);
+  const maxLng = Math.max(...lngs);
+
+  const latitude = (minLat + maxLat) / 2;
+  const longitude = (minLng + maxLng) / 2;
+  const latitudeDelta = Math.max((maxLat - minLat) * 1.35, 0.02);
+  const longitudeDelta = Math.max((maxLng - minLng) * 1.35, 0.02);
+
+  return { latitude, longitude, latitudeDelta, longitudeDelta };
 }
 
 export function useLocationPicker({
@@ -43,6 +62,7 @@ export function useLocationPicker({
   mode = 'full',
   municipalityFocus,
   allowCitySelection = false,
+  baseRouteLine,
   onConfirm,
 }: UseLocationPickerOptions) {
   // ── Search state ──
@@ -76,6 +96,21 @@ export function useLocationPicker({
   const isProgrammaticRef = useRef(false);
   const mapReadyRef = useRef(false);
   const pendingRegionRef = useRef<Region | null>(null);
+
+  const routeCoordinates = useMemo(
+    () =>
+      (baseRouteLine ?? [])
+        .filter((point): point is [number, number] =>
+          Array.isArray(point) &&
+          point.length === 2 &&
+          Number.isFinite(point[0]) &&
+          Number.isFinite(point[1]),
+        )
+        .map(([latitude, longitude]) => ({ latitude, longitude })),
+    [baseRouteLine],
+  );
+
+  const routeRegion = useMemo(() => getRegionFromCoordinates(routeCoordinates), [routeCoordinates]);
 
   // ── Map animation queue ──
 
@@ -280,6 +315,11 @@ export function useLocationPicker({
       return;
     }
 
+    if (routeRegion) {
+      animateWhenReady(routeRegion);
+      return;
+    }
+
     let cancelled = false;
 
     (async () => {
@@ -320,12 +360,14 @@ export function useLocationPicker({
     })();
 
     return () => { cancelled = true; };
-  }, [mapVisible, municipalityCenter, animateWhenReady]);
+  }, [mapVisible, municipalityCenter, routeRegion, animateWhenReady]);
 
   // ── Derived: map initial region ──
 
   const mapInitialRegion: Region = municipalityCenter
     ? { latitude: municipalityCenter.latitude, longitude: municipalityCenter.longitude, latitudeDelta: 0.05, longitudeDelta: 0.05 }
+    : routeRegion
+      ? routeRegion
     : userCoords
       ? { ...userCoords, latitudeDelta: 0.003, longitudeDelta: 0.003 }
       : initial
@@ -345,6 +387,7 @@ export function useLocationPicker({
     mapName, setMapName,
     reverseGeocoding,
     municipalityCenter,
+    routeCoordinates,
     // refs
     mapRef,
     // derived

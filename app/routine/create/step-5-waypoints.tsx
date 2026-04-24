@@ -12,6 +12,7 @@ import {
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Plus, Info, ChevronUp, ChevronDown } from 'lucide-react-native';
 import { Screen, Button, Card, Spinner, Toggle } from '@/components/ui';
+import { RoutePreview } from '@/components/RoutePreview';
 import { LocationPickerModal } from '@/components/LocationPickerModal';
 import type { SelectedLocation } from '@/components/LocationPickerModal';
 import { WaypointListItem } from '@/components/routine/WaypointListItem';
@@ -39,10 +40,12 @@ export default function Step5WaypointsScreen() {
   const router = useRouter();
 
   const selectedTrip = useRoutineTripsStore((s) => s.selectedRoutineTrip);
+  const fetchById = useRoutineTripsStore((s) => s.fetchById);
   const { waypoints, isLoading, fetchWaypoints, addWaypoint, deleteWaypoint, reorderWaypoints } =
     useRoutineWaypoints();
+  const tripForPreview = selectedTrip?.id === tripId ? selectedTrip : null;
 
-  const isActive = selectedTrip?.status === 'ACTIVE';
+  const isActive = tripForPreview?.status === 'ACTIVE';
 
   const [showAddForm, setShowAddForm] = useState(false);
   const [addForm, setAddForm] = useState<AddWaypointForm>(DEFAULT_FORM);
@@ -50,8 +53,12 @@ export default function Step5WaypointsScreen() {
   const [showLocationPicker, setShowLocationPicker] = useState(false);
 
   useEffect(() => {
-    if (tripId) fetchWaypoints(tripId);
-  }, [tripId]);
+    if (!tripId) return;
+    fetchWaypoints(tripId);
+    if (!tripForPreview) {
+      fetchById(tripId);
+    }
+  }, [tripId, tripForPreview, fetchWaypoints, fetchById]);
 
   const handleAddWaypoint = async () => {
     if (!addForm.location || !tripId) return;
@@ -135,6 +142,22 @@ export default function Step5WaypointsScreen() {
           <Text className="text-base text-neutral-500 mb-4">
             Define puntos de recogida a lo largo de tu ruta (opcional).
           </Text>
+
+          <Card className="p-4 mb-4">
+            <Text className="text-sm font-semibold text-neutral-700 mb-3">Ruta seleccionada</Text>
+            {tripForPreview ? (
+              <RoutePreview
+                originName={tripForPreview.originName}
+                originSubtitle={tripForPreview.originSubtitle}
+                destinationName={tripForPreview.destinationName}
+                destinationSubtitle={tripForPreview.destinationSubtitle}
+              />
+            ) : (
+              <Text className="text-sm text-neutral-400 italic">
+                Cargando ruta seleccionada...
+              </Text>
+            )}
+          </Card>
 
           {/* Active trip banner */}
           {isActive && (
@@ -319,6 +342,7 @@ export default function Step5WaypointsScreen() {
       <LocationPickerModal
         visible={showLocationPicker}
         title="Seleccionar parada"
+        routeLine={tripForPreview?.routeLine}
         onConfirm={(loc) => {
           setAddForm((f) => ({ ...f, location: loc }));
           setShowLocationPicker(false);

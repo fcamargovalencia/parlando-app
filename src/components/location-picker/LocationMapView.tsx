@@ -8,7 +8,7 @@ import {
   Platform,
   StyleSheet,
 } from 'react-native';
-import MapView, { type Region } from 'react-native-maps';
+import MapView, { Marker, Polyline, type Region } from 'react-native-maps';
 import { ArrowLeft } from 'lucide-react-native';
 import { Colors } from '@/constants/colors';
 import { Button } from '@/components/ui';
@@ -21,6 +21,7 @@ interface Props {
   isDragging: boolean;
   reverseGeocoding: boolean;
   municipalityCenter: { latitude: number; longitude: number; name: string } | null;
+  routeCoordinates?: Array<{ latitude: number; longitude: number }>;
   mapHintText?: string;
   mode: 'full' | 'map-only';
   onBack: () => void;
@@ -39,6 +40,7 @@ export function LocationMapView({
   isDragging,
   reverseGeocoding,
   municipalityCenter,
+  routeCoordinates,
   mapHintText,
   mode,
   onBack,
@@ -50,9 +52,15 @@ export function LocationMapView({
 }: Props) {
   const hintText = mapHintText
     ? mapHintText
+    : routeCoordinates && routeCoordinates.length >= 2
+      ? 'Ajusta el punto sobre la ruta seleccionada del viaje'
     : municipalityCenter
       ? `Mueve el mapa para elegir el punto exacto en ${municipalityCenter.name}`
       : 'Mueve el mapa para posicionar el pin en el punto exacto';
+
+  const showRoute = !!routeCoordinates && routeCoordinates.length >= 2;
+  const routeStart = showRoute ? routeCoordinates[0] : null;
+  const routeEnd = showRoute ? routeCoordinates[routeCoordinates.length - 1] : null;
 
   return (
     <View style={styles.container}>
@@ -84,7 +92,34 @@ export function LocationMapView({
           zoomEnabled
           scrollEnabled
           zoomControlEnabled
-        />
+        >
+          {showRoute && (
+            <>
+              <Polyline
+                coordinates={routeCoordinates}
+                strokeColor="rgba(15, 23, 42, 0.35)"
+                strokeWidth={8}
+                lineCap="round"
+                lineJoin="round"
+                zIndex={1}
+              />
+              <Polyline
+                coordinates={routeCoordinates}
+                strokeColor={Colors.primary[600]}
+                strokeWidth={4.5}
+                lineCap="round"
+                lineJoin="round"
+                zIndex={2}
+              />
+              {routeStart ? (
+                <Marker coordinate={routeStart} pinColor={Colors.primary[600]} />
+              ) : null}
+              {routeEnd ? (
+                <Marker coordinate={routeEnd} pinColor={Colors.accent[600]} />
+              ) : null}
+            </>
+          )}
+        </MapView>
         <View style={styles.crosshairContainer} pointerEvents="none">
           <View style={[styles.crosshairPin, isDragging && styles.crosshairPinDragging]}>
             <View style={[styles.pinHead, isDragging && styles.pinHeadDragging]}>
