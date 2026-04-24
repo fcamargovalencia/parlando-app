@@ -101,7 +101,6 @@ function validateStep(step: StepKey, data: RoutineCreateFormData): Record<string
   if (step === 1) {
     if (!data.originName) errs.origin = 'Selecciona un punto de origen';
     if (!data.destinationName) errs.destination = 'Selecciona un destino';
-    if (!data.routePolyline?.length) errs.routePolyline = 'Traza la ruta antes de continuar';
   }
 
   if (step === 2) {

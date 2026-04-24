@@ -90,7 +90,9 @@ export default function Step2ScheduleScreen() {
     }
   };
 
-  const arrivalWindows = selectedUniversity?.typicalArrivalWindows ?? [];
+  const arrivalWindows = Array.isArray(selectedUniversity?.typicalArrivalWindows)
+    ? selectedUniversity.typicalArrivalWindows
+    : [];
 
   return (
     <Screen edges={['bottom']}>

@@ -15,7 +15,7 @@ interface ArrivalWindowChipProps {
 }
 
 export function ArrivalWindowChip({ windows, selectedTime, onSelect }: ArrivalWindowChipProps) {
-  if (!windows?.length) return null;
+  if (!Array.isArray(windows) || windows.length === 0) return null;
 
   return (
     <View className="mb-1">
