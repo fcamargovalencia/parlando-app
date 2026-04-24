@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useCallback } from 'react';
 import {
   View,
   Text,
@@ -53,9 +53,12 @@ export default function SearchResultsScreen() {
     tripType: params.tripType,
   });
 
-  const openTripDetail = (tripId: string) => {
-    router.push({ pathname: '/trip/[id]', params: { id: tripId, from: 'search' } });
-  };
+  const openTripDetail = useCallback(
+    (tripId: string) => {
+      router.push({ pathname: '/trip/[id]', params: { id: tripId, from: 'search' } });
+    },
+    [router],
+  );
 
   return (
     <View className="flex-1 bg-neutral-50">
@@ -108,7 +111,7 @@ export default function SearchResultsScreen() {
             ) : null
           }
           renderItem={({ item }) => (
-            <SearchTripCard trip={item} onPress={() => openTripDetail(item.id)} />
+            <SearchTripCard trip={item} onPress={openTripDetail} />
           )}
         />
       )}

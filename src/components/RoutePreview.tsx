@@ -10,7 +10,7 @@ interface RoutePreviewProps {
   rightContent?: React.ReactNode;
 }
 
-export function RoutePreview({
+export const RoutePreview = React.memo(function RoutePreview({
   originName,
   originSubtitle,
   destinationName,
@@ -50,4 +50,4 @@ export function RoutePreview({
       {rightContent}
     </View>
   );
-}
+});

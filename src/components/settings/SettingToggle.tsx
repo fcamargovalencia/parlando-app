@@ -9,7 +9,7 @@ interface Props {
   onToggle?: (value: boolean) => void;
 }
 
-export function SettingToggle({ icon, label, defaultValue = false, onToggle }: Props) {
+export const SettingToggle = React.memo(function SettingToggle({ icon, label, defaultValue = false, onToggle }: Props) {
   const [enabled, setEnabled] = useState(defaultValue);
 
   return (
@@ -29,4 +29,4 @@ export function SettingToggle({ icon, label, defaultValue = false, onToggle }: P
       />
     </View>
   );
-}
+});

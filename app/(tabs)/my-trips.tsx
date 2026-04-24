@@ -74,12 +74,12 @@ type UnifiedItem =
   | { kind: 'trip'; data: MyTripItem; }
   | { kind: 'routine'; data: RoutineTripResponse; };
 
-function RoutineCard({ trip, onPress }: { trip: RoutineTripResponse; onPress: () => void; }) {
+function RoutineCard({ trip, onPress }: { trip: RoutineTripResponse; onPress: (routineId: string) => void; }) {
   const status = trip.status as RoutineTripStatus;
   const chip = STATUS_CHIP[status];
   return (
     <TouchableOpacity
-      onPress={onPress}
+      onPress={() => onPress(trip.id)}
       activeOpacity={0.8}
       className="bg-white rounded-2xl border border-neutral-200 mb-3 p-4"
     >
@@ -151,6 +151,16 @@ export default function MyTripsScreen() {
     refresh();
     refetchRoutine();
   }, [refresh, refetchRoutine]);
+
+  const handleTripPress = useCallback(
+    (tripId: string) => router.push({ pathname: '/trip/[id]', params: { id: tripId } }),
+    [router],
+  );
+
+  const handleRoutinePress = useCallback(
+    (routineId: string) => router.push(`/routine/${routineId}` as never),
+    [router],
+  );
 
   // Routine trips filtered to match the active tab
   const filteredRoutine = useMemo(
@@ -233,18 +243,16 @@ export default function MyTripsScreen() {
                 <MyTripCard
                   item={item.data}
                   cancelling={cancellingId === (item.data.trip?.id ?? item.data.booking?.id)}
-                  onPress={() =>
-                    router.push({ pathname: '/trip/[id]', params: { id: item.data.tripId } })
-                  }
-                  onCancel={() => cancelItem(item.data)}
-                  onRate={() => openRateModal(item.data)}
+                  onPress={handleTripPress}
+                  onCancel={cancelItem}
+                  onRate={openRateModal}
                 />
               );
             }
             return (
               <RoutineCard
                 trip={item.data}
-                onPress={() => router.push(`/routine/${item.data.id}` as never)}
+                onPress={handleRoutinePress}
               />
             );
           }}

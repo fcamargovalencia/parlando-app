@@ -18,9 +18,11 @@ import { Colors } from '@/constants/colors';
 import { formatCurrency, formatDeparture, getTripTypeLabel } from '@/lib/utils';
 import type { TripResponse } from '@/types/api';
 
+const CHEVRON_RIGHT = <ChevronRight size={20} color={Colors.neutral[600]} strokeWidth={2.5} />;
+
 interface SearchTripCardProps {
   trip: TripResponse;
-  onPress: () => void;
+  onPress: (tripId: string) => void;
 }
 
 // ── Subsections ──
@@ -130,11 +132,11 @@ function DriverFooter({ driver }: { driver: NonNullable<TripResponse['driver']>;
 
 // ── Card ──
 
-export function SearchTripCard({ trip, onPress }: SearchTripCardProps) {
+export const SearchTripCard = React.memo(function SearchTripCard({ trip, onPress }: SearchTripCardProps) {
   const noSeats = trip.availableSeats === 0;
 
   return (
-    <TouchableOpacity onPress={onPress} activeOpacity={0.75} disabled={noSeats}>
+    <TouchableOpacity onPress={() => onPress(trip.id)} activeOpacity={0.75} disabled={noSeats}>
       <Card className="mb-3" style={noSeats ? { opacity: 0.55 } : undefined}>
         <CardHeader trip={trip} noSeats={noSeats} />
         <View className="mb-4">
@@ -143,7 +145,7 @@ export function SearchTripCard({ trip, onPress }: SearchTripCardProps) {
             originSubtitle={trip.originSubtitle}
             destinationName={trip.destinationName}
             destinationSubtitle={trip.destinationSubtitle}
-            rightContent={<ChevronRight size={20} color={Colors.neutral[600]} strokeWidth={2.5} />}
+            rightContent={CHEVRON_RIGHT}
           />
         </View>
         <TimeRow trip={trip} />
@@ -152,4 +154,4 @@ export function SearchTripCard({ trip, onPress }: SearchTripCardProps) {
       </Card>
     </TouchableOpacity>
   );
-}
+});

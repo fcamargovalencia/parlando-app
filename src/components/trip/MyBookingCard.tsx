@@ -32,7 +32,7 @@ interface MyBookingCardProps {
   onCancelBooking: () => void;
 }
 
-export function MyBookingCard({
+export const MyBookingCard = React.memo(function MyBookingCard({
   booking,
   pricePerSeat,
   currency,
@@ -96,4 +96,4 @@ export function MyBookingCard({
       )}
     </Card>
   );
-}
+});

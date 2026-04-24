@@ -21,6 +21,8 @@ import { Colors } from '@/constants/colors';
 import { formatCurrency, formatDeparture, getTripTypeLabel } from '@/lib/utils';
 import type { MyTripItem, MyTripRole } from '@/types/my-trips';
 
+const CHEVRON_RIGHT = <ChevronRight size={20} color={Colors.neutral[300]} />;
+
 // ── Role chip ──
 
 const ROLE_CONFIG: Record<
@@ -188,14 +190,14 @@ function Footer({ item, cancelling, onCancel, onRate }: FooterProps) {
 interface MyTripCardProps {
   item: MyTripItem;
   cancelling: boolean;
-  onPress: () => void;
-  onCancel: () => void;
-  onRate: () => void;
+  onPress: (tripId: string) => void;
+  onCancel: (item: MyTripItem) => void;
+  onRate: (item: MyTripItem) => void;
 }
 
-export function MyTripCard({ item, cancelling, onPress, onCancel, onRate }: MyTripCardProps) {
+export const MyTripCard = React.memo(function MyTripCard({ item, cancelling, onPress, onCancel, onRate }: MyTripCardProps) {
   return (
-    <TouchableOpacity onPress={onPress} activeOpacity={0.75}>
+    <TouchableOpacity onPress={() => onPress(item.tripId)} activeOpacity={0.75}>
       <Card className="mb-3">
         {/* Header: type + role chip + status badge */}
         <View className="flex-row items-center justify-between mb-4">
@@ -216,7 +218,7 @@ export function MyTripCard({ item, cancelling, onPress, onCancel, onRate }: MyTr
             originSubtitle={item.originSubtitle}
             destinationName={item.destinationName}
             destinationSubtitle={item.destinationSubtitle}
-            rightContent={<ChevronRight size={20} color={Colors.neutral[300]} />}
+            rightContent={CHEVRON_RIGHT}
           />
         </View>
 
@@ -230,10 +232,10 @@ export function MyTripCard({ item, cancelling, onPress, onCancel, onRate }: MyTr
         <Footer
           item={item}
           cancelling={cancelling}
-          onCancel={onCancel}
-          onRate={onRate}
+          onCancel={() => onCancel(item)}
+          onRate={() => onRate(item)}
         />
       </Card>
     </TouchableOpacity>
   );
-}
+});

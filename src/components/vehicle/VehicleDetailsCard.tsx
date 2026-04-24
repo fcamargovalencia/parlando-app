@@ -7,36 +7,42 @@ import { formatDate } from '@/lib/utils';
 import { DetailRow } from '@/components/ui';
 import type { VehicleResponse } from '@/types/api';
 
+const ICON_HASH = <Hash size={20} color={Colors.primary[600]} />;
+const ICON_CALENDAR = <Calendar size={20} color={Colors.primary[600]} />;
+const ICON_PALETTE = <Palette size={20} color={Colors.primary[600]} />;
+const ICON_USERS = <Users size={20} color={Colors.primary[600]} />;
+const ICON_SHIELD = <ShieldCheck size={20} color={Colors.accent[600]} />;
+
 interface Props {
   vehicle: VehicleResponse;
 }
 
-export function VehicleDetailsCard({ vehicle }: Props) {
+export const VehicleDetailsCard = React.memo(function VehicleDetailsCard({ vehicle }: Props) {
   return (
     <View className="px-6 mb-4">
       <Card>
         <DetailRow
-          icon={<Hash size={20} color={Colors.primary[600]} />}
+          icon={ICON_HASH}
           label="Placa"
           value={vehicle.plateNumber}
         />
         <DetailRow
-          icon={<Calendar size={20} color={Colors.primary[600]} />}
+          icon={ICON_CALENDAR}
           label="Año"
           value={vehicle.year?.toString()}
         />
         <DetailRow
-          icon={<Palette size={20} color={Colors.primary[600]} />}
+          icon={ICON_PALETTE}
           label="Color"
           value={vehicle.color}
         />
         <DetailRow
-          icon={<Users size={20} color={Colors.primary[600]} />}
+          icon={ICON_USERS}
           label="Capacidad"
           value={`${vehicle.capacity} pasajeros`}
         />
         <DetailRow
-          icon={<ShieldCheck size={20} color={Colors.accent[600]} />}
+          icon={ICON_SHIELD}
           label="SOAT vigente hasta"
           value={vehicle.soatExpiry ? formatDate(vehicle.soatExpiry) : 'No registrado'}
           last
@@ -44,4 +50,4 @@ export function VehicleDetailsCard({ vehicle }: Props) {
       </Card>
     </View>
   );
-}
+});
