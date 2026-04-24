@@ -1,0 +1,219 @@
+import { useCallback, useEffect, useReducer, useState } from 'react';
+import { Alert } from 'react-native';
+import { useRouter } from 'expo-router';
+import { routineSubscriptionsApi } from '@/api/routine-subscriptions';
+import { useMySubscriptions } from '@/hooks/useMySubscriptions';
+import {
+  subscriptionDetailReducer,
+  initialSubscriptionDetailState,
+} from '@/reducers/subscription-detail.reducer';
+import type {
+  RoutineSubscriptionResponse,
+  RoutineBookingResponse,
+  PickupOverrideRequest,
+} from '@/types/api';
+
+function dateToISO(d: Date): string {
+  return d.toISOString().split('T')[0];
+}
+
+function parseISO(s: string): Date {
+  const [y, m, day] = s.split('-').map(Number);
+  return new Date(y, m - 1, day);
+}
+
+export function useSubscriptionDetailScreen(id: string | undefined) {
+  const router = useRouter();
+  const { pauseSubscription, resumeSubscription, cancelSubscription, overridePickup } =
+    useMySubscriptions();
+
+  const [uiState, dispatch] = useReducer(
+    subscriptionDetailReducer,
+    initialSubscriptionDetailState,
+  );
+  const [subscription, setSubscription] = useState<RoutineSubscriptionResponse | null>(null);
+  const [bookings, setBookings] = useState<RoutineBookingResponse[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
+
+  const reloadSubscription = useCallback(async () => {
+    if (!id) return;
+    const res = await routineSubscriptionsApi.getById(id);
+    setSubscription(res.data.data ?? null);
+  }, [id]);
+
+  useEffect(() => {
+    if (!id) return;
+    let cancelled = false;
+    (async () => {
+      setIsLoading(true);
+      setLoadError(null);
+      try {
+        const [subRes, bkgRes] = await Promise.all([
+          routineSubscriptionsApi.getById(id),
+          routineSubscriptionsApi.getBookings(id),
+        ]);
+        if (!cancelled) {
+          setSubscription(subRes.data.data ?? null);
+          setBookings(bkgRes.data.data ?? []);
+        }
+      } catch (err: unknown) {
+        const anyErr = err as { response?: { data?: { message?: string } }; message?: string };
+        const msg =
+          anyErr?.response?.data?.message ?? anyErr?.message ?? 'Error al cargar la suscripción';
+        if (!cancelled) setLoadError(msg);
+      } finally {
+        if (!cancelled) setIsLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [id]);
+
+  const handlePause = useCallback(async () => {
+    if (!id || !uiState.pauseFrom) return;
+    dispatch({ type: 'SET_SUBMITTING', payload: true });
+    try {
+      await pauseSubscription(
+        id,
+        uiState.pauseFrom,
+        uiState.hasPauseTo ? uiState.pauseTo : undefined,
+        uiState.pauseReason || undefined,
+      );
+      await reloadSubscription();
+      dispatch({ type: 'CLOSE_MODAL' });
+    } catch (err: unknown) {
+      const anyErr = err as { response?: { data?: { message?: string } } };
+      Alert.alert('Error', anyErr?.response?.data?.message ?? 'Error al pausar');
+    } finally {
+      dispatch({ type: 'SET_SUBMITTING', payload: false });
+    }
+  }, [
+    id,
+    uiState.pauseFrom,
+    uiState.pauseTo,
+    uiState.pauseReason,
+    uiState.hasPauseTo,
+    pauseSubscription,
+    reloadSubscription,
+  ]);
+
+  const handleResume = useCallback(async () => {
+    if (!id) return;
+    dispatch({ type: 'SET_SUBMITTING', payload: true });
+    try {
+      await resumeSubscription(id);
+      await reloadSubscription();
+      dispatch({ type: 'CLOSE_MODAL' });
+    } catch (err: unknown) {
+      const anyErr = err as { response?: { data?: { message?: string } } };
+      Alert.alert('Error', anyErr?.response?.data?.message ?? 'Error al reactivar');
+    } finally {
+      dispatch({ type: 'SET_SUBMITTING', payload: false });
+    }
+  }, [id, resumeSubscription, reloadSubscription]);
+
+  const doCancel = useCallback(async () => {
+    if (!id) return;
+    dispatch({ type: 'SET_SUBMITTING', payload: true });
+    try {
+      await cancelSubscription(id);
+      dispatch({ type: 'CLOSE_MODAL' });
+      router.back();
+    } catch (err: unknown) {
+      const anyErr = err as { response?: { data?: { message?: string } } };
+      Alert.alert('Error', anyErr?.response?.data?.message ?? 'Error al cancelar');
+    } finally {
+      dispatch({ type: 'SET_SUBMITTING', payload: false });
+    }
+  }, [id, cancelSubscription, router]);
+
+  const handleCancel = useCallback(() => {
+    const upcoming = bookings.find((b) => b.status === 'ACCEPTED');
+    if (upcoming) {
+      const diffH =
+        (parseISO(upcoming.occurrenceDate).getTime() - Date.now()) / (1000 * 60 * 60);
+      if (diffH > 0 && diffH < 24) {
+        Alert.alert(
+          '⚠️ Penalización posible',
+          'Faltan menos de 24h para tu próximo viaje. Cancelar ahora puede afectar tu calificación.',
+          [
+            { text: 'Volver', style: 'cancel' },
+            { text: 'Cancelar de todas formas', style: 'destructive', onPress: doCancel },
+          ],
+        );
+        return;
+      }
+    }
+    doCancel();
+  }, [bookings, doCancel]);
+
+  const handleOverridePickup = useCallback(async () => {
+    const { selectedBooking, overrideLat, overrideLng, overrideName } = uiState;
+    if (!selectedBooking) return;
+    const lat = parseFloat(overrideLat);
+    const lng = parseFloat(overrideLng);
+    if (isNaN(lat) || isNaN(lng) || !overrideName.trim()) {
+      Alert.alert('Error', 'Completa todos los campos del punto de recogida');
+      return;
+    }
+    const diffH =
+      (parseISO(selectedBooking.occurrenceDate).getTime() - Date.now()) / (1000 * 60 * 60);
+    if (diffH < 2) {
+      Alert.alert(
+        'No disponible',
+        'Solo puedes cambiar el punto con al menos 2 horas de anticipación.',
+      );
+      return;
+    }
+    dispatch({ type: 'SET_SUBMITTING', payload: true });
+    try {
+      const req: PickupOverrideRequest = {
+        latitude: lat,
+        longitude: lng,
+        name: overrideName.trim(),
+      };
+      await overridePickup(selectedBooking.id, req);
+      Alert.alert('¡Cambio enviado!', 'El conductor recibirá la solicitud y responderá pronto.');
+      dispatch({ type: 'CLOSE_MODAL' });
+    } catch (err: unknown) {
+      const anyErr = err as { response?: { data?: { message?: string } } };
+      Alert.alert('Error', anyErr?.response?.data?.message ?? 'Error al enviar el cambio');
+    } finally {
+      dispatch({ type: 'SET_SUBMITTING', payload: false });
+    }
+  }, [uiState, overridePickup]);
+
+  const openPauseModal = useCallback(() => {
+    dispatch({ type: 'OPEN_PAUSE_MODAL', payload: { pauseFrom: dateToISO(new Date()) } });
+  }, []);
+
+  const openResumeModal = useCallback(() => dispatch({ type: 'OPEN_RESUME_MODAL' }), []);
+  const openCancelModal = useCallback(() => dispatch({ type: 'OPEN_CANCEL_MODAL' }), []);
+  const closeModal = useCallback(() => dispatch({ type: 'CLOSE_MODAL' }), []);
+
+  const openBookingDetail = useCallback((booking: RoutineBookingResponse) => {
+    dispatch({ type: 'OPEN_BOOKING_DETAIL', payload: booking });
+  }, []);
+
+  return {
+    uiState,
+    dispatch,
+    subscription,
+    bookings,
+    isLoading,
+    loadError,
+    handlers: {
+      handlePause,
+      handleResume,
+      handleCancel,
+      handleOverridePickup,
+      openPauseModal,
+      openResumeModal,
+      openCancelModal,
+      openBookingDetail,
+      closeModal,
+    },
+  };
+}
