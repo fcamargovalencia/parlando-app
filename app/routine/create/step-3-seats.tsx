@@ -48,6 +48,9 @@ export default function Step3SeatsScreen() {
       .then((res) => {
         const active = (res.data.data ?? []).filter((v) => v.status === 'ACTIVE');
         setVehicles(active);
+        if (active.length === 1 && !formData.vehicleId) {
+          updateForm({ vehicleId: active[0].id, availableSeats: active[0].capacity });
+        }
       })
       .catch(() => setVehicles([]))
       .finally(() => setLoadingVehicles(false));

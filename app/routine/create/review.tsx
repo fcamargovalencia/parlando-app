@@ -44,10 +44,15 @@ function secondsLabel(s: number | undefined): string {
 // ── Error messages returned by the backend for 422 ──
 
 function humanizePublishError(error: unknown): string {
-  const msg =
-    error instanceof Error
-      ? error.message
-      : String(error);
+  // Axios wraps backend body in error.response.data; prefer that over error.message
+  let msg = '';
+  if (typeof error === 'object' && error !== null && 'response' in error) {
+    const axiosResponse = (error as { response?: { data?: { message?: string } } }).response;
+    msg = axiosResponse?.data?.message ?? '';
+  }
+  if (!msg) {
+    msg = error instanceof Error ? error.message : String(error);
+  }
 
   if (msg.includes('ARRIVAL_TIME_NOT_FEASIBLE')) {
     const match = msg.match(/(\d{2}:\d{2})/g);

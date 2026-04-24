@@ -66,8 +66,8 @@ export default function Step2ScheduleScreen() {
   today.setHours(0, 0, 0, 0);
 
   // Derive Date objects for the pickers
-  const departureDateObj = formData.departureTime ? parseHHMM(formData.departureTime) : new Date(0, 0, 0, 8, 0);
-  const arrivalDateObj = formData.requiredArrivalTime ? parseHHMM(formData.requiredArrivalTime) : new Date(0, 0, 0, 9, 0);
+  const departureDateObj = parseHHMM(formData.departureTime ?? '08:00');
+  const arrivalDateObj = parseHHMM(formData.requiredArrivalTime ?? '09:00');
   const validFromDateObj = formData.validFrom ? parseISODate(formData.validFrom) : today;
   const validUntilDateObj = formData.validUntil ? parseISODate(formData.validUntil) : undefined;
 

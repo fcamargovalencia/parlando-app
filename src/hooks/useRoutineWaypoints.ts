@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 import { routineTripsApi } from '@/api/routine-trips';
 import { useRoutineTripsStore } from '@/stores/routine-trips-store';
 import type { CreateRoutineWaypointRequest, RoutineWaypointResponse } from '@/types/api';
@@ -17,14 +17,14 @@ export function useRoutineWaypoints(): UseRoutineWaypointsResult {
   const fetchWaypointsFromStore = useRoutineTripsStore((s) => s.fetchWaypoints);
   const [isLoading, setIsLoading] = useState(false);
 
-  const fetchWaypoints = async (tripId: string) => {
+  const fetchWaypoints = useCallback(async (tripId: string) => {
     setIsLoading(true);
     try {
       await fetchWaypointsFromStore(tripId);
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [fetchWaypointsFromStore]);
 
   const addWaypoint = async (
     tripId: string,

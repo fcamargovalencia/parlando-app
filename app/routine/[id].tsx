@@ -101,6 +101,8 @@ export default function RoutineTripDetailScreen() {
   const [isActioning, setIsActioning] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
 
+  const goToList = () => router.replace('/(tabs)/routine-trips' as never);
+
   const loadData = useCallback(async () => {
     if (!id) return;
     await Promise.all([fetchById(id), fetchWaypoints(id)]);
@@ -217,7 +219,7 @@ export default function RoutineTripDetailScreen() {
   if (storeLoading && !selectedTrip) {
     return (
       <View className="flex-1 bg-neutral-50">
-        <RoutineTripDetailHeader paddingTop={insets.top} canEdit={false} onBack={() => router.back()} onEdit={() => { }} />
+        <RoutineTripDetailHeader paddingTop={insets.top} canEdit={false} onBack={goToList} onEdit={() => { }} />
         <View className="flex-1 items-center justify-center">
           <Spinner />
         </View>
@@ -228,7 +230,7 @@ export default function RoutineTripDetailScreen() {
   if (!selectedTrip || selectedTrip.id !== id) {
     return (
       <View className="flex-1 bg-neutral-50">
-        <RoutineTripDetailHeader paddingTop={insets.top} canEdit={false} onBack={() => router.back()} onEdit={() => { }} />
+        <RoutineTripDetailHeader paddingTop={insets.top} canEdit={false} onBack={goToList} onEdit={() => { }} />
         <View className="flex-1 items-center justify-center px-6">
           <AlertTriangle size={40} color={Colors.neutral[400]} />
           <Text className="text-base text-neutral-500 mt-3 text-center">
@@ -251,7 +253,7 @@ export default function RoutineTripDetailScreen() {
       <RoutineTripDetailHeader
         paddingTop={insets.top}
         canEdit={!isReadOnly}
-        onBack={() => router.back()}
+        onBack={goToList}
         onEdit={() => router.push(`/routine/create/step-1-route?tripId=${id}` as never)}
       />
       <ScrollView
