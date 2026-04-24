@@ -1,18 +1,18 @@
-import React, { useRef, useState } from 'react';
+import React from 'react';
 import {
   ActivityIndicator,
-  Linking,
   Modal,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
 } from 'react-native';
-import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { CameraView, useCameraPermissions } from 'expo-camera';
-import { manipulateAsync, SaveFormat } from 'expo-image-manipulator';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { CameraView } from 'expo-camera';
 import { Camera, RefreshCw, ScanFace, X } from 'lucide-react-native';
 import { Colors } from '@/constants/colors';
+import { usePhotoCapture } from '@/hooks/usePhotoCapture';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 export type CaptureTarget = 'documentFront' | 'documentBack' | 'selfie';
 
@@ -39,10 +39,7 @@ interface CapturePhotoModalProps {
   customConfig?: Partial<CapturePhotoConfig>;
 }
 
-const captureConfig: Record<
-  CaptureTarget,
-  CapturePhotoConfig
-> = {
+const captureConfig: Record<CaptureTarget, CapturePhotoConfig> = {
   documentFront: {
     title: 'Frente del documento',
     description: 'Alinea el documento completo dentro del marco y evita reflejos o sombras.',
@@ -69,26 +66,6 @@ const captureConfig: Record<
   },
 };
 
-function buildCenteredCrop(
-  width: number,
-  height: number,
-  targetAspectRatio: number,
-) {
-  const sourceAspectRatio = width / height;
-
-  if (sourceAspectRatio > targetAspectRatio) {
-    const cropHeight = height;
-    const cropWidth = Math.round(height * targetAspectRatio);
-    const originX = Math.round((width - cropWidth) / 2);
-    return { originX, originY: 0, width: cropWidth, height: cropHeight };
-  }
-
-  const cropWidth = width;
-  const cropHeight = Math.round(width / targetAspectRatio);
-  const originY = Math.round((height - cropHeight) / 2);
-  return { originX: 0, originY, width: cropWidth, height: cropHeight };
-}
-
 export function CapturePhotoModal({
   visible,
   target,
@@ -97,59 +74,15 @@ export function CapturePhotoModal({
   customConfig,
 }: CapturePhotoModalProps) {
   const insets = useSafeAreaInsets();
-  const [permission, requestPermission] = useCameraPermissions();
-  const [capturing, setCapturing] = useState(false);
-  const cameraRef = useRef<CameraView | null>(null);
-
-  if (!visible || !target) {
-    return null;
-  }
-
   const config: CapturePhotoConfig = {
-    ...captureConfig[target],
+    ...(target ? captureConfig[target] : captureConfig.documentFront),
     ...customConfig,
   };
 
-  const handleRequestPermission = async () => {
-    const result = await requestPermission();
-    if (!result.granted && !result.canAskAgain) {
-      await Linking.openSettings();
-    }
-  };
+  const { permission, cameraRef, capturing, handleRequestPermission, handleTakePicture } =
+    usePhotoCapture(config, onCapture);
 
-  const handleTakePicture = async () => {
-    if (!cameraRef.current || capturing) return;
-
-    try {
-      setCapturing(true);
-      const photo = await cameraRef.current.takePictureAsync({
-        quality: 0.8,
-        skipProcessing: false,
-      });
-
-      if (photo?.uri) {
-        const crop = buildCenteredCrop(
-          photo.width,
-          photo.height,
-          config.frameAspectRatio,
-        );
-
-        const croppedPhoto = await manipulateAsync(
-          photo.uri,
-          [{ crop }],
-          { compress: 0.9, format: SaveFormat.JPEG },
-        );
-
-        onCapture({
-          uri: croppedPhoto.uri,
-          width: croppedPhoto.width,
-          height: croppedPhoto.height,
-        });
-      }
-    } finally {
-      setCapturing(false);
-    }
-  };
+  if (!visible || !target) return null;
 
   return (
     <Modal visible={visible} animationType="slide" presentationStyle="fullScreen">

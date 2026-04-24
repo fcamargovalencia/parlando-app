@@ -235,7 +235,7 @@ export default function ChatScreen() {
           trip={trip}
           visible={bookVisible}
           onClose={() => setBookVisible(false)}
-          onBooked={(booking) => setMyBooking(booking)}
+          onConfirm={(booking) => setMyBooking(booking)}
         />
       )}
     </View>

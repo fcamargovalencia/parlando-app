@@ -21,17 +21,17 @@ interface EditTripModalProps {
   trip: TripResponse;
   visible: boolean;
   onClose: () => void;
-  onSaved: (updated: TripResponse) => void;
+  onConfirm: (updated: TripResponse) => void;
 }
 
-export function EditTripModal({ trip, visible, onClose, onSaved }: EditTripModalProps) {
+export function EditTripModal({ trip, visible, onClose, onConfirm }: EditTripModalProps) {
   const {
     form, setForm,
     showDate, setShowDate,
     showTime, setShowTime,
     handleDateChange, handleTimeChange,
     formError, save, isSaving,
-  } = useEditTripForm(trip, onSaved, onClose);
+  } = useEditTripForm(trip, onConfirm, onClose);
 
   return (
     <Modal

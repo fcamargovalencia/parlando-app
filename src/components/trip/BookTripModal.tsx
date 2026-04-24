@@ -18,14 +18,14 @@ interface BookTripModalProps {
   trip: TripResponse;
   visible: boolean;
   onClose: () => void;
-  onBooked: (booking: BookingResponse) => void;
+  onConfirm: (booking: BookingResponse) => void;
 }
 
 export function BookTripModal({
   trip,
   visible,
   onClose,
-  onBooked,
+  onConfirm,
 }: BookTripModalProps) {
   const [seats, setSeats] = useState(1);
   const maxSeats = Math.max(0, trip.availableSeats);
@@ -52,7 +52,7 @@ export function BookTripModal({
           seatsBooked: seats,
         });
         if (!res.data) throw new Error();
-        onBooked(res.data);
+        onConfirm(res.data);
         Toast.show({
           type: 'success',
           text1: '¡Solicitud enviada!',

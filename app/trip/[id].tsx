@@ -194,14 +194,14 @@ export default function TripDetailScreen() {
           trip={trip}
           visible={editVisible}
           onClose={() => setEditVisible(false)}
-          onSaved={(u) => updateTrip(u)}
+          onConfirm={(u) => updateTrip(u)}
         />
       )}
       <BookTripModal
         trip={trip}
         visible={bookVisible}
         onClose={() => setBookVisible(false)}
-        onBooked={(booking) => updateMyBooking(booking)}
+        onConfirm={(booking) => updateMyBooking(booking)}
       />
       <RouteMapModal
         trip={trip}
