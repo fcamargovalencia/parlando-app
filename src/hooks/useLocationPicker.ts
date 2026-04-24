@@ -368,11 +368,11 @@ export function useLocationPicker({
     ? { latitude: municipalityCenter.latitude, longitude: municipalityCenter.longitude, latitudeDelta: 0.05, longitudeDelta: 0.05 }
     : routeRegion
       ? routeRegion
-    : userCoords
-      ? { ...userCoords, latitudeDelta: 0.003, longitudeDelta: 0.003 }
-      : initial
-        ? { latitude: initial.latitude, longitude: initial.longitude, latitudeDelta: 0.003, longitudeDelta: 0.003 }
-        : COLOMBIA_REGION;
+      : userCoords
+        ? { ...userCoords, latitudeDelta: 0.003, longitudeDelta: 0.003 }
+        : initial
+          ? { latitude: initial.latitude, longitude: initial.longitude, latitudeDelta: 0.003, longitudeDelta: 0.003 }
+          : COLOMBIA_REGION;
 
   return {
     // search state

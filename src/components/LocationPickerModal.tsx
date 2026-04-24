@@ -16,7 +16,7 @@ interface Props {
   initial?: import('@/hooks/useLocationPicker').SelectedLocation | null;
   mode?: 'full' | 'map-only';
   mapHintText?: string;
-  municipalityFocus?: { latitude: number; longitude: number; name: string };
+  municipalityFocus?: { latitude: number; longitude: number; name: string; };
   allowCitySelection?: boolean;
   routeLine?: RoutineTripResponse['routeLine'];
 }

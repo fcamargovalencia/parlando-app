@@ -17,11 +17,11 @@ interface Props {
   mapRef: React.RefObject<MapView | null>;
   mapInitialRegion: Region;
   mapName: string;
-  centerCoord: { latitude: number; longitude: number } | null;
+  centerCoord: { latitude: number; longitude: number; } | null;
   isDragging: boolean;
   reverseGeocoding: boolean;
-  municipalityCenter: { latitude: number; longitude: number; name: string } | null;
-  routeCoordinates?: Array<{ latitude: number; longitude: number }>;
+  municipalityCenter: { latitude: number; longitude: number; name: string; } | null;
+  routeCoordinates?: Array<{ latitude: number; longitude: number; }>;
   mapHintText?: string;
   mode: 'full' | 'map-only';
   onBack: () => void;
@@ -54,9 +54,9 @@ export function LocationMapView({
     ? mapHintText
     : routeCoordinates && routeCoordinates.length >= 2
       ? 'Ajusta el punto sobre la ruta seleccionada del viaje'
-    : municipalityCenter
-      ? `Mueve el mapa para elegir el punto exacto en ${municipalityCenter.name}`
-      : 'Mueve el mapa para posicionar el pin en el punto exacto';
+      : municipalityCenter
+        ? `Mueve el mapa para elegir el punto exacto en ${municipalityCenter.name}`
+        : 'Mueve el mapa para posicionar el pin en el punto exacto';
 
   const showRoute = !!routeCoordinates && routeCoordinates.length >= 2;
   const routeStart = showRoute ? routeCoordinates[0] : null;
