@@ -11,7 +11,7 @@ interface WaypointListItemProps {
   onDelete?: (id: string) => void;
 }
 
-export function WaypointListItem({
+export const WaypointListItem = React.memo(function WaypointListItem({
   waypoint,
   showDragHandle = false,
   showDelete = false,
@@ -62,4 +62,4 @@ export function WaypointListItem({
       ) : null}
     </View>
   );
-}
+});

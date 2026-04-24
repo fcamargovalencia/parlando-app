@@ -10,7 +10,7 @@ interface Props {
   last?: boolean;
 }
 
-export function DocumentRow({ label, hasDocument, last = false }: Props) {
+export const DocumentRow = React.memo(function DocumentRow({ label, hasDocument, last = false }: Props) {
   return (
     <View className={`flex-row items-center py-3 ${!last ? 'border-b border-neutral-100' : ''}`}>
       <View
@@ -27,4 +27,4 @@ export function DocumentRow({ label, hasDocument, last = false }: Props) {
       />
     </View>
   );
-}
+});

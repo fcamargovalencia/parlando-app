@@ -10,7 +10,7 @@ interface Props {
   onPress?: () => void;
 }
 
-export function SettingRow({ icon, label, value, onPress }: Props) {
+export const SettingRow = React.memo(function SettingRow({ icon, label, value, onPress }: Props) {
   return (
     <TouchableOpacity
       onPress={onPress}
@@ -25,4 +25,4 @@ export function SettingRow({ icon, label, value, onPress }: Props) {
       <ChevronRight size={18} color={Colors.neutral[300]} />
     </TouchableOpacity>
   );
-}
+});

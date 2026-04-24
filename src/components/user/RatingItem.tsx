@@ -8,7 +8,7 @@ interface Props {
   rating: RatingResponse;
 }
 
-export function RatingItem({ rating }: Props) {
+export const RatingItem = React.memo(function RatingItem({ rating }: Props) {
   return (
     <View className="py-3 border-b border-neutral-100">
       <View className="flex-row items-center justify-between mb-1.5">
@@ -24,4 +24,4 @@ export function RatingItem({ rating }: Props) {
       )}
     </View>
   );
-}
+});

@@ -32,7 +32,7 @@ interface BookingRowProps {
   onMessage: () => void;
 }
 
-export function BookingRow({
+export const BookingRow = React.memo(function BookingRow({
   booking,
   tripId,
   tripStatus,
@@ -223,4 +223,4 @@ export function BookingRow({
         )}
     </View>
   );
-}
+});

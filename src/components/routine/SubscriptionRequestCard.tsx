@@ -48,7 +48,7 @@ export interface SubscriptionRequestCardProps {
   onReject?: (id: string) => void;
 }
 
-export function SubscriptionRequestCard({
+export const SubscriptionRequestCard = React.memo(function SubscriptionRequestCard({
   subscription,
   showActions = false,
   onAccept,
@@ -207,4 +207,4 @@ export function SubscriptionRequestCard({
       )}
     </Card>
   );
-}
+});

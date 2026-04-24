@@ -8,7 +8,7 @@ interface Props {
   size?: number;
 }
 
-export function StarRow({ score, size = 14 }: Props) {
+export const StarRow = React.memo(function StarRow({ score, size = 14 }: Props) {
   return (
     <View className="flex-row gap-0.5">
       {[1, 2, 3, 4, 5].map((s) => (
@@ -21,4 +21,4 @@ export function StarRow({ score, size = 14 }: Props) {
       ))}
     </View>
   );
-}
+});

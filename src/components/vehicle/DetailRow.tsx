@@ -8,7 +8,7 @@ interface Props {
   last?: boolean;
 }
 
-export function DetailRow({ icon, label, value, last = false }: Props) {
+export const DetailRow = React.memo(function DetailRow({ icon, label, value, last = false }: Props) {
   return (
     <View className={`flex-row items-center py-3 ${!last ? 'border-b border-neutral-100' : ''}`}>
       <View className="mr-3">{icon}</View>
@@ -16,4 +16,4 @@ export function DetailRow({ icon, label, value, last = false }: Props) {
       <Text className="text-sm font-medium text-neutral-800">{value || '-'}</Text>
     </View>
   );
-}
+});

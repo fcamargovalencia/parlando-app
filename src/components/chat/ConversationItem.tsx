@@ -73,7 +73,7 @@ const TRIP_STATUS_STYLES: Record<TripStatus, { bg: string; text: string; }> = {
 const ORIGIN_DOT_COLOR = Colors.semantic.success;
 const DESTINATION_DOT_COLOR = Colors.accent[500];
 
-export function ConversationItem({ conversation, onPress }: ConversationItemProps) {
+export const ConversationItem = React.memo(function ConversationItem({ conversation, onPress }: ConversationItemProps) {
   const currentUserId = useAuthStore((s) => s.user?.id);
   const hasUnread = conversation.unreadCount > 0;
 
@@ -215,4 +215,4 @@ export function ConversationItem({ conversation, onPress }: ConversationItemProp
       </View>
     </TouchableOpacity>
   );
-}
+});

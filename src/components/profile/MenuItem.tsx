@@ -12,7 +12,7 @@ export interface MenuItemProps {
   danger?: boolean;
 }
 
-export function MenuItem({ icon, title, subtitle, onPress, badge, danger }: MenuItemProps) {
+export const MenuItem = React.memo(function MenuItem({ icon, title, subtitle, onPress, badge, danger }: MenuItemProps) {
   return (
     <TouchableOpacity
       className="flex-row items-center py-3.5"
@@ -38,4 +38,4 @@ export function MenuItem({ icon, title, subtitle, onPress, badge, danger }: Menu
       <ChevronRight size={18} color={Colors.neutral[300]} />
     </TouchableOpacity>
   );
-}
+});
