@@ -7,29 +7,32 @@ import { SectionTitle } from '@/components/settings/SectionTitle';
 import { SettingRow } from '@/components/settings/SettingRow';
 import { SettingToggle } from '@/components/settings/SettingToggle';
 
-export function PreferencesSection() {
+const ICON_GLOBE = <Globe size={20} color={Colors.primary[600]} />;
+const ICON_MOON = <Moon size={20} color={Colors.primary[600]} />;
+const handleLanguage = () =>
+  Alert.alert('Próximamente', 'La selección de idioma estará disponible pronto.');
+const handleDarkMode = () =>
+  Alert.alert('Próximamente', 'El modo oscuro estará disponible pronto.');
+
+export const PreferencesSection = React.memo(function PreferencesSection() {
   return (
     <>
       <SectionTitle title="Preferencias" />
       <Card className="mb-6">
         <SettingRow
-          icon={<Globe size={20} color={Colors.primary[600]} />}
+          icon={ICON_GLOBE}
           label="Idioma"
           value="Español"
-          onPress={() =>
-            Alert.alert('Próximamente', 'La selección de idioma estará disponible pronto.')
-          }
+          onPress={handleLanguage}
         />
         <View className="h-px bg-neutral-100" />
         <SettingToggle
-          icon={<Moon size={20} color={Colors.primary[600]} />}
+          icon={ICON_MOON}
           label="Modo oscuro"
           defaultValue={false}
-          onToggle={() =>
-            Alert.alert('Próximamente', 'El modo oscuro estará disponible pronto.')
-          }
+          onToggle={handleDarkMode}
         />
       </Card>
     </>
   );
-}
+});

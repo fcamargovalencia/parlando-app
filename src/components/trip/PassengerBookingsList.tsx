@@ -18,7 +18,7 @@ interface PassengerBookingsListProps {
   onMessage: (booking: BookingResponse) => void;
 }
 
-export function PassengerBookingsList({
+export const PassengerBookingsList = React.memo(function PassengerBookingsList({
   bookings,
   tripId,
   tripStatus,
@@ -65,15 +65,12 @@ export function PassengerBookingsList({
             actionLoading={actionLoading}
             isRated={b.passenger ? ratedUserIds.has(b.passenger.id) : false}
             commentCount={b.passenger ? passengerCommentCounts[b.passenger.id] : undefined}
-            onAccept={() => onBookingAction(b.id, 'accept')}
-            onReject={() => onBookingAction(b.id, 'reject')}
-            onBoard={() => onBookingAction(b.id, 'board')}
-            onNoShow={() => onBookingAction(b.id, 'noshow')}
-            onRate={() => onRate(b)}
-            onMessage={() => onMessage(b)}
+            onBookingAction={onBookingAction}
+            onRate={onRate}
+            onMessage={onMessage}
           />
         ))
       )}
     </Card>
   );
-}
+});

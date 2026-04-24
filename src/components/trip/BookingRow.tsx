@@ -24,12 +24,9 @@ interface BookingRowProps {
   actionLoading: string | null;
   isRated: boolean;
   commentCount?: number;
-  onAccept: () => void;
-  onReject: () => void;
-  onBoard: () => void;
-  onNoShow: () => void;
-  onRate: () => void;
-  onMessage: () => void;
+  onBookingAction: (bookingId: string, action: 'accept' | 'reject' | 'board' | 'noshow') => void;
+  onRate: (booking: BookingResponse) => void;
+  onMessage: (booking: BookingResponse) => void;
 }
 
 export const BookingRow = React.memo(function BookingRow({
@@ -39,10 +36,7 @@ export const BookingRow = React.memo(function BookingRow({
   actionLoading,
   isRated,
   commentCount,
-  onAccept,
-  onReject,
-  onBoard,
-  onNoShow,
+  onBookingAction,
   onRate,
   onMessage,
 }: BookingRowProps) {
@@ -118,7 +112,7 @@ export const BookingRow = React.memo(function BookingRow({
             </View>
           ) : (
             <TouchableOpacity
-              onPress={onRate}
+              onPress={() => onRate(booking)}
               className="flex-row items-center gap-1.5 bg-amber-50 px-3 py-1.5 rounded-full"
               style={{ borderWidth: 1, borderColor: '#FDE68A' }}
             >
@@ -135,7 +129,7 @@ export const BookingRow = React.memo(function BookingRow({
       {booking.status === 'PENDING' && (
         <View className="flex-row gap-2 ml-12">
           <TouchableOpacity
-            onPress={onAccept}
+            onPress={() => onBookingAction(booking.id, 'accept')}
             disabled={!!actionLoading}
             className="flex-1 flex-row items-center justify-center gap-1.5 py-2 rounded-xl"
             style={{ backgroundColor: Colors.primary[600] }}
@@ -150,7 +144,7 @@ export const BookingRow = React.memo(function BookingRow({
             )}
           </TouchableOpacity>
           <TouchableOpacity
-            onPress={onReject}
+            onPress={() => onBookingAction(booking.id, 'reject')}
             disabled={!!actionLoading}
             className="flex-1 flex-row items-center justify-center gap-1.5 py-2 rounded-xl bg-red-50"
             style={{ borderWidth: 1, borderColor: '#FCA5A5' }}
@@ -171,7 +165,7 @@ export const BookingRow = React.memo(function BookingRow({
       {booking.status === 'ACCEPTED' && tripStatus === 'IN_PROGRESS' && (
         <View className="flex-row gap-2 ml-12">
           <TouchableOpacity
-            onPress={onBoard}
+            onPress={() => onBookingAction(booking.id, 'board')}
             disabled={!!actionLoading}
             className="flex-1 flex-row items-center justify-center gap-1.5 py-2 rounded-xl"
             style={{ backgroundColor: Colors.primary[600] }}
@@ -188,7 +182,7 @@ export const BookingRow = React.memo(function BookingRow({
             )}
           </TouchableOpacity>
           <TouchableOpacity
-            onPress={onNoShow}
+            onPress={() => onBookingAction(booking.id, 'noshow')}
             disabled={!!actionLoading}
             className="flex-row items-center justify-center gap-1.5 px-3 py-2 rounded-xl bg-neutral-100"
           >
@@ -207,7 +201,7 @@ export const BookingRow = React.memo(function BookingRow({
           booking.status === 'ACCEPTED' ||
           booking.status === 'BOARDED') && (
           <TouchableOpacity
-            onPress={onMessage}
+            onPress={() => onMessage(booking)}
             className="flex-row items-center justify-center gap-1.5 ml-12 mt-2 py-2 rounded-xl"
             style={{
               backgroundColor: Colors.primary[50],
