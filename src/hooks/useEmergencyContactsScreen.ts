@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import { Alert } from 'react-native';
 import { useEmergencyContacts } from '@/hooks/useEmergencyContacts';
 import type { EmergencyContactResponse } from '@/types/api';
@@ -65,11 +65,11 @@ export function useEmergencyContactsScreen() {
     clearError();
   };
 
-  const startEdit = (contact: EmergencyContactResponse) => {
+  const startEdit = useCallback((contact: EmergencyContactResponse) => {
     setEditingId(contact.id);
     setForm(initialFormFromContact(contact));
     clearError();
-  };
+  }, [clearError]);
 
   const onChangeName = (value: string) => {
     setForm((prev) => ({ ...prev, name: value }));
@@ -108,7 +108,7 @@ export function useEmergencyContactsScreen() {
     if (ok) resetForm();
   };
 
-  const requestDelete = (contact: EmergencyContactResponse) => {
+  const requestDelete = useCallback((contact: EmergencyContactResponse) => {
     Alert.alert(
       'Eliminar contacto',
       `Deseas eliminar a ${contact.name} de tus contactos de emergencia?`,
@@ -123,7 +123,7 @@ export function useEmergencyContactsScreen() {
         },
       ],
     );
-  };
+  }, [deleteContact]);
 
   return {
     contacts,

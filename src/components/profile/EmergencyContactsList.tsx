@@ -20,6 +20,51 @@ function maskPhone(phone: string): string {
   return `${startsWithPlus ? '+' : ''}${hidden}${visible}`;
 }
 
+const ICON_USER = <UserRound size={16} color={Colors.primary[600]} />;
+
+interface ContactCardProps {
+  contact: EmergencyContactResponse;
+  isDeleting: boolean;
+  onEdit: (contact: EmergencyContactResponse) => void;
+  onDelete: (contact: EmergencyContactResponse) => void;
+}
+
+const ContactCard = React.memo(function ContactCard({
+  contact,
+  isDeleting,
+  onEdit,
+  onDelete,
+}: ContactCardProps) {
+  return (
+    <Card className="p-4">
+      <View className="flex-row items-start justify-between mb-2">
+        <View className="flex-row items-center gap-2 pr-2 flex-1">
+          {ICON_USER}
+          <Text className="text-base font-semibold text-neutral-800" numberOfLines={1}>
+            {contact.name}
+          </Text>
+        </View>
+        <View className="flex-row gap-2">
+          <TouchableOpacity onPress={() => onEdit(contact)}>
+            <Pencil size={16} color={Colors.neutral[600]} />
+          </TouchableOpacity>
+          <TouchableOpacity onPress={() => onDelete(contact)} disabled={isDeleting}>
+            <Trash2 size={16} color={Colors.semantic.error} />
+          </TouchableOpacity>
+        </View>
+      </View>
+
+      <Text className="text-sm text-neutral-600">{contact.relationship}</Text>
+      <Text className="text-sm text-neutral-600 mt-0.5">{maskPhone(contact.phone)}</Text>
+      <Text className="text-xs text-neutral-500 mt-2">
+        {contact.notifyOnTrip
+          ? 'Recibe notificacion cuando inicies viaje'
+          : 'Sin notificacion automatica'}
+      </Text>
+    </Card>
+  );
+});
+
 interface EmergencyContactsListProps {
   contacts: EmergencyContactResponse[];
   loading: boolean;
@@ -28,7 +73,7 @@ interface EmergencyContactsListProps {
   onDelete: (contact: EmergencyContactResponse) => void;
 }
 
-export function EmergencyContactsList({
+export const EmergencyContactsList = React.memo(function EmergencyContactsList({
   contacts,
   loading,
   deletingId,
@@ -56,36 +101,14 @@ export function EmergencyContactsList({
   return (
     <View className="gap-3">
       {contacts.map((contact) => (
-        <Card key={contact.id} className="p-4">
-          <View className="flex-row items-start justify-between mb-2">
-            <View className="flex-row items-center gap-2 pr-2 flex-1">
-              <UserRound size={16} color={Colors.primary[600]} />
-              <Text className="text-base font-semibold text-neutral-800" numberOfLines={1}>
-                {contact.name}
-              </Text>
-            </View>
-            <View className="flex-row gap-2">
-              <TouchableOpacity onPress={() => onEdit(contact)}>
-                <Pencil size={16} color={Colors.neutral[600]} />
-              </TouchableOpacity>
-              <TouchableOpacity
-                onPress={() => onDelete(contact)}
-                disabled={deletingId === contact.id}
-              >
-                <Trash2 size={16} color={Colors.semantic.error} />
-              </TouchableOpacity>
-            </View>
-          </View>
-
-          <Text className="text-sm text-neutral-600">{contact.relationship}</Text>
-          <Text className="text-sm text-neutral-600 mt-0.5">{maskPhone(contact.phone)}</Text>
-          <Text className="text-xs text-neutral-500 mt-2">
-            {contact.notifyOnTrip
-              ? 'Recibe notificacion cuando inicies viaje'
-              : 'Sin notificacion automatica'}
-          </Text>
-        </Card>
+        <ContactCard
+          key={contact.id}
+          contact={contact}
+          isDeleting={deletingId === contact.id}
+          onEdit={onEdit}
+          onDelete={onDelete}
+        />
       ))}
     </View>
   );
-}
+});
