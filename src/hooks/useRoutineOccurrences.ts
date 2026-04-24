@@ -1,5 +1,4 @@
 import { useState, useCallback, useEffect } from 'react';
-import { routineTripsApi } from '@/api/routine-trips';
 import { tripsApi } from '@/api/trips';
 import type { TripResponse } from '@/types/api';
 
@@ -21,7 +20,7 @@ export function useRoutineOccurrences(routineTripId: string): UseRoutineOccurren
     setIsLoading(true);
     setError(null);
     try {
-      const response = await routineTripsApi.getOccurrences(routineTripId);
+      const response = await tripsApi.getByRoutineTrip(routineTripId);
       setOccurrences(response.data.data ?? []);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Error al cargar las ocurrencias');

@@ -101,7 +101,7 @@ export default function RoutineTripDetailScreen() {
   const [isActioning, setIsActioning] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
 
-  const goToList = () => router.replace('/(tabs)/routine-trips' as never);
+  const goToList = () => router.replace('/(tabs)/my-trips' as never);
 
   const loadData = useCallback(async () => {
     if (!id) return;
@@ -203,7 +203,7 @@ export default function RoutineTripDetailScreen() {
             setIsActioning(true);
             try {
               await cancelTrip(id);
-              router.replace('/(tabs)/routine-trips' as never);
+              router.replace('/(tabs)/my-trips' as never);
             } catch (err) {
               Alert.alert('Error', err instanceof Error ? err.message : 'No se pudo cancelar');
               setIsActioning(false);

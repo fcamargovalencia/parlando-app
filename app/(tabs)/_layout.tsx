@@ -79,11 +79,7 @@ export default function TabsLayout() {
           ),
         }}
       />
-      <Tabs.Screen
-        name="routine-trips"
-        options={{ href: null }}
-      />
-      <Tabs.Screen
+<Tabs.Screen
         name="publish"
         options={{
           title: 'Publicar',

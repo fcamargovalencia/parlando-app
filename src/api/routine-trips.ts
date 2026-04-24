@@ -10,7 +10,6 @@ import type {
   ReorderRoutineWaypointsRequest,
   RoutineWaypointResponse,
   RoutineSubscriptionResponse,
-  TripResponse,
 } from '@/types/api';
 
 export const routineTripsApi = {
@@ -68,10 +67,5 @@ export const routineTripsApi = {
     api.patch<ApiResponse<RoutineWaypointResponse[]>>(
       `/v1/routine-trips/${encodeURIComponent(id)}/waypoints/reorder`,
       data,
-    ),
-
-  getOccurrences: (id: string) =>
-    api.get<ApiResponse<TripResponse[]>>(
-      `/v1/routine-trips/${encodeURIComponent(id)}/occurrences`,
     ),
 };

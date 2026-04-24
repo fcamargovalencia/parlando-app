@@ -33,4 +33,7 @@ export const tripsApi = {
 
   search: (params: SearchTripsParams) =>
     api.get<ApiResponse<PageResponse<TripResponse>>>('/v1/trips/search', { params }),
+
+  getByRoutineTrip: (routineTripId: string) =>
+    api.get<ApiResponse<TripResponse[]>>(`/v1/trips/routine/${encodeURIComponent(routineTripId)}`),
 };
