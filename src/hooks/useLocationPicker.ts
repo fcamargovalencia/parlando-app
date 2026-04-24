@@ -274,15 +274,18 @@ export function useLocationPicker({
       animateWhenReady({
         latitude: municipalityCenter.latitude,
         longitude: municipalityCenter.longitude,
-        latitudeDelta: 0.5,
-        longitudeDelta: 0.5,
+        latitudeDelta: 0.05,
+        longitudeDelta: 0.05,
       });
       return;
     }
 
+    let cancelled = false;
+
     (async () => {
       try {
         const { status } = await Location.requestForegroundPermissionsAsync();
+        if (cancelled) return;
         if (status !== 'granted') {
           const fallback = initial ? { latitude: initial.latitude, longitude: initial.longitude } : null;
           if (fallback) animateWhenReady({ ...fallback, latitudeDelta: 0.003, longitudeDelta: 0.003 });
@@ -290,6 +293,7 @@ export function useLocationPicker({
         }
 
         const last = await Location.getLastKnownPositionAsync({ maxAge: 60_000 });
+        if (cancelled) return;
         if (last) {
           const coords = { latitude: last.coords.latitude, longitude: last.coords.longitude };
           setUserCoords(coords);
@@ -297,6 +301,7 @@ export function useLocationPicker({
         }
 
         const fresh = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+        if (cancelled) return;
         const freshCoords = { latitude: fresh.coords.latitude, longitude: fresh.coords.longitude };
         setUserCoords(freshCoords);
         const prev = last ? { latitude: last.coords.latitude, longitude: last.coords.longitude } : null;
@@ -308,16 +313,19 @@ export function useLocationPicker({
           animateWhenReady({ ...freshCoords, latitudeDelta: 0.003, longitudeDelta: 0.003 });
         }
       } catch {
+        if (cancelled) return;
         const fallback = userCoords ?? (initial ? { latitude: initial.latitude, longitude: initial.longitude } : null);
         if (fallback) animateWhenReady({ ...fallback, latitudeDelta: 0.003, longitudeDelta: 0.003 });
       }
     })();
+
+    return () => { cancelled = true; };
   }, [mapVisible, municipalityCenter, animateWhenReady]);
 
   // ── Derived: map initial region ──
 
   const mapInitialRegion: Region = municipalityCenter
-    ? { latitude: municipalityCenter.latitude, longitude: municipalityCenter.longitude, latitudeDelta: 0.5, longitudeDelta: 0.5 }
+    ? { latitude: municipalityCenter.latitude, longitude: municipalityCenter.longitude, latitudeDelta: 0.05, longitudeDelta: 0.05 }
     : userCoords
       ? { ...userCoords, latitudeDelta: 0.003, longitudeDelta: 0.003 }
       : initial
