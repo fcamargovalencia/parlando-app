@@ -1,22 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import {
-  View,
-  Text,
-  ScrollView,
-  TouchableOpacity,
-  StyleSheet,
-} from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity } from 'react-native';
 import { useRouter } from 'expo-router';
-import { MapPin, ChevronRight, ArrowLeft } from 'lucide-react-native';
-import MapView, { Polyline, Marker } from 'react-native-maps';
-import { Screen, Button, Toggle } from '@/components/ui';
+import { MapPin, ChevronRight, Map as MapIcon } from 'lucide-react-native';
+import { Screen, Button, Card, Toggle } from '@/components/ui';
 import { LocationPickerModal, type SelectedLocation } from '@/components/LocationPickerModal';
 import { UniversityPicker } from '@/components/university/UniversityPicker';
 import { RouteAlternativesModal } from '@/components/routine/RouteAlternativesModal';
 import { usePublishRoutineTrip } from '@/hooks/usePublishRoutineTrip';
 import { useRouteAlternatives } from '@/hooks/useRouteAlternatives';
 import { compactPolyline } from '@/lib/geo';
-import { formatDuration } from '@/lib/utils';
 import type { UniversityResponse } from '@/types/api';
 import { Colors } from '@/constants/colors';
 
@@ -218,87 +210,21 @@ export default function Step1RouteScreen() {
           <View className="mb-4" />
         )}
 
-        {/* Inline route map */}
+        {/* Route picker button */}
         {originLoc && destLoc ? (
-          <>
-            <View style={styles.mapContainer}>
-              <MapView
-                ref={routeHook.mapRef}
-                style={StyleSheet.absoluteFillObject}
-                mapType="standard"
-                scrollEnabled
-                zoomEnabled
-                rotateEnabled={false}
-                pitchEnabled={false}
-                toolbarEnabled={false}
-                initialRegion={{
-                  latitude: (originLoc.latitude + destLoc.latitude) / 2,
-                  longitude: (originLoc.longitude + destLoc.longitude) / 2,
-                  latitudeDelta: Math.max(Math.abs(originLoc.latitude - destLoc.latitude) * 1.8, 0.2),
-                  longitudeDelta: Math.max(Math.abs(originLoc.longitude - destLoc.longitude) * 1.8, 0.2),
-                }}
-              >
-                <Marker
-                  coordinate={{ latitude: originLoc.latitude, longitude: originLoc.longitude }}
-                  title={originLoc.name}
-                  pinColor={Colors.primary[600]}
-                />
-                <Marker
-                  coordinate={{ latitude: destLoc.latitude, longitude: destLoc.longitude }}
-                  title={destLoc.name}
-                  pinColor={Colors.accent[500]}
-                />
-                {selectedRoute && (
-                  <Polyline
-                    coordinates={selectedRoute.points}
-                    strokeWidth={5}
-                    strokeColor={Colors.primary[600]}
-                    lineCap="round"
-                    lineJoin="round"
-                  />
-                )}
-              </MapView>
-
-              {selectedRoute && (
-                <View style={styles.routeSelector}>
-                  <TouchableOpacity
-                    onPress={() => routeHook.selectByOffset(-1)}
-                    disabled={routeHook.locked || alternatives.length < 2}
-                    style={[styles.arrowBtn, (routeHook.locked || alternatives.length < 2) && { opacity: 0.35 }]}
-                  >
-                    <ArrowLeft size={16} color={Colors.neutral[700]} />
-                  </TouchableOpacity>
-
-                  <View style={{ flex: 1, marginHorizontal: 8 }}>
-                    <Text style={styles.routeTitle}>{selectedRoute.title}</Text>
-                    <Text style={styles.routeInfo}>
-                      {selectedRoute.distanceKm.toFixed(1)} km
-                      {' · '}
-                      {formatDuration(selectedRoute.durationMin)}
-                      {' · '}
-                      {selectedRoute.hasTolls ? 'Con peajes' : 'Sin peajes'}
-                    </Text>
-                  </View>
-
-                  <TouchableOpacity
-                    onPress={() => routeHook.selectByOffset(1)}
-                    disabled={routeHook.locked || alternatives.length < 2}
-                    style={[styles.arrowBtn, (routeHook.locked || alternatives.length < 2) && { opacity: 0.35 }]}
-                  >
-                    <ChevronRight size={16} color={Colors.neutral[700]} />
-                  </TouchableOpacity>
-                </View>
-              )}
-            </View>
-
-            <TouchableOpacity
+          <Card className="p-4">
+            <Button
+              variant="outline"
+              size="sm"
+              loading={alternatives.length === 0}
               onPress={() => setRouteModalOpen(true)}
-              activeOpacity={0.7}
-              style={styles.expandBtn}
+              icon={<MapIcon size={16} color={Colors.primary[500]} />}
             >
-              <Text style={styles.expandBtnText}>Ver rutas en pantalla completa</Text>
-            </TouchableOpacity>
-          </>
+              {selectedRoute
+                ? `${selectedRoute.title} ✓`
+                : 'Ver rutas disponibles'}
+            </Button>
+          </Card>
         ) : null}
       </ScrollView>
 
@@ -335,63 +261,3 @@ export default function Step1RouteScreen() {
   );
 }
 
-const styles = StyleSheet.create({
-  mapContainer: {
-    height: 260,
-    borderRadius: 16,
-    overflow: 'hidden',
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
-    marginBottom: 8,
-  },
-  routeSelector: {
-    position: 'absolute',
-    bottom: 12,
-    left: 12,
-    right: 12,
-    backgroundColor: 'rgba(255,255,255,0.95)',
-    borderRadius: 14,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    flexDirection: 'row',
-    alignItems: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.12,
-    shadowRadius: 8,
-    elevation: 4,
-  },
-  arrowBtn: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: '#fff',
-    borderWidth: 1,
-    borderColor: '#e5e7eb',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  routeTitle: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#0f172a',
-    textAlign: 'center',
-  },
-  routeInfo: {
-    fontSize: 11,
-    color: '#64748b',
-    textAlign: 'center',
-    marginTop: 2,
-  },
-  expandBtn: {
-    alignItems: 'center',
-    paddingVertical: 10,
-    marginBottom: 4,
-  },
-  expandBtnText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: Colors.primary[600],
-    textDecorationLine: 'underline',
-  },
-});
