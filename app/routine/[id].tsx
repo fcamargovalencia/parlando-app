@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -10,6 +10,7 @@ import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeAreaInsets, SafeAreaView } from 'react-native-safe-area-context';
 import {
   MapPin,
+  Map,
   Clock,
   Users,
   Settings2,
@@ -32,6 +33,7 @@ import {
   secondsLabel,
 } from '@/utils/routine-trip.utils';
 import { useRoutineDetailScreen } from '@/hooks/screens/useRoutineDetailScreen';
+import { RoutineRouteMapModal } from '@/components/routine/RoutineRouteMapModal';
 import type { RecurrenceDay, RoutineTripStatus } from '@/types/api';
 
 function SectionHeader({ icon, label }: { icon: React.ReactNode; label: string }) {
@@ -50,6 +52,7 @@ export default function RoutineTripDetailScreen() {
 
   const { selectedTrip, waypoints, storeLoading, isActioning, refreshing, handlers } =
     useRoutineDetailScreen(id);
+  const [mapVisible, setMapVisible] = useState(false);
 
   if (storeLoading && !selectedTrip) {
     return (
@@ -107,16 +110,27 @@ export default function RoutineTripDetailScreen() {
       >
         <View className="p-5 gap-4">
           <Card className="p-4">
-            <View className={`self-start px-3 py-1 rounded-full mb-3 ${STATUS_COLORS[status]}`}>
-              <Text className={`text-xs font-semibold ${STATUS_TEXT_COLORS[status]}`}>
-                {STATUS_LABELS[status]}
-              </Text>
+            <View className="flex-row items-center justify-between mb-3">
+              <View className={`self-start px-3 py-1 rounded-full ${STATUS_COLORS[status]}`}>
+                <Text className={`text-xs font-semibold ${STATUS_TEXT_COLORS[status]}`}>
+                  {STATUS_LABELS[status]}
+                </Text>
+              </View>
+              <TouchableOpacity
+                onPress={() => setMapVisible(true)}
+                className="flex-row items-center gap-1"
+                activeOpacity={0.7}
+              >
+                <Map size={14} color={Colors.primary[500]} />
+                <Text className="text-xs font-semibold text-primary-600">Ver mapa</Text>
+              </TouchableOpacity>
             </View>
             <RoutePreview
               originName={trip.originName}
               originSubtitle={trip.originSubtitle}
               destinationName={trip.destinationName}
               destinationSubtitle={trip.destinationSubtitle}
+              waypoints={waypoints.map((wp) => ({ name: wp.name, subtitle: wp.subtitle }))}
             />
           </Card>
 
@@ -322,6 +336,24 @@ export default function RoutineTripDetailScreen() {
           )}
         </View>
       </ScrollView>
+
+      <RoutineRouteMapModal
+        visible={mapVisible}
+        onClose={() => setMapVisible(false)}
+        originName={trip.originName}
+        originLatitude={trip.originLatitude}
+        originLongitude={trip.originLongitude}
+        destinationName={trip.destinationName}
+        destinationLatitude={trip.destinationLatitude}
+        destinationLongitude={trip.destinationLongitude}
+        routeLine={trip.routeLine}
+        waypoints={waypoints.map((wp) => ({
+          id: wp.id,
+          latitude: wp.latitude,
+          longitude: wp.longitude,
+          name: wp.name,
+        }))}
+      />
     </SafeAreaView>
   );
 }

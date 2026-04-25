@@ -12,8 +12,10 @@ import {
 import { useLocalSearchParams } from 'expo-router';
 import { Screen, Button, Spinner, EmptyState, FilterTabs } from '@/components/ui';
 import { SubscriptionRequestCard } from '@/components/routine/SubscriptionRequestCard';
+import { RoutineRouteMapModal } from '@/components/routine/RoutineRouteMapModal';
 import { useSubscriptionRequests } from '@/hooks/useSubscriptionRequests';
 import { useRoutineSubscriptionsStore } from '@/stores/routine-subscriptions-store';
+import { useRoutineTripsStore } from '@/stores/routine-trips-store';
 import { Colors } from '@/constants/colors';
 import type { RoutineSubscriptionResponse, SubscriptionStatus } from '@/types/api';
 
@@ -43,11 +45,15 @@ export default function SubscriptionsScreen() {
   const [rejectReason, setRejectReason] = useState('');
   const [isRejecting, setIsRejecting] = useState(false);
 
+  // Map modal
+  const [mapSub, setMapSub] = useState<RoutineSubscriptionResponse | null>(null);
+
   const { subscriptions, pendingCount, isLoading, refetch, accept, reject } =
     useSubscriptionRequests(routineTripId ?? '');
 
   const fetchForTrip = useRoutineSubscriptionsStore((s) => s.fetchForTrip);
   const clearTripSubscriptions = useRoutineSubscriptionsStore((s) => s.clearTripSubscriptions);
+  const routineTrip = useRoutineTripsStore((s) => s.selectedRoutineTrip);
 
   useEffect(() => {
     if (routineTripId) fetchForTrip(routineTripId);
@@ -106,6 +112,13 @@ export default function SubscriptionsScreen() {
     } finally {
       setIsAccepting(false);
     }
+  };
+
+  // ── Map flow ──
+
+  const handleViewMap = (id: string) => {
+    const sub = subscriptions.find((s: RoutineSubscriptionResponse) => s.id === id);
+    if (sub) setMapSub(sub);
   };
 
   // ── Reject flow ──
@@ -174,6 +187,7 @@ export default function SubscriptionsScreen() {
                 showActions={activeTab === 'pending'}
                 onAccept={handlePressAccept}
                 onReject={handlePressReject}
+                onViewMap={routineTrip ? handleViewMap : undefined}
               />
             ))
           )}
@@ -231,6 +245,33 @@ export default function SubscriptionsScreen() {
           </View>
         </View>
       </Modal>
+
+      {/* Map modal */}
+      {mapSub && routineTrip && (
+        <RoutineRouteMapModal
+          visible={!!mapSub}
+          onClose={() => setMapSub(null)}
+          originName={routineTrip.originName}
+          originLatitude={routineTrip.originLatitude}
+          originLongitude={routineTrip.originLongitude}
+          destinationName={routineTrip.destinationName}
+          destinationLatitude={routineTrip.destinationLatitude}
+          destinationLongitude={routineTrip.destinationLongitude}
+          routeLine={routineTrip.routeLine}
+          suggestedStop={
+            mapSub.pickupType === 'SUGGESTED' &&
+              mapSub.customPickupLatitude != null &&
+              mapSub.customPickupLongitude != null
+              ? {
+                id: mapSub.id,
+                latitude: mapSub.customPickupLatitude,
+                longitude: mapSub.customPickupLongitude,
+                name: mapSub.customPickupName ?? 'Punto sugerido',
+              }
+              : undefined
+          }
+        />
+      )}
 
       {/* Reject modal */}
       <Modal

@@ -69,7 +69,6 @@ const useRoutineCreateStore = create<RoutineCreateState>((set, get) => ({
 
   saveDraft: async () => {
     const { formData } = get();
-    console.log('[publishRoutineTrip] payload →', JSON.stringify(formData, null, 2));
     set({ isSubmitting: true, errors: {} });
     try {
       const response = await routineTripsApi.create(formData as CreateRoutineTripRequest);

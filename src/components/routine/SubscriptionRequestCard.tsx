@@ -4,6 +4,7 @@ import {
   AlertTriangle,
   Calendar,
   CheckCircle2,
+  Map,
   MapPin,
   Navigation,
   Star,
@@ -46,6 +47,7 @@ export interface SubscriptionRequestCardProps {
   showActions?: boolean;
   onAccept?: (id: string) => void;
   onReject?: (id: string) => void;
+  onViewMap?: (id: string) => void;
 }
 
 export const SubscriptionRequestCard = React.memo(function SubscriptionRequestCard({
@@ -53,6 +55,7 @@ export const SubscriptionRequestCard = React.memo(function SubscriptionRequestCa
   showActions = false,
   onAccept,
   onReject,
+  onViewMap,
 }: SubscriptionRequestCardProps) {
   const { passenger, subscribedDays, startDate, endDate, seatsRequired,
     specialRequirements, pickupType, pickupWaypointId, customPickupName,
@@ -185,6 +188,18 @@ export const SubscriptionRequestCard = React.memo(function SubscriptionRequestCa
           </View>
         </View>
       ) : null}
+
+      {/* View map */}
+      {onViewMap && (
+        <TouchableOpacity
+          onPress={() => onViewMap(subscription.id)}
+          className="flex-row items-center justify-center gap-1.5 py-2 rounded-xl border border-neutral-200 mb-2"
+          activeOpacity={0.7}
+        >
+          <Map size={14} color={Colors.primary[500]} />
+          <Text className="text-sm font-medium text-primary-600">Ver ruta con parada sugerida</Text>
+        </TouchableOpacity>
+      )}
 
       {/* Accept / Reject actions */}
       {showActions && (
