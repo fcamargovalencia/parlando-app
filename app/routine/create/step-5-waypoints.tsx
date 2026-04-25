@@ -5,35 +5,18 @@ import {
   ScrollView,
   TouchableOpacity,
   Alert,
-  TextInput,
   KeyboardAvoidingView,
   Platform,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { Plus, Info, ChevronUp, ChevronDown } from 'lucide-react-native';
-import { Screen, Button, Card, Spinner, Toggle } from '@/components/ui';
+import { Screen, Button, Card, Spinner } from '@/components/ui';
 import { RoutePreview } from '@/components/RoutePreview';
-import { LocationPickerModal } from '@/components/LocationPickerModal';
-import type { SelectedLocation } from '@/components/LocationPickerModal';
 import { WaypointListItem } from '@/components/routine/WaypointListItem';
+import { RoutineEditRouteModal } from '@/components/routine/RoutineEditRouteModal';
 import { useRoutineWaypoints } from '@/hooks/useRoutineWaypoints';
 import { useRoutineTripsStore } from '@/stores/routine-trips-store';
 import { Colors } from '@/constants/colors';
-import type { CreateRoutineWaypointRequest } from '@/types/api';
-
-// ── Add form state ──
-
-interface AddWaypointForm {
-  location: SelectedLocation | null;
-  estimatedMinutesOffset: string;
-  isPickupPoint: boolean;
-}
-
-const DEFAULT_FORM: AddWaypointForm = {
-  location: null,
-  estimatedMinutesOffset: '5',
-  isPickupPoint: true,
-};
 
 export default function Step5WaypointsScreen() {
   const { tripId } = useLocalSearchParams<{ tripId: string; }>();
@@ -41,16 +24,13 @@ export default function Step5WaypointsScreen() {
 
   const selectedTrip = useRoutineTripsStore((s) => s.selectedRoutineTrip);
   const fetchById = useRoutineTripsStore((s) => s.fetchById);
-  const { waypoints, isLoading, fetchWaypoints, addWaypoint, deleteWaypoint, reorderWaypoints } =
+  const { waypoints, isLoading, fetchWaypoints, deleteWaypoint, reorderWaypoints } =
     useRoutineWaypoints();
   const tripForPreview = selectedTrip?.id === tripId ? selectedTrip : null;
 
   const isActive = tripForPreview?.status === 'ACTIVE';
 
-  const [showAddForm, setShowAddForm] = useState(false);
-  const [addForm, setAddForm] = useState<AddWaypointForm>(DEFAULT_FORM);
-  const [isSaving, setIsSaving] = useState(false);
-  const [showLocationPicker, setShowLocationPicker] = useState(false);
+  const [showEditRouteModal, setShowEditRouteModal] = useState(false);
 
   useEffect(() => {
     if (!tripId) return;
@@ -59,34 +39,6 @@ export default function Step5WaypointsScreen() {
       fetchById(tripId);
     }
   }, [tripId, tripForPreview, fetchWaypoints, fetchById]);
-
-  const handleAddWaypoint = async () => {
-    if (!addForm.location || !tripId) return;
-    const minutes = parseInt(addForm.estimatedMinutesOffset, 10);
-    if (isNaN(minutes) || minutes < 0) {
-      Alert.alert('Error', 'Ingresa un tiempo válido en minutos');
-      return;
-    }
-    setIsSaving(true);
-    try {
-      const payload: CreateRoutineWaypointRequest = {
-        orderIndex: waypoints.length,
-        latitude: addForm.location.latitude,
-        longitude: addForm.location.longitude,
-        name: addForm.location.name,
-        subtitle: addForm.location.subtitle,
-        isPickupPoint: addForm.isPickupPoint,
-        estimatedMinutesOffset: minutes,
-      };
-      await addWaypoint(tripId, payload);
-      setAddForm(DEFAULT_FORM);
-      setShowAddForm(false);
-    } catch (err) {
-      Alert.alert('Error', err instanceof Error ? err.message : 'No se pudo agregar la parada');
-    } finally {
-      setIsSaving(false);
-    }
-  };
 
   const handleDelete = (waypointId: string) => {
     Alert.alert(
@@ -228,99 +180,17 @@ export default function Step5WaypointsScreen() {
             </View>
           )}
 
-          {/* Add waypoint form */}
-          {showAddForm ? (
-            <Card className="p-4 mb-4">
-              <Text className="text-sm font-semibold text-neutral-900 mb-3">Nueva parada</Text>
-
-              {/* Location selector */}
-              <TouchableOpacity
-                onPress={() => setShowLocationPicker(true)}
-                className="bg-neutral-100 rounded-xl px-4 py-3 mb-3"
-              >
-                <Text className="text-xs text-neutral-500 mb-0.5">Ubicación</Text>
-                <Text
-                  className={
-                    addForm.location
-                      ? 'text-sm text-neutral-900 font-medium'
-                      : 'text-sm text-neutral-400'
-                  }
-                >
-                  {addForm.location?.name ?? 'Seleccionar ubicación...'}
-                </Text>
-                {addForm.location?.subtitle ? (
-                  <Text className="text-xs text-neutral-500 mt-0.5">
-                    {addForm.location.subtitle}
-                  </Text>
-                ) : null}
-              </TouchableOpacity>
-
-              {/* Minutes offset */}
-              <View className="mb-3">
-                <Text className="text-xs text-neutral-500 mb-1">
-                  Minutos desde hora de salida
-                </Text>
-                <TextInput
-                  value={addForm.estimatedMinutesOffset}
-                  onChangeText={(v) =>
-                    setAddForm((f) => ({ ...f, estimatedMinutesOffset: v }))
-                  }
-                  keyboardType="number-pad"
-                  className="bg-neutral-100 rounded-xl px-4 py-3 text-sm text-neutral-900"
-                  placeholder="5"
-                />
-              </View>
-
-              {/* Is pickup point */}
-              <View className="flex-row items-center justify-between mb-4">
-                <View>
-                  <Text className="text-sm font-medium text-neutral-800">Punto de recogida</Text>
-                  <Text className="text-xs text-neutral-500">
-                    Los pasajeros pueden elegir este punto
-                  </Text>
-                </View>
-                <Toggle
-                  value={addForm.isPickupPoint}
-                  onPress={() =>
-                    setAddForm((f) => ({ ...f, isPickupPoint: !f.isPickupPoint }))
-                  }
-                />
-              </View>
-
-              <View className="flex-row gap-3">
-                <Button
-                  variant="outline"
-                  size="md"
-                  style={{ flex: 1 }}
-                  onPress={() => {
-                    setShowAddForm(false);
-                    setAddForm(DEFAULT_FORM);
-                  }}
-                >
-                  Cancelar
-                </Button>
-                <Button
-                  variant="primary"
-                  size="md"
-                  style={{ flex: 1 }}
-                  onPress={handleAddWaypoint}
-                  disabled={!addForm.location || isSaving}
-                  loading={isSaving}
-                >
-                  Agregar
-                </Button>
-              </View>
-            </Card>
-          ) : (
-            <TouchableOpacity
-              onPress={() => setShowAddForm(true)}
-              className="flex-row items-center justify-center border-2 border-dashed border-primary-300 rounded-xl py-4 mb-6"
-              activeOpacity={0.7}
-            >
-              <Plus size={18} color={Colors.primary[500]} />
-              <Text className="text-sm font-semibold text-primary-600 ml-2">Agregar parada</Text>
-            </TouchableOpacity>
-          )}
+          {/* Add stop — opens route editor modal */}
+          <TouchableOpacity
+            onPress={() => setShowEditRouteModal(true)}
+            disabled={!tripForPreview}
+            className="flex-row items-center justify-center border-2 border-dashed border-primary-300 rounded-xl py-4 mb-6"
+            activeOpacity={0.7}
+            style={{ opacity: tripForPreview ? 1 : 0.4 }}
+          >
+            <Plus size={18} color={Colors.primary[500]} />
+            <Text className="text-sm font-semibold text-primary-600 ml-2">Agregar parada</Text>
+          </TouchableOpacity>
 
           <Button
             variant="primary"
@@ -338,17 +208,15 @@ export default function Step5WaypointsScreen() {
         </ScrollView>
       </KeyboardAvoidingView>
 
-      {/* Location picker modal */}
-      <LocationPickerModal
-        visible={showLocationPicker}
-        title="Seleccionar parada"
-        routeLine={tripForPreview?.routeLine}
-        onConfirm={(loc) => {
-          setAddForm((f) => ({ ...f, location: loc }));
-          setShowLocationPicker(false);
-        }}
-        onClose={() => setShowLocationPicker(false)}
-      />
+      {tripForPreview && (
+        <RoutineEditRouteModal
+          visible={showEditRouteModal}
+          trip={tripForPreview}
+          existingWaypoints={waypoints}
+          onClose={() => setShowEditRouteModal(false)}
+          onDone={() => setShowEditRouteModal(false)}
+        />
+      )}
     </Screen>
   );
 }

@@ -508,7 +508,7 @@ export interface CreateRoutineWaypointRequest {
 }
 
 export interface ReorderRoutineWaypointsRequest {
-  waypointIds: string[];
+  orderedIds: string[];
 }
 
 export interface RoutineWaypointResponse {

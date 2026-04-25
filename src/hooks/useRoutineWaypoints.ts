@@ -9,7 +9,7 @@ interface UseRoutineWaypointsResult {
   fetchWaypoints: (tripId: string) => Promise<void>;
   addWaypoint: (tripId: string, data: CreateRoutineWaypointRequest) => Promise<RoutineWaypointResponse>;
   deleteWaypoint: (tripId: string, waypointId: string) => Promise<void>;
-  reorderWaypoints: (tripId: string, waypointIds: string[]) => Promise<void>;
+  reorderWaypoints: (tripId: string, orderedIds: string[]) => Promise<void>;
 }
 
 export function useRoutineWaypoints(): UseRoutineWaypointsResult {
@@ -41,8 +41,8 @@ export function useRoutineWaypoints(): UseRoutineWaypointsResult {
     await fetchWaypointsFromStore(tripId);
   };
 
-  const reorderWaypoints = async (tripId: string, waypointIds: string[]) => {
-    await routineTripsApi.reorderWaypoints(tripId, { waypointIds });
+  const reorderWaypoints = async (tripId: string, orderedIds: string[]) => {
+    await routineTripsApi.reorderWaypoints(tripId, { orderedIds });
     await fetchWaypointsFromStore(tripId);
   };
 

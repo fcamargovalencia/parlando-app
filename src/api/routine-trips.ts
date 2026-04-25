@@ -63,9 +63,10 @@ export const routineTripsApi = {
       `/v1/routine-trips/${encodeURIComponent(id)}/waypoints/${encodeURIComponent(waypointId)}`,
     ),
 
-  reorderWaypoints: (id: string, data: ReorderRoutineWaypointsRequest) =>
-    api.patch<ApiResponse<RoutineWaypointResponse[]>>(
+  reorderWaypoints: (id: string, data: ReorderRoutineWaypointsRequest) => {
+    return api.patch<ApiResponse<RoutineWaypointResponse[]>>(
       `/v1/routine-trips/${encodeURIComponent(id)}/waypoints/reorder`,
       data,
-    ),
+    );
+  },
 };
