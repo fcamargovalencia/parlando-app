@@ -1,5 +1,25 @@
 // ── TomTom Types ──
 
+export interface TomTomPoiResult {
+  id: string;
+  type: string;
+  poi?: {
+    name?: string;
+    categories?: string[];
+  };
+  address?: {
+    freeformAddress?: string;
+    municipality?: string;
+    countrySubdivision?: string;
+    country?: string;
+  };
+  position: { lat: number; lon: number };
+}
+
+export interface TomTomPoiSearchResponse {
+  results: TomTomPoiResult[];
+}
+
 export interface TomTomSearchResult {
   id: string;
   type: string;

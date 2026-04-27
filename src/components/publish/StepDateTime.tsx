@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { View, Text, TouchableOpacity } from 'react-native';
 import { Calendar, Clock } from 'lucide-react-native';
 import { DatePickerModal } from '@/components/ui';
@@ -21,6 +21,7 @@ interface Props {
 export function StepDateTime({ departureAt, dispatch }: Props) {
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showTimePicker, setShowTimePicker] = useState(false);
+  const now = useMemo(() => new Date(), []);
 
   return (
     <>
@@ -55,7 +56,7 @@ export function StepDateTime({ departureAt, dispatch }: Props) {
         </TouchableOpacity>
       </View>
 
-      {departureAt <= new Date() && (
+      {departureAt <= now && (
         <Text className="text-xs text-red-500">La salida debe ser en una fecha futura.</Text>
       )}
 
@@ -64,7 +65,7 @@ export function StepDateTime({ departureAt, dispatch }: Props) {
         value={departureAt}
         mode="date"
         title="Fecha de salida"
-        minimumDate={new Date()}
+        minimumDate={now}
         onConfirm={(date) => {
           const next = new Date(date);
           next.setHours(departureAt.getHours(), departureAt.getMinutes(), 0, 0);

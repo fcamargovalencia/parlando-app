@@ -49,8 +49,9 @@ export function useEditTripForm(
         Toast.show({ type: 'success', text1: 'Viaje actualizado' });
         onClose();
         return null;
-      } catch (err: any) {
-        return err?.response?.data?.message ?? 'No se pudo actualizar el viaje';
+      } catch (err: unknown) {
+        const apiMessage = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
+        return apiMessage ?? 'No se pudo actualizar el viaje';
       }
     },
     null,

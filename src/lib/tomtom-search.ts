@@ -2,6 +2,8 @@ import { Config } from '@/constants/config';
 import type {
   TomTomSearchResult,
   TomTomSearchResponse,
+  TomTomPoiResult,
+  TomTomPoiSearchResponse,
   NominatimResult,
   LocationSearchResult,
 } from './tomtom-types';
@@ -60,7 +62,7 @@ function formatTomTomResult(result: TomTomSearchResult): LocationSearchResult {
   };
 }
 
-function formatTomTomPoiResult(result: any): LocationSearchResult {
+function formatTomTomPoiResult(result: TomTomPoiResult): LocationSearchResult {
   const poiName =
     result.poi?.name || result.address?.freeformAddress?.split(',')[0]?.trim() || '';
   const poiType = result.poi?.categories?.[0] || '';
@@ -69,8 +71,8 @@ function formatTomTomPoiResult(result: any): LocationSearchResult {
     result.address?.municipality,
     result.address?.countrySubdivision,
   ]
-    .filter(Boolean)
-    .filter((v: string, i: number, a: string[]) => a.indexOf(v) === i)
+    .filter((v): v is string => !!v)
+    .filter((v, i, a) => a.indexOf(v) === i)
     .join(', ');
 
   return {
@@ -134,7 +136,7 @@ export async function tomtomSearch(
   }
 
   if (poiRes.ok) {
-    const data: any = await poiRes.json();
+    const data: TomTomPoiSearchResponse = await poiRes.json();
     if (data.results) {
       results.push(...data.results.map(formatTomTomPoiResult));
     }

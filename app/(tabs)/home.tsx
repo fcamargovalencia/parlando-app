@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useCallback } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, RefreshControl } from 'react-native';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -15,10 +15,18 @@ import { useHomeSearch } from '@/hooks/useHomeSearch';
 import { useHomeScreen } from '@/hooks/screens/useHomeScreen';
 import { Colors } from '@/constants/colors';
 
+const GRADIENT_COLORS = ['#003040', '#005660', '#007380'] as const;
+const GRADIENT_START = { x: 0, y: 0 };
+const GRADIENT_END = { x: 1, y: 1 };
+
 export default function HomeScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const today = useMemo(() => new Date(), []);
+  const gradientStyle = useMemo(
+    () => ({ paddingTop: insets.top + 12, paddingBottom: 36, paddingHorizontal: 20 }),
+    [insets.top],
+  );
 
   const { user, isDriver, refreshing, onRefresh, todayTrips, showVerificationBanner } = useHomeScreen();
 
@@ -41,6 +49,24 @@ export default function HomeScreen() {
     handleSearch,
   } = useHomeSearch();
 
+  const onPressVerification = useCallback(() => router.push('/verification'), [router]);
+  const onOpenDatePicker = useCallback(() => setActivePicker('date'), [setActivePicker]);
+  const onOpenTripTypeSheet = useCallback(() => setActivePicker('tripType'), [setActivePicker]);
+  const onPressRoutineSearch = useCallback(() => router.push('/search/routine'), [router]);
+  const onCloseActivePicker = useCallback(() => setActivePicker(null), [setActivePicker]);
+  const onConfirmOrigin = useCallback(
+    (loc: Parameters<typeof setOrigin>[0]) => { setOrigin(loc); setActivePicker(null); },
+    [setOrigin, setActivePicker],
+  );
+  const onConfirmDestination = useCallback(
+    (loc: Parameters<typeof setDestination>[0]) => { setDestination(loc); setActivePicker(null); },
+    [setDestination, setActivePicker],
+  );
+  const onConfirmDate = useCallback(
+    (date: Date) => { setDepartureDate(date); setActivePicker(null); },
+    [setDepartureDate, setActivePicker],
+  );
+
   return (
     <Screen safe={false}>
       <StatusBar style="light" />
@@ -57,14 +83,10 @@ export default function HomeScreen() {
         keyboardShouldPersistTaps="handled"
       >
         <LinearGradient
-          colors={['#003040', '#005660', '#007380']}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={{
-            paddingTop: insets.top + 12,
-            paddingBottom: 36,
-            paddingHorizontal: 20,
-          }}
+          colors={GRADIENT_COLORS}
+          start={GRADIENT_START}
+          end={GRADIENT_END}
+          style={gradientStyle}
         >
           <View className="flex-row items-center justify-between mb-5">
             <View className="flex-row items-center">
@@ -89,7 +111,7 @@ export default function HomeScreen() {
           {showVerificationBanner && user && (
             <VerificationBanner
               user={user}
-              onPress={() => router.push('/verification')}
+              onPress={onPressVerification}
             />
           )}
 
@@ -101,8 +123,8 @@ export default function HomeScreen() {
             canSearch={canSearch}
             onOpenOriginPicker={openOriginPicker}
             onOpenDestPicker={openDestPicker}
-            onOpenDatePicker={() => setActivePicker('date')}
-            onOpenTripTypeSheet={() => setActivePicker('tripType')}
+            onOpenDatePicker={onOpenDatePicker}
+            onOpenTripTypeSheet={onOpenTripTypeSheet}
             onSearch={handleSearch}
           />
         </LinearGradient>
@@ -146,7 +168,7 @@ export default function HomeScreen() {
         <View className="px-5 pb-2">
           <Text className="text-base font-bold text-neutral-900 mb-3">Viajes universitarios</Text>
           <TouchableOpacity
-            onPress={() => router.push('/search/routine')}
+            onPress={onPressRoutineSearch}
             activeOpacity={0.8}
             className="flex-row items-center rounded-2xl p-4 gap-3"
             style={{
@@ -179,16 +201,16 @@ export default function HomeScreen() {
         title="Origen"
         initial={origin}
         allowCitySelection={isIntercity}
-        onConfirm={(loc) => { setOrigin(loc); setActivePicker(null); }}
-        onClose={() => setActivePicker(null)}
+        onConfirm={onConfirmOrigin}
+        onClose={onCloseActivePicker}
       />
       <LocationPickerModal
         visible={activePicker === 'destination'}
         title="Destino"
         initial={destination}
         allowCitySelection={isIntercity}
-        onConfirm={(loc) => { setDestination(loc); setActivePicker(null); }}
-        onClose={() => setActivePicker(null)}
+        onConfirm={onConfirmDestination}
+        onClose={onCloseActivePicker}
       />
 
       <DatePickerModal
@@ -197,15 +219,15 @@ export default function HomeScreen() {
         mode="date"
         title="Fecha de viaje"
         minimumDate={today}
-        onConfirm={(date) => { setDepartureDate(date); setActivePicker(null); }}
-        onCancel={() => setActivePicker(null)}
+        onConfirm={onConfirmDate}
+        onCancel={onCloseActivePicker}
       />
 
       <TripTypeSheet
         visible={activePicker === 'tripType'}
         tripType={tripType}
         onSelect={setTripType}
-        onClose={() => setActivePicker(null)}
+        onClose={onCloseActivePicker}
       />
     </Screen>
   );

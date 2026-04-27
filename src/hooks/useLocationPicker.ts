@@ -179,8 +179,8 @@ export function useLocationPicker({
     try {
       const searchResults = await tomtomService.searchLocations(q, userCoords ?? undefined);
       setResults(searchResults);
-    } catch (e: any) {
-      if (e?.name !== 'AbortError') setResults([]);
+    } catch (e: unknown) {
+      if ((e as { name?: string })?.name !== 'AbortError') setResults([]);
     } finally {
       setSearching(false);
     }

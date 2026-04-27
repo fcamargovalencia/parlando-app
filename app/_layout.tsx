@@ -9,6 +9,7 @@ import * as NavigationBar from 'expo-navigation-bar';
 import Toast from 'react-native-toast-message';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { useChatWebSocket } from '@/hooks/useChatWebSocket';
+import { ErrorBoundary } from '@/components/ErrorBoundary';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -38,6 +39,7 @@ export default function RootLayout() {
 
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
+      <ErrorBoundary>
       <Stack screenOptions={{ headerShown: false, animation: 'slide_from_right' }}>
         <Stack.Screen name="index" />
         <Stack.Screen name="(auth)" />
@@ -77,6 +79,7 @@ export default function RootLayout() {
       </Stack>
       <StatusBar style="auto" />
       <Toast />
+      </ErrorBoundary>
     </GestureHandlerRootView>
   );
 }

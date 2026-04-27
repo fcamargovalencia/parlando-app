@@ -60,8 +60,9 @@ export function BookTripModal({
         });
         onClose();
         return null;
-      } catch (err: any) {
-        return err?.response?.data?.message ?? 'No se pudo crear la reserva';
+      } catch (err: unknown) {
+        const apiMessage = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
+        return apiMessage ?? 'No se pudo crear la reserva';
       }
     },
     null,

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import {
   View,
   Text,
@@ -78,6 +78,7 @@ interface Props {
 export function SubscriptionDetailView({ uiState, dispatch, subscription, bookings, handlers }: Props) {
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const now = useMemo(() => new Date(), []);
 
   const {
     activeModal, selectedBooking, isSubmitting,
@@ -475,8 +476,8 @@ export function SubscriptionDetailView({ uiState, dispatch, subscription, bookin
       <DatePickerModal
         visible={showPauseFromPicker}
         mode="date"
-        value={pauseFrom ? parseISO(pauseFrom) : new Date()}
-        minimumDate={new Date()}
+        value={pauseFrom ? parseISO(pauseFrom) : now}
+        minimumDate={now}
         onConfirm={(d) => {
           dispatch({ type: 'SET_PAUSE_FROM', payload: dateToISO(d) });
           dispatch({ type: 'HIDE_PICKERS' });
@@ -486,8 +487,8 @@ export function SubscriptionDetailView({ uiState, dispatch, subscription, bookin
       <DatePickerModal
         visible={showPauseToPicker}
         mode="date"
-        value={pauseTo ? parseISO(pauseTo) : new Date()}
-        minimumDate={pauseFrom ? parseISO(pauseFrom) : new Date()}
+        value={pauseTo ? parseISO(pauseTo) : now}
+        minimumDate={pauseFrom ? parseISO(pauseFrom) : now}
         onConfirm={(d) => {
           dispatch({ type: 'SET_PAUSE_TO', payload: dateToISO(d) });
           dispatch({ type: 'HIDE_PICKERS' });

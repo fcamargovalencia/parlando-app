@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import {
   View,
   Text,
@@ -25,6 +25,7 @@ interface EditTripModalProps {
 }
 
 export function EditTripModal({ trip, visible, onClose, onConfirm }: EditTripModalProps) {
+  const now = useMemo(() => new Date(), []);
   const {
     form, setForm,
     showDate, setShowDate,
@@ -91,7 +92,7 @@ export function EditTripModal({ trip, visible, onClose, onConfirm }: EditTripMod
             <DateTimePicker
               value={form.departureAt}
               mode="date"
-              minimumDate={new Date()}
+              minimumDate={now}
               display={Platform.OS === 'ios' ? 'spinner' : 'default'}
               onValueChange={handleDateChange}
               onDismiss={() => setShowDate(false)}

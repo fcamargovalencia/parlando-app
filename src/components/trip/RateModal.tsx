@@ -45,8 +45,9 @@ export function RateModal({
         setScore(0);
         setComment('');
         return null;
-      } catch (err: any) {
-        return err?.response?.data?.message ?? 'No se pudo enviar la calificación';
+      } catch (err: unknown) {
+        const apiMessage = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
+        return apiMessage ?? 'No se pudo enviar la calificación';
       }
     },
     null,
