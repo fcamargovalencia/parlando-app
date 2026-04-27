@@ -7,7 +7,6 @@ import {
   TextInput,
   ActivityIndicator,
   KeyboardAvoidingView,
-  Modal,
   Platform,
 } from 'react-native';
 import { useRouter } from 'expo-router';
@@ -15,12 +14,9 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   AlertCircle,
   AlertTriangle,
-  Banknote,
-  Calendar,
   ChevronLeft,
   Clock,
   Info,
-  MapPin,
   ShieldAlert,
   Users,
 } from 'lucide-react-native';
@@ -28,13 +24,12 @@ import { Button, Card, DatePickerModal, Spinner } from '@/components/ui';
 import { DaySelector } from '@/components/routine/DaySelector';
 import { PickupTypeSelector } from '@/components/routine/PickupTypeSelector';
 import { RoutePreview } from '@/components/RoutePreview';
+import { SectionHeader } from '@/components/subscription/SectionHeader';
+import { DateField } from '@/components/subscription/DateField';
+import { StudentVerificationModal } from '@/components/subscription/StudentVerificationModal';
 import { Colors } from '@/constants/colors';
 import { formatCurrency } from '@/lib/utils';
 import { useSubscriptionNewScreen } from '@/hooks/screens/useSubscriptionNewScreen';
-
-function fmtDate(d: Date): string {
-  return d.toLocaleDateString('es-CO', { day: '2-digit', month: 'short', year: 'numeric' });
-}
 
 export default function NewSubscriptionScreen() {
   const router = useRouter();
@@ -152,12 +147,7 @@ export default function NewSubscriptionScreen() {
 
         {/* Sección 1: Punto de recogida */}
         <View className="mx-4 mt-5">
-          <View className="flex-row items-center gap-2 mb-3">
-            <View className="w-6 h-6 rounded-full bg-primary-500 items-center justify-center">
-              <Text className="text-xs font-bold text-white">1</Text>
-            </View>
-            <Text className="text-base font-bold text-neutral-900">Punto de recogida</Text>
-          </View>
+          <SectionHeader number={1} title="Punto de recogida" />
           <PickupTypeSelector
             routineTrip={routineTrip}
             waypoints={waypoints}
@@ -170,12 +160,7 @@ export default function NewSubscriptionScreen() {
 
         {/* Sección 2: Días, fechas y cupos */}
         <View className="mx-4 mt-6">
-          <View className="flex-row items-center gap-2 mb-3">
-            <View className="w-6 h-6 rounded-full bg-primary-500 items-center justify-center">
-              <Text className="text-xs font-bold text-white">2</Text>
-            </View>
-            <Text className="text-base font-bold text-neutral-900">Configuración</Text>
-          </View>
+          <SectionHeader number={2} title="Configuración" />
 
           <Card className="p-4 gap-4">
             <View>
@@ -199,19 +184,12 @@ export default function NewSubscriptionScreen() {
               <Text className="text-sm font-semibold text-neutral-700 mb-1.5">
                 Fecha de inicio
               </Text>
-              <TouchableOpacity
+              <DateField
+                value={startDateObj ?? null}
+                placeholder="Seleccionar fecha..."
                 onPress={() => setPickerTarget('startDate')}
-                activeOpacity={0.7}
-                className={`flex-row items-center gap-3 px-4 py-3.5 rounded-2xl border ${errors.startDate ? 'border-red-400 bg-red-50' : 'border-neutral-200 bg-white'}`}
-              >
-                <Calendar size={16} color={errors.startDate ? Colors.semantic.error : Colors.neutral[400]} />
-                <Text className={`text-base flex-1 ${formData.startDate ? 'text-neutral-900' : 'text-neutral-400'}`}>
-                  {startDateObj ? fmtDate(startDateObj) : 'Seleccionar fecha...'}
-                </Text>
-              </TouchableOpacity>
-              {errors.startDate && (
-                <Text className="text-red-500 text-xs mt-1">{errors.startDate}</Text>
-              )}
+                error={errors.startDate}
+              />
             </View>
 
             <View>
@@ -237,16 +215,13 @@ export default function NewSubscriptionScreen() {
               </View>
 
               {hasEndDate && (
-                <TouchableOpacity
-                  onPress={() => setPickerTarget('endDate')}
-                  activeOpacity={0.7}
-                  className="flex-row items-center gap-3 px-4 py-3.5 rounded-2xl border border-neutral-200 bg-white mt-3"
-                >
-                  <Calendar size={16} color={Colors.neutral[400]} />
-                  <Text className={`text-base flex-1 ${formData.endDate ? 'text-neutral-900' : 'text-neutral-400'}`}>
-                    {endDateObj ? fmtDate(endDateObj) : 'Seleccionar fecha de fin...'}
-                  </Text>
-                </TouchableOpacity>
+                <View className="mt-3">
+                  <DateField
+                    value={endDateObj ?? null}
+                    placeholder="Seleccionar fecha de fin..."
+                    onPress={() => setPickerTarget('endDate')}
+                  />
+                </View>
               )}
             </View>
 
@@ -292,12 +267,7 @@ export default function NewSubscriptionScreen() {
 
         {/* Sección 3: Necesidades especiales */}
         <View className="mx-4 mt-6">
-          <View className="flex-row items-center gap-2 mb-3">
-            <View className="w-6 h-6 rounded-full bg-primary-500 items-center justify-center">
-              <Text className="text-xs font-bold text-white">3</Text>
-            </View>
-            <Text className="text-base font-bold text-neutral-900">Necesidades especiales</Text>
-          </View>
+          <SectionHeader number={3} title="Necesidades especiales" />
 
           <Card className="p-4">
             <TextInput
@@ -405,85 +375,14 @@ export default function NewSubscriptionScreen() {
       />
 
       {/* Student verification gate */}
-      <Modal
+      <StudentVerificationModal
         visible={showVerificationSheet}
-        transparent
-        animationType="slide"
-        onRequestClose={() => setShowVerificationSheet(false)}
-      >
-        <TouchableOpacity
-          style={{ flex: 1, backgroundColor: Colors.overlay }}
-          activeOpacity={1}
-          onPress={() => setShowVerificationSheet(false)}
-        />
-        <View
-          style={{
-            backgroundColor: Colors.white,
-            borderTopLeftRadius: 24,
-            borderTopRightRadius: 24,
-            paddingBottom: insets.bottom + 24,
-            paddingHorizontal: 20,
-            paddingTop: 20,
-          }}
-        >
-          <View className="w-10 h-1 rounded-full bg-neutral-200 self-center mb-5" />
-
-          <View className="flex-row items-center gap-3 mb-4">
-            <View className="w-12 h-12 rounded-2xl bg-red-50 items-center justify-center">
-              <ShieldAlert size={24} color={Colors.semantic.error} />
-            </View>
-            <View className="flex-1">
-              <Text className="text-base font-bold text-neutral-900">
-                Verificación estudiantil requerida
-              </Text>
-              <Text className="text-xs text-neutral-500 mt-0.5" numberOfLines={2}>
-                Esta ruta es exclusiva para estudiantes verificados de {universityName}
-              </Text>
-            </View>
-          </View>
-
-          {hasPendingVerification ? (
-            <View className="bg-yellow-50 border border-yellow-200 rounded-2xl p-4 mb-4">
-              <View className="flex-row items-center gap-2 mb-1">
-                <Clock size={16} color={Colors.semantic.warning} />
-                <Text className="text-sm font-semibold text-yellow-800">En revisión</Text>
-              </View>
-              <Text className="text-xs text-yellow-700 leading-4">
-                Tu verificación está en revisión. Recibirás una notificación cuando sea aprobada.
-              </Text>
-            </View>
-          ) : (
-            <>
-              <Text className="text-sm text-neutral-600 leading-5 mb-5">
-                Para suscribirte necesitas verificar tu condición de estudiante universitario.
-                El proceso es rápido: solo necesitas tu carnet y tu correo institucional.
-              </Text>
-              <TouchableOpacity
-                onPress={() => {
-                  setShowVerificationSheet(false);
-                  router.push(
-                    universityId
-                      ? { pathname: '/student-verification/submit', params: { universityId } }
-                      : '/student-verification/submit',
-                  );
-                }}
-                activeOpacity={0.85}
-                className="bg-primary-500 rounded-2xl py-4 items-center mb-3"
-              >
-                <Text className="text-base font-bold text-white">Verificar ahora</Text>
-              </TouchableOpacity>
-            </>
-          )}
-
-          <TouchableOpacity
-            onPress={() => setShowVerificationSheet(false)}
-            activeOpacity={0.7}
-            className="py-3 items-center"
-          >
-            <Text className="text-sm font-medium text-neutral-500">Cerrar</Text>
-          </TouchableOpacity>
-        </View>
-      </Modal>
+        onClose={() => setShowVerificationSheet(false)}
+        universityName={universityName}
+        universityId={universityId}
+        hasPendingVerification={hasPendingVerification}
+        insets={insets}
+      />
     </KeyboardAvoidingView>
   );
 }
