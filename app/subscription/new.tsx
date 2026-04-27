@@ -364,11 +364,12 @@ export default function NewSubscriptionScreen() {
         {/* Submit */}
         <View className="mx-4 mt-6">
           <Button
-            title={isSubmitting ? 'Enviando solicitud...' : 'Enviar solicitud'}
             onPress={handleSubmit}
             disabled={isSubmitting}
             variant="primary"
-          />
+          >
+            {isSubmitting ? 'Enviando solicitud...' : 'Enviar solicitud'}
+          </Button>
           {isSubmitting && (
             <ActivityIndicator size="small" color={Colors.primary[500]} style={{ marginTop: 8 }} />
           )}

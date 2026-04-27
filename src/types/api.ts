@@ -424,7 +424,7 @@ export type RoutineTripStatus = 'DRAFT' | 'ACTIVE' | 'PAUSED' | 'COMPLETED' | 'C
 
 export type SubscriptionStatus = 'PENDING' | 'ACCEPTED' | 'PAUSED' | 'COMPLETED' | 'CANCELLED';
 
-export type PickupType = 'WAYPOINT' | 'SUGGESTED' | 'ACCEPTED_CUSTOM';
+export type PickupType = 'WAYPOINT' | 'SUGGESTED' | 'ACCEPTED_CUSTOM' | 'ORIGIN';
 
 export type StudentVerificationStatus = 'PENDING' | 'APPROVED' | 'REJECTED' | 'EXPIRED';
 
@@ -572,6 +572,7 @@ export interface CreateRoutineSubscriptionRequest {
   endDate?: string;
   seatsRequired?: number;
   specialRequirements?: string;
+  pickupType?: PickupType;
   pickupWaypointId?: string;
   customPickupLatitude?: number;
   customPickupLongitude?: number;

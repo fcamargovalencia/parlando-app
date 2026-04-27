@@ -71,6 +71,7 @@ export function useSubscriptionNewScreen() {
     (config: PickupSelection) => {
       setPickupSelection(config);
       subscription.updateForm({
+        pickupType: config.pickupType,
         pickupWaypointId: config.pickupWaypointId,
         customPickupLatitude: config.customPickupLatitude,
         customPickupLongitude: config.customPickupLongitude,

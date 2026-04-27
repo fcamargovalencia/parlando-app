@@ -13,6 +13,7 @@ import { ArrowLeft, CheckCircle, MapPin, Navigation } from 'lucide-react-native'
 import * as Location from 'expo-location';
 import { Button } from '@/components/ui';
 import { Colors } from '@/constants/colors';
+import { tomtomReverseGeocode } from '@/lib/tomtom-geocode';
 import type { DeviationPreview } from '@/hooks/useRoutineSubscription';
 import type { PickupType, RoutineTripResponse, RoutineWaypointResponse } from '@/types/api';
 import { haversineMeters } from '@/lib/geo';
@@ -52,6 +53,7 @@ function formatTime(minutesOffset: number, departureTime: string): string {
 interface MapModalProps {
   visible: boolean;
   routineTrip: RoutineTripResponse;
+  waypoints: RoutineWaypointResponse[];
   previewDeviation: (lat: number, lng: number) => DeviationPreview;
   onConfirm: (lat: number, lng: number, name: string) => void;
   onClose: () => void;
@@ -60,6 +62,7 @@ interface MapModalProps {
 function CustomPickupMapModal({
   visible,
   routineTrip,
+  waypoints,
   previewDeviation,
   onConfirm,
   onClose,
@@ -71,6 +74,7 @@ function CustomPickupMapModal({
   });
   const [isDragging, setIsDragging] = useState(false);
   const [isLocating, setIsLocating] = useState(false);
+  const [isConfirming, setIsConfirming] = useState(false);
   const [mapReady, setMapReady] = useState(false);
 
   const routePoints: { latitude: number; longitude: number; }[] =
@@ -141,10 +145,20 @@ function CustomPickupMapModal({
     }
   }, []);
 
-  const handleConfirm = useCallback(() => {
-    const name = `Mi punto (${centerCoord.latitude.toFixed(5)}, ${centerCoord.longitude.toFixed(5)})`;
-    onConfirm(centerCoord.latitude, centerCoord.longitude, name);
+  const handleConfirm = useCallback(async () => {
+    setIsConfirming(true);
+    try {
+      const result = await tomtomReverseGeocode(centerCoord.latitude, centerCoord.longitude);
+      onConfirm(centerCoord.latitude, centerCoord.longitude, result.name);
+    } catch {
+      const fallback = `${centerCoord.latitude.toFixed(5)}, ${centerCoord.longitude.toFixed(5)}`;
+      onConfirm(centerCoord.latitude, centerCoord.longitude, fallback);
+    } finally {
+      setIsConfirming(false);
+    }
   }, [centerCoord, onConfirm]);
+
+  const pickupWaypoints = waypoints.filter((w) => w.isPickupPoint);
 
   return (
     <Modal
@@ -225,6 +239,15 @@ function CustomPickupMapModal({
               title="Destino"
               pinColor={Colors.accent[500]}
             />
+            {/* Waypoint markers */}
+            {pickupWaypoints.map((wp) => (
+              <Marker
+                key={wp.id}
+                coordinate={{ latitude: wp.latitude, longitude: wp.longitude }}
+                title={wp.name}
+                pinColor="#F59E0B"
+              />
+            ))}
           </MapView>
 
           {/* Crosshair pin */}
@@ -280,11 +303,13 @@ function CustomPickupMapModal({
           </View>
 
           <Button
-            title="Confirmar punto"
             onPress={handleConfirm}
-            disabled={!deviation.isValid || isDragging}
+            disabled={!deviation.isValid || isDragging || isConfirming}
+            loading={isConfirming}
             variant={deviation.isValid ? 'primary' : 'outline'}
-          />
+          >
+            Confirmar punto
+          </Button>
         </View>
       </View>
     </Modal>
@@ -330,17 +355,53 @@ export function PickupTypeSelector({
     [onSelect],
   );
 
-  // ── Case C — no options at all ──
+  const handleSelectOrigin = useCallback(() => {
+    onSelect({ pickupType: 'ORIGIN' });
+  }, [onSelect]);
+
+  const isOriginSelected = selection?.pickupType === 'ORIGIN';
+
+  // ── Origin option (always available) ──
+  const originOption = (
+    <TouchableOpacity
+      key="origin"
+      onPress={handleSelectOrigin}
+      activeOpacity={0.75}
+      className={`flex-row items-center gap-3 p-3.5 rounded-2xl border ${isOriginSelected
+        ? 'bg-primary-50 border-primary-400'
+        : 'bg-white border-neutral-200'
+        }`}
+    >
+      <View
+        className={`w-5 h-5 rounded-full border-2 items-center justify-center ${isOriginSelected ? 'border-primary-500' : 'border-neutral-300'
+          }`}
+      >
+        {isOriginSelected && (
+          <View className="w-2.5 h-2.5 rounded-full bg-primary-500" />
+        )}
+      </View>
+      <View className="flex-1">
+        <Text
+          className={`text-sm font-semibold ${isOriginSelected ? 'text-primary-800' : 'text-neutral-800'}`}
+        >
+          {routineTrip.originName}
+        </Text>
+        <Text className="text-xs text-neutral-500 mt-0.5">
+          Origen de la ruta · Salida {routineTrip.departureTime}
+        </Text>
+      </View>
+      {isOriginSelected && <CheckCircle size={18} color={Colors.primary[500]} />}
+    </TouchableOpacity>
+  );
+
+  // ── Case C — no waypoints + no custom: only ORIGIN ──
   if (!hasWaypoints && !allowsCustom) {
     return (
-      <View className="bg-blue-50 rounded-2xl p-4 border border-blue-100">
-        <View className="flex-row items-start gap-3">
-          <MapPin size={18} color="#3B82F6" style={{ marginTop: 1 }} />
-          <Text className="flex-1 text-sm text-blue-800">
-            El conductor te recogerá en el origen de la ruta:{' '}
-            <Text className="font-semibold">{routineTrip.originName}</Text>
-          </Text>
-        </View>
+      <View>
+        {originOption}
+        {error ? (
+          <Text className="text-red-500 text-xs mt-2">{error}</Text>
+        ) : null}
       </View>
     );
   }
@@ -350,6 +411,9 @@ export function PickupTypeSelector({
       {/* ── Case A — Driver has predefined waypoints ── */}
       {hasWaypoints && (
         <View className="gap-2">
+          {/* Origin option first */}
+          {originOption}
+
           {pickupWaypoints.map((wp) => {
             const isSelected = selection?.pickupWaypointId === wp.id;
             const estimatedTime = formatTime(wp.estimatedMinutesOffset, routineTrip.departureTime);
@@ -439,7 +503,10 @@ export function PickupTypeSelector({
 
       {/* ── Case B — No waypoints + allowsCustomPickup ── */}
       {!hasWaypoints && allowsCustom && (
-        <View className="gap-3">
+        <View className="gap-2">
+          {/* Origin option first */}
+          {originOption}
+
           <View className="bg-amber-50 rounded-2xl p-3.5 border border-amber-100">
             <Text className="text-xs text-amber-800 leading-4">
               El conductor no tiene paradas predefinidas. Puedes sugerir tu propio punto en el mapa.
@@ -485,6 +552,7 @@ export function PickupTypeSelector({
       <CustomPickupMapModal
         visible={showMapModal}
         routineTrip={routineTrip}
+        waypoints={waypoints}
         previewDeviation={previewDeviation}
         onConfirm={handleConfirmCustom}
         onClose={() => setShowMapModal(false)}
