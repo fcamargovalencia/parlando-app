@@ -6,9 +6,8 @@ import {
   TouchableOpacity,
   KeyboardAvoidingView,
   Platform,
-  Keyboard,
-  Dimensions,
 } from 'react-native';
+import { useKeyboardHeight } from '@/hooks/useKeyboardHeight';
 import { Info } from 'lucide-react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -43,7 +42,7 @@ export default function ChatScreen() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const flatListRef = useRef<FlatList>(null);
-  const [keyboardHeight, setKeyboardHeight] = useState(0);
+  const keyboardHeight = useKeyboardHeight();
   const [bookVisible, setBookVisible] = useState(false);
 
   const {
@@ -52,36 +51,14 @@ export default function ChatScreen() {
     currentUserId, sendMessage, load, acceptBooking, rejectBooking, setMyBooking,
   } = useChat(tripId, otherUserId);
 
-  // Track keyboard height on both platforms:
-  //  - Android edge-to-edge: the window no longer auto-resizes, so we push the
-  //    whole screen up manually using `paddingBottom` on the root View.
-  //  - iOS: KeyboardAvoidingView handles the lift, but we still use the state to
-  //    drop the safe-area inset from under the input (not needed while open).
   useEffect(() => {
-    const isIOS = Platform.OS === 'ios';
-    const showEvent = isIOS ? 'keyboardWillShow' : 'keyboardDidShow';
-    const hideEvent = isIOS ? 'keyboardWillHide' : 'keyboardDidHide';
-    let scrollTimer: ReturnType<typeof setTimeout> | null = null;
-    const show = Keyboard.addListener(showEvent, (e) => {
-      let height = e.endCoordinates.height ?? 0;
-      if (!isIOS) {
-        // Android edge-to-edge: e.endCoordinates.height can be short by the
-        // nav-bar height, so take the max with the footprint computed from the
-        // screen bottom to the keyboard top.
-        const screenHeight = Dimensions.get('screen').height;
-        const keyboardTop = e.endCoordinates.screenY ?? screenHeight;
-        height = Math.max(height, screenHeight - keyboardTop);
-      }
-      setKeyboardHeight(height);
-      scrollTimer = setTimeout(() => flatListRef.current?.scrollToOffset({ offset: 0, animated: true }), 100);
-    });
-    const hide = Keyboard.addListener(hideEvent, () => setKeyboardHeight(0));
-    return () => {
-      show.remove();
-      hide.remove();
-      if (scrollTimer) clearTimeout(scrollTimer);
-    };
-  }, []);
+    if (keyboardHeight <= 0) return;
+    const timer = setTimeout(
+      () => flatListRef.current?.scrollToOffset({ offset: 0, animated: true }),
+      100,
+    );
+    return () => clearTimeout(timer);
+  }, [keyboardHeight]);
 
   // Con FlatList invertido el mensaje más nuevo está en el índice 0 (abajo de la pantalla).
   // No se necesita scrollToEnd — los nuevos mensajes aparecen abajo de forma natural.

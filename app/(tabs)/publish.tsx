@@ -77,88 +77,79 @@ export default function PublishScreen() {
     transform: [{ translateX: stepTranslateX.value }],
   }));
 
-  const renderStepContent = () => {
-    switch (step) {
-      case 1:
-        return <StepTripType tripType={tripType} onSelect={setTripType} />;
-      case 2:
-        return (
-          <StepLocation
-            target="origin"
-            search={originSearch}
-            form={form}
-            onMapPress={() => setLocationPicker({ visible: true, target: 'origin' })}
-            onSuggestionSelect={(item) => handleSuggestionSelect('origin', item)}
-          />
-        );
-      case 3:
-        return (
-          <StepLocation
-            target="destination"
-            search={destinationSearch}
-            form={form}
-            onMapPress={() => setLocationPicker({ visible: true, target: 'destination' })}
-            onSuggestionSelect={(item) => handleSuggestionSelect('destination', item)}
-          />
-        );
-      case 4:
-        return (
-          <StepWaypoints
-            form={form}
-            waypoints={waypoints}
-            onAddWaypoint={addWaypoint}
-            onMoveUp={moveWaypointUp}
-            onMoveDown={moveWaypointDown}
-            onRemove={(idx) => setWaypoints((prev) => prev.filter((_, i) => i !== idx))}
-          />
-        );
-      case 5:
-        return (
-          <StepRoute
-            form={form}
-            waypoints={waypoints}
-            routeHook={routeHook}
-            windowHeight={windowHeight}
-            goNext={goNext}
-            submitting={submitting}
-          />
-        );
-      case 6:
-        return <StepDateTime departureAt={form.departureAt} dispatch={dispatch} />;
-      case 7:
-        return (
-          <StepSeatsOptions
-            availableSeats={form.availableSeats}
-            pricePerSeat={form.pricePerSeat}
-            allowsLuggage={form.allowsLuggage}
-            studentsOnly={form.studentsOnly}
-            tripType={tripType}
-            dispatch={dispatch}
-          />
-        );
-      case 8:
-        return (
-          <StepVehicle
-            vehicleId={form.vehicleId}
-            vehicleOptions={vehicleOptions}
-            loadingVehicles={loadingVehicles}
-            hasRegisteredVehicles={hasRegisteredVehicles}
-            dispatch={dispatch}
-          />
-        );
-      default:
-        return (
-          <TripSummary
-            form={form}
-            tripType={tripType}
-            tripTypeLabel={tripTypeLabel}
-            selectedRoute={routeHook.selected}
-            routeMode={routeHook.routeMode}
-            selectedVehicle={selectedVehicle}
-          />
-        );
-    }
+  const stepRenderers: Record<number, () => React.ReactElement> = {
+    1: () => <StepTripType tripType={tripType} onSelect={setTripType} />,
+    2: () => (
+      <StepLocation
+        target="origin"
+        search={originSearch}
+        form={form}
+        onMapPress={() => setLocationPicker({ visible: true, target: 'origin' })}
+        onSuggestionSelect={(item) => handleSuggestionSelect('origin', item)}
+      />
+    ),
+    3: () => (
+      <StepLocation
+        target="destination"
+        search={destinationSearch}
+        form={form}
+        onMapPress={() => setLocationPicker({ visible: true, target: 'destination' })}
+        onSuggestionSelect={(item) => handleSuggestionSelect('destination', item)}
+      />
+    ),
+    4: () => (
+      <StepWaypoints
+        form={form}
+        waypoints={waypoints}
+        onAddWaypoint={addWaypoint}
+        onMoveUp={moveWaypointUp}
+        onMoveDown={moveWaypointDown}
+        onRemove={(idx) => setWaypoints((prev) => prev.filter((_, i) => i !== idx))}
+      />
+    ),
+    5: () => (
+      <StepRoute
+        form={form}
+        waypoints={waypoints}
+        routeHook={routeHook}
+        windowHeight={windowHeight}
+        goNext={goNext}
+        submitting={submitting}
+      />
+    ),
+    6: () => <StepDateTime departureAt={form.departureAt} dispatch={dispatch} />,
+    7: () => (
+      <StepSeatsOptions
+        availableSeats={form.availableSeats}
+        pricePerSeat={form.pricePerSeat}
+        allowsLuggage={form.allowsLuggage}
+        studentsOnly={form.studentsOnly}
+        tripType={tripType}
+        dispatch={dispatch}
+      />
+    ),
+    8: () => (
+      <StepVehicle
+        vehicleId={form.vehicleId}
+        vehicleOptions={vehicleOptions}
+        loadingVehicles={loadingVehicles}
+        hasRegisteredVehicles={hasRegisteredVehicles}
+        dispatch={dispatch}
+      />
+    ),
   };
+
+  const renderStepContent = () =>
+    stepRenderers[step]?.() ?? (
+      <TripSummary
+        form={form}
+        tripType={tripType}
+        tripTypeLabel={tripTypeLabel}
+        selectedRoute={routeHook.selected}
+        routeMode={routeHook.routeMode}
+        selectedVehicle={selectedVehicle}
+      />
+    );
 
   return (
     <Screen edges={['top', 'left', 'right']}>
