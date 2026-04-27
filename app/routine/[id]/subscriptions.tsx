@@ -54,13 +54,18 @@ export default function SubscriptionsScreen() {
   const fetchForTrip = useRoutineSubscriptionsStore((s) => s.fetchForTrip);
   const clearTripSubscriptions = useRoutineSubscriptionsStore((s) => s.clearTripSubscriptions);
   const routineTrip = useRoutineTripsStore((s) => s.selectedRoutineTrip);
+  const routeWaypoints = useRoutineTripsStore((s) => s.waypoints);
+  const fetchWaypoints = useRoutineTripsStore((s) => s.fetchWaypoints);
 
   useEffect(() => {
-    if (routineTripId) fetchForTrip(routineTripId);
+    if (routineTripId) {
+      fetchForTrip(routineTripId);
+      fetchWaypoints(routineTripId);
+    }
     return () => {
       if (routineTripId) clearTripSubscriptions(routineTripId);
     };
-  }, [routineTripId, fetchForTrip, clearTripSubscriptions]);
+  }, [routineTripId, fetchForTrip, fetchWaypoints, clearTripSubscriptions]);
 
   const onRefresh = async () => {
     setRefreshing(true);
@@ -251,6 +256,10 @@ export default function SubscriptionsScreen() {
         <RoutineRouteMapModal
           visible={!!mapSub}
           onClose={() => setMapSub(null)}
+          routineTripId={routineTripId ?? ''}
+          subscriptionId={mapSub.id}
+          onAccept={async (subId) => { await accept(subId, routineTripId ?? ''); }}
+          onAcceptComplete={() => setMapSub(null)}
           originName={routineTrip.originName}
           originLatitude={routineTrip.originLatitude}
           originLongitude={routineTrip.originLongitude}
@@ -258,6 +267,7 @@ export default function SubscriptionsScreen() {
           destinationLatitude={routineTrip.destinationLatitude}
           destinationLongitude={routineTrip.destinationLongitude}
           routeLine={routineTrip.routeLine}
+          waypoints={routeWaypoints}
           suggestedStop={
             mapSub.pickupType === 'SUGGESTED' &&
               mapSub.customPickupLatitude != null &&

@@ -6,12 +6,17 @@ import {
   Modal,
   Platform,
   ActivityIndicator,
+  ScrollView,
+  Alert,
 } from 'react-native';
-import { ArrowLeft } from 'lucide-react-native';
+import { ArrowLeft, ChevronDown, ChevronUp, Save } from 'lucide-react-native';
 import MapView, { Polyline, Marker } from 'react-native-maps';
 import { Colors, Shadows } from '@/constants/colors';
 import { haversineMeters } from '@/lib/geo';
 import { tomtomCalculateRoute } from '@/lib/tomtom-routing';
+import { routineTripsApi } from '@/api/routine-trips';
+
+// ── Types ──
 
 interface WaypointMapStop {
   id: string;
@@ -27,9 +32,17 @@ interface SuggestedStop {
   name: string;
 }
 
+type OrderedStop =
+  | { kind: 'waypoint'; data: WaypointMapStop }
+  | { kind: 'suggested'; data: SuggestedStop };
+
 interface RoutineRouteMapModalProps {
   visible: boolean;
   onClose: () => void;
+  routineTripId?: string;
+  subscriptionId?: string;
+  onAccept?: (subscriptionId: string) => Promise<void>;
+  onAcceptComplete?: () => void;
   originName: string;
   originLatitude: number;
   originLongitude: number;
@@ -41,9 +54,57 @@ interface RoutineRouteMapModalProps {
   suggestedStop?: SuggestedStop;
 }
 
+// ── Helpers ──
+
+function closestRouteIdx(
+  coords: { latitude: number; longitude: number }[],
+  lat: number,
+  lng: number,
+): number {
+  let best = 0;
+  let minD = Infinity;
+  for (let i = 0; i < coords.length; i++) {
+    const d = haversineMeters(coords[i].latitude, coords[i].longitude, lat, lng);
+    if (d < minD) { minD = d; best = i; }
+  }
+  return best;
+}
+
+function buildInitialOrder(
+  waypoints: WaypointMapStop[],
+  suggestedStop: SuggestedStop | undefined,
+  routeLine: [number, number][] | undefined,
+): OrderedStop[] {
+  const baseCoords = routeLine?.map((p) => ({ latitude: p[0], longitude: p[1] })) ?? [];
+
+  const withIdx = (lat: number, lng: number) =>
+    baseCoords.length >= 2 ? closestRouteIdx(baseCoords, lat, lng) : 0;
+
+  const entries: Array<{ stop: OrderedStop; idx: number }> = [
+    ...waypoints.map((wp) => ({
+      stop: { kind: 'waypoint' as const, data: wp },
+      idx: withIdx(wp.latitude, wp.longitude),
+    })),
+    ...(suggestedStop
+      ? [{
+        stop: { kind: 'suggested' as const, data: suggestedStop },
+        idx: withIdx(suggestedStop.latitude, suggestedStop.longitude),
+      }]
+      : []),
+  ];
+
+  return entries.sort((a, b) => a.idx - b.idx).map((e) => e.stop);
+}
+
+// ── Component ──
+
 export function RoutineRouteMapModal({
   visible,
   onClose,
+  routineTripId,
+  subscriptionId,
+  onAccept,
+  onAcceptComplete,
   originName,
   originLatitude,
   originLongitude,
@@ -55,47 +116,41 @@ export function RoutineRouteMapModal({
   suggestedStop,
 }: RoutineRouteMapModalProps) {
   const mapRef = useRef<MapView>(null);
-  const [routeLineCoords, setRouteLineCoords] = useState<Array<{ latitude: number; longitude: number; }>>([]);
+  const [routeLineCoords, setRouteLineCoords] = useState<{ latitude: number; longitude: number }[]>([]);
   const [loading, setLoading] = useState(false);
+  const [orderedStops, setOrderedStops] = useState<OrderedStop[]>([]);
+  const [isDirty, setIsDirty] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+
+  // Initialize order from props when modal opens — sort by position on route
+  useEffect(() => {
+    if (visible) {
+      setOrderedStops(buildInitialOrder(waypoints, suggestedStop, routeLine));
+      setIsDirty(false);
+    }
+  }, [visible, waypoints, suggestedStop, routeLine]);
 
   const fallbackCoords = [
     { latitude: originLatitude, longitude: originLongitude },
     { latitude: destinationLatitude, longitude: destinationLongitude },
   ];
-
   const renderedRouteLine = routeLineCoords.length >= 2 ? routeLineCoords : fallbackCoords;
 
+  // Recalculate route using user-defined order whenever orderedStops changes
   useEffect(() => {
     if (!visible) return;
 
     const baseCoords = routeLine?.map((p) => ({ latitude: p[0], longitude: p[1] })) ?? [];
 
-    if (!suggestedStop || baseCoords.length < 2) {
+    // No intermediate stops or no base route → just draw straight line
+    if (orderedStops.length === 0 || baseCoords.length < 2) {
       setRouteLineCoords(baseCoords);
       return;
     }
 
-    // Find routeLine index closest to each intermediate stop + suggestedStop
-    function closestIdx(coords: typeof baseCoords, lat: number, lng: number): number {
-      let best = 0;
-      let minD = Infinity;
-      for (let i = 0; i < coords.length; i++) {
-        const d = haversineMeters(coords[i].latitude, coords[i].longitude, lat, lng);
-        if (d < minD) { minD = d; best = i; }
-      }
-      return best;
-    }
-
-    const orderedStops = [
-      ...waypoints.map((wp) => ({ latitude: wp.latitude, longitude: wp.longitude, idx: closestIdx(baseCoords, wp.latitude, wp.longitude) })),
-      { latitude: suggestedStop.latitude, longitude: suggestedStop.longitude, idx: closestIdx(baseCoords, suggestedStop.latitude, suggestedStop.longitude) },
-    ]
-      .sort((a, b) => a.idx - b.idx)
-      .map(({ latitude, longitude }) => ({ latitude, longitude }));
-
     const tomtomStops = [
       { latitude: originLatitude, longitude: originLongitude },
-      ...orderedStops,
+      ...orderedStops.map((s) => ({ latitude: s.data.latitude, longitude: s.data.longitude })),
       { latitude: destinationLatitude, longitude: destinationLongitude },
     ];
 
@@ -104,22 +159,107 @@ export function RoutineRouteMapModal({
       .then((result) => setRouteLineCoords(result.points))
       .catch(() => setRouteLineCoords(baseCoords))
       .finally(() => setLoading(false));
-  }, [visible, routeLine, suggestedStop, waypoints, originLatitude, originLongitude, destinationLatitude, destinationLongitude]);
+  }, [visible, routeLine, orderedStops, originLatitude, originLongitude, destinationLatitude, destinationLongitude]);
 
+  // Fit map to all coords after route loads
   useEffect(() => {
     if (!visible || loading) return;
     const allCoords = [
       ...renderedRouteLine,
-      ...waypoints.map((wp) => ({ latitude: wp.latitude, longitude: wp.longitude })),
+      ...orderedStops.map((s) => ({ latitude: s.data.latitude, longitude: s.data.longitude })),
     ];
     const timer = setTimeout(() => {
       mapRef.current?.fitToCoordinates(allCoords, {
-        edgePadding: { top: 80, right: 48, bottom: 220, left: 48 },
+        edgePadding: { top: 80, right: 48, bottom: 280, left: 48 },
         animated: true,
       });
     }, 400);
     return () => clearTimeout(timer);
-  }, [visible, loading, renderedRouteLine, waypoints]);
+  }, [visible, loading, renderedRouteLine, orderedStops]);
+
+  const moveUp = (idx: number) => {
+    if (idx === 0) return;
+    setOrderedStops((prev) => {
+      const next = [...prev];
+      [next[idx - 1], next[idx]] = [next[idx], next[idx - 1]];
+      return next;
+    });
+    setIsDirty(true);
+  };
+
+  const moveDown = (idx: number) => {
+    setOrderedStops((prev) => {
+      if (idx >= prev.length - 1) return prev;
+      const next = [...prev];
+      [next[idx], next[idx + 1]] = [next[idx + 1], next[idx]];
+      return next;
+    });
+    setIsDirty(true);
+  };
+
+  const handleAccept = async () => {
+    if (!routineTripId || !subscriptionId || !onAccept) return;
+    setIsSaving(true);
+    try {
+      let finalStops = [...orderedStops];
+
+      // 1. Register suggested stop as a waypoint
+      const suggestedIdx = finalStops.findIndex((s) => s.kind === 'suggested');
+      if (suggestedIdx !== -1) {
+        const suggested = finalStops[suggestedIdx].data;
+        const newWaypoint = await routineTripsApi.addWaypoint(routineTripId, {
+          orderIndex: waypoints.length,
+          latitude: suggested.latitude,
+          longitude: suggested.longitude,
+          name: suggested.name,
+          isPickupPoint: true,
+          estimatedMinutesOffset: 0,
+        });
+        const createdWp = newWaypoint.data.data!;
+        // Replace suggested entry with the real waypoint
+        finalStops = finalStops.map((s, i) =>
+          i === suggestedIdx
+            ? { kind: 'waypoint' as const, data: { id: createdWp.id, latitude: createdWp.latitude, longitude: createdWp.longitude, name: createdWp.name } }
+            : s,
+        );
+      }
+
+      // 2. Reorder all waypoints in the user-defined order
+      const orderedIds = finalStops
+        .filter((s): s is { kind: 'waypoint'; data: WaypointMapStop } => s.kind === 'waypoint')
+        .map((s) => s.data.id);
+      if (orderedIds.length > 0) {
+        await routineTripsApi.reorderWaypoints(routineTripId, { orderedIds });
+      }
+
+      // 3. Accept the subscription
+      await onAccept(subscriptionId);
+
+      onAcceptComplete?.();
+    } catch {
+      Alert.alert('Error', 'No se pudo aceptar la suscripción. Intenta de nuevo.');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleSaveOrder = async () => {
+    if (!routineTripId || !isDirty) return;
+    setIsSaving(true);
+    try {
+      const waypointIds = orderedStops
+        .filter((s): s is { kind: 'waypoint'; data: WaypointMapStop } => s.kind === 'waypoint')
+        .map((s) => s.data.id);
+      await routineTripsApi.reorderWaypoints(routineTripId, { orderedIds: waypointIds });
+      setIsDirty(false);
+    } catch {
+      Alert.alert('Error', 'No se pudo guardar el orden de las paradas.');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const canReorder = orderedStops.length > 1;
 
   return (
     <Modal
@@ -146,9 +286,7 @@ export function RoutineRouteMapModal({
           >
             <ArrowLeft size={22} color="#fff" />
           </TouchableOpacity>
-          <Text style={{ fontSize: 15, fontWeight: '600', color: '#fff' }}>
-            Ruta del viaje
-          </Text>
+          <Text style={{ fontSize: 15, fontWeight: '600', color: '#fff' }}>Ruta del viaje</Text>
           <View style={{ width: 36 }} />
         </View>
 
@@ -158,7 +296,7 @@ export function RoutineRouteMapModal({
             <Text style={{ color: '#94a3b8', marginTop: 12, fontSize: 13 }}>Calculando ruta…</Text>
           </View>
         ) : (
-        <View style={{ flex: 1 }}>
+          <View style={{ flex: 1 }}>
             <MapView
               ref={mapRef}
               style={{ flex: 1 }}
@@ -194,20 +332,22 @@ export function RoutineRouteMapModal({
                 title={originName}
                 pinColor={Colors.primary[600]}
               />
-              {waypoints.map((wp) => (
-                <Marker
-                  key={wp.id}
-                  coordinate={{ latitude: wp.latitude, longitude: wp.longitude }}
-                  title={wp.name}
-                  pinColor={Colors.primary[400]}
-                />
-              ))}
-              {suggestedStop && (
-                <Marker
-                  coordinate={{ latitude: suggestedStop.latitude, longitude: suggestedStop.longitude }}
-                  title={suggestedStop.name}
-                  pinColor="orange"
-                />
+              {orderedStops.map((stop) =>
+                stop.kind === 'waypoint' ? (
+                  <Marker
+                    key={stop.data.id}
+                    coordinate={{ latitude: stop.data.latitude, longitude: stop.data.longitude }}
+                    title={stop.data.name}
+                    pinColor={Colors.primary[400]}
+                  />
+                ) : (
+                  <Marker
+                    key={`suggested-${stop.data.id}`}
+                    coordinate={{ latitude: stop.data.latitude, longitude: stop.data.longitude }}
+                    title={stop.data.name}
+                    pinColor="orange"
+                  />
+                ),
               )}
               <Marker
                 coordinate={{ latitude: destinationLatitude, longitude: destinationLongitude }}
@@ -216,7 +356,7 @@ export function RoutineRouteMapModal({
               />
             </MapView>
 
-            {/* Legend overlay */}
+            {/* Bottom panel */}
             <View
               style={{
                 position: 'absolute',
@@ -225,82 +365,138 @@ export function RoutineRouteMapModal({
                 right: 16,
                 backgroundColor: '#fff',
                 borderRadius: 16,
-                padding: 16,
+                maxHeight: 280,
                 ...Shadows.lg,
               }}
             >
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: (waypoints.length > 0 || suggestedStop) ? 8 : 0 }}>
-                <View
-                  style={{
-                    width: 10,
-                    height: 10,
-                    borderRadius: 5,
-                    backgroundColor: Colors.primary[500],
-                  }}
-                />
-                <Text
-                  style={{ fontSize: 12, fontWeight: '600', color: '#1e293b', flex: 1 }}
-                  numberOfLines={1}
-                >
-                  {originName}
-                </Text>
-              </View>
-              {waypoints.map((wp) => (
-                <View key={wp.id} style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-                  <View
-                    style={{
-                      width: 8,
-                      height: 8,
-                      borderRadius: 4,
-                      backgroundColor: Colors.primary[400],
-                      marginLeft: 1,
-                    }}
-                  />
-                  <Text
-                    style={{ fontSize: 11, fontWeight: '500', color: '#475569', flex: 1 }}
-                    numberOfLines={1}
-                  >
-                    {wp.name}
-                  </Text>
-                </View>
-              ))}
-              {suggestedStop && (
+              <ScrollView
+                style={{ paddingHorizontal: 16, paddingTop: 16 }}
+                contentContainerStyle={{ paddingBottom: 4 }}
+                showsVerticalScrollIndicator={false}
+              >
+                {/* Origin (fixed) */}
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-                  <View
-                    style={{
-                      width: 8,
-                      height: 8,
-                      borderRadius: 4,
-                      backgroundColor: 'orange',
-                      marginLeft: 1,
-                    }}
-                  />
-                  <Text
-                    style={{ fontSize: 11, fontWeight: '500', color: '#92400e', flex: 1 }}
-                    numberOfLines={1}
-                  >
-                    {suggestedStop.name} (sugerido)
+                  <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: Colors.primary[500] }} />
+                  <Text style={{ fontSize: 12, fontWeight: '600', color: '#1e293b', flex: 1 }} numberOfLines={1}>
+                    {originName}
                   </Text>
                 </View>
-              )}
-              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-                <View
+
+                {/* Reorderable stops (waypoints + suggested) */}
+                {orderedStops.map((stop, idx) => {
+                  const isSuggested = stop.kind === 'suggested';
+                  const dotColor = isSuggested ? '#F59E0B' : Colors.primary[400];
+                  const textColor = isSuggested ? '#92400e' : '#475569';
+                  const label = isSuggested
+                    ? `${stop.data.name} (sugerido)`
+                    : stop.data.name;
+
+                  return (
+                    <View
+                      key={stop.kind === 'waypoint' ? stop.data.id : `suggested-${stop.data.id}`}
+                      style={{
+                        flexDirection: 'row',
+                        alignItems: 'center',
+                        gap: 8,
+                        marginBottom: 8,
+                        backgroundColor: isSuggested ? '#FFFBEB' : '#F8FAFC',
+                        borderRadius: 8,
+                        paddingHorizontal: 8,
+                        paddingVertical: 4,
+                      }}
+                    >
+                      <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: dotColor, marginLeft: 1 }} />
+                      <Text style={{ fontSize: 11, fontWeight: '500', color: textColor, flex: 1 }} numberOfLines={1}>
+                        {label}
+                      </Text>
+                      {canReorder && (
+                        <View style={{ flexDirection: 'row', gap: 2 }}>
+                          <TouchableOpacity
+                            onPress={() => moveUp(idx)}
+                            disabled={idx === 0}
+                            style={{ padding: 4, opacity: idx === 0 ? 0.3 : 1 }}
+                          >
+                            <ChevronUp size={14} color={Colors.primary[600]} />
+                          </TouchableOpacity>
+                          <TouchableOpacity
+                            onPress={() => moveDown(idx)}
+                            disabled={idx === orderedStops.length - 1}
+                            style={{ padding: 4, opacity: idx === orderedStops.length - 1 ? 0.3 : 1 }}
+                          >
+                            <ChevronDown size={14} color={Colors.primary[600]} />
+                          </TouchableOpacity>
+                        </View>
+                      )}
+                    </View>
+                  );
+                })}
+
+                {/* Destination (fixed) */}
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+                  <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: Colors.accent[500] }} />
+                  <Text style={{ fontSize: 12, fontWeight: '600', color: '#1e293b', flex: 1 }} numberOfLines={1}>
+                    {destinationName}
+                  </Text>
+                </View>
+              </ScrollView>
+
+              {/* Accept subscription (when there's a suggested stop) */}
+              {suggestedStop && subscriptionId && onAccept && (
+                <TouchableOpacity
+                  onPress={handleAccept}
+                  disabled={isSaving}
                   style={{
-                    width: 10,
-                    height: 10,
-                    borderRadius: 5,
-                    backgroundColor: Colors.accent[500],
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: 6,
+                    marginHorizontal: 16,
+                    marginBottom: 16,
+                    paddingVertical: 10,
+                    borderRadius: 10,
+                    backgroundColor: Colors.primary[500],
+                    opacity: isSaving ? 0.6 : 1,
                   }}
-                />
-                <Text
-                  style={{ fontSize: 12, fontWeight: '600', color: '#1e293b', flex: 1 }}
-                  numberOfLines={1}
                 >
-                  {destinationName}
-                </Text>
-              </View>
+                  {isSaving
+                    ? <ActivityIndicator size="small" color="#fff" />
+                    : <Save size={14} color="#fff" />
+                  }
+                  <Text style={{ fontSize: 13, fontWeight: '600', color: '#fff' }}>
+                    {isSaving ? 'Aceptando…' : 'Aceptar suscripción'}
+                  </Text>
+                </TouchableOpacity>
+              )}
+
+              {/* Save waypoint order only (no suggested stop context) */}
+              {!suggestedStop && isDirty && routineTripId && (
+                <TouchableOpacity
+                  onPress={handleSaveOrder}
+                  disabled={isSaving}
+                  style={{
+                    flexDirection: 'row',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: 6,
+                    marginHorizontal: 16,
+                    marginBottom: 16,
+                    paddingVertical: 10,
+                    borderRadius: 10,
+                    backgroundColor: Colors.primary[500],
+                    opacity: isSaving ? 0.6 : 1,
+                  }}
+                >
+                  {isSaving
+                    ? <ActivityIndicator size="small" color="#fff" />
+                    : <Save size={14} color="#fff" />
+                  }
+                  <Text style={{ fontSize: 13, fontWeight: '600', color: '#fff' }}>
+                    {isSaving ? 'Guardando…' : 'Guardar orden'}
+                  </Text>
+                </TouchableOpacity>
+              )}
             </View>
-        </View>
+          </View>
         )}
       </View>
     </Modal>
