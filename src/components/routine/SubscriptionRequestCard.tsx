@@ -189,37 +189,25 @@ export const SubscriptionRequestCard = React.memo(function SubscriptionRequestCa
         </View>
       ) : null}
 
-      {/* View map */}
-      {onViewMap && (
-        <TouchableOpacity
-          onPress={() => onViewMap(subscription.id)}
-          className="flex-row items-center justify-center gap-1.5 py-2 rounded-xl border border-neutral-200 mb-2"
-          activeOpacity={0.7}
-        >
-          <Map size={14} color={Colors.primary[500]} />
-          <Text className="text-sm font-medium text-primary-600">Ver ruta con parada sugerida</Text>
-        </TouchableOpacity>
-      )}
-
       {/* Accept / Reject actions */}
-      {showActions && (
-        <View className="flex-row gap-3 mt-1">
+      <View className="flex-row gap-3 mt-1">
+        {showActions && (
           <TouchableOpacity
             onPress={() => onReject?.(subscription.id)}
             className="flex-1 py-2.5 rounded-xl border border-red-300 items-center"
             activeOpacity={0.7}
           >
             <Text className="text-sm font-semibold text-red-600">Rechazar</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            onPress={() => onAccept?.(subscription.id)}
-            className="flex-1 py-2.5 rounded-xl bg-primary-500 items-center"
-            activeOpacity={0.7}
-          >
-            <Text className="text-sm font-semibold text-white">Aceptar</Text>
-          </TouchableOpacity>
-        </View>
-      )}
+          </TouchableOpacity>)}
+        <TouchableOpacity
+          onPress={() => onViewMap?.(subscription.id)}
+          className="flex-1 py-2.5 rounded-xl border border-primary-500 flex-row items-center justify-center gap-1.5"
+          activeOpacity={0.7}
+        >
+          <Map size={14} color={Colors.primary[500]} />
+          <Text className="text-sm font-semibold text-primary-600">Ver ruta</Text>
+        </TouchableOpacity>
+      </View>
     </Card>
   );
 });
