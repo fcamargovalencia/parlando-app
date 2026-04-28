@@ -119,13 +119,25 @@ Son los puntos de parada que el conductor define opcionalmente en su plantilla. 
 | `name` / `subtitle` | String | Nombre y contexto del punto |
 | `isPickupPoint` | Boolean | Si es un punto de recogida disponible para pasajeros |
 | `estimatedMinutesOffset` | Int | Minutos desde `departureTime` en que el conductor pasa por aquí |
+| `applicableDays` | String[]? | Días de recurrencia en los que aplica este waypoint. `null` = todos los días de la plantilla. Subconjunto de `routineTrip.recurrenceDays`. |
 
 **Reglas:**
-- Solo editables cuando la plantilla está en `DRAFT`.
-- Si la plantilla está `ACTIVE`, solo se permite agregar nuevos waypoints (no eliminar ni reordenar los existentes, para no afectar suscripciones ya aceptadas).
-- Al generarse una `TripOccurrence`, el sistema copia estos waypoints como `RouteWaypoint`s de esa ocurrencia, calculando `estimatedArrival = occurrenceDate + departureTime + estimatedMinutesOffset`.
+- En estado `DRAFT`: se pueden agregar, eliminar y reordenar libremente.
+- En estado `ACTIVE`:
+  - **Agregar:** permitido. El nuevo waypoint se propaga inmediatamente a todas las ocurrencias futuras publicadas (`departure_at > NOW()`). Si tiene `applicableDays`, solo se propaga a ocurrencias cuyo día de semana esté en ese conjunto.
+  - **Eliminar:** no permitido (podría invalidar suscripciones con `pickupType = WAYPOINT` que referencian el waypoint).
+  - **Reordenar:** permitido. El nuevo orden se propaga a las ocurrencias futuras publicadas, actualizando `order_index` en los `RouteWaypoint` correspondientes. Las suscripciones con `pickupType = WAYPOINT` mantienen su `pickupWaypointId` sin cambios; solo varía el momento en que el conductor pasa por ese punto.
+- Al generarse una `TripOccurrence`, el sistema copia los waypoints de la plantilla como `RouteWaypoint`s, calculando `estimatedArrival = occurrenceDate + departureTime + estimatedMinutesOffset`. Si un waypoint tiene `applicableDays`, solo se copia si el día de la ocurrencia está incluido.
 
-**Implicación para el frontend:** Si el conductor no define waypoints, la UI debe presentar al pasajero la opción de sugerir un punto personalizado (ver sección 7).
+**Propagación de reorden — mecanismo:**
+La tabla `route_waypoints` incluye `routine_trip_waypoint_id` (FK nullable hacia `routine_trip_waypoints`). Al copiar waypoints de la plantilla a una ocurrencia, este campo queda poblado. Al reordenar en `ACTIVE`, el sistema actualiza `order_index` en `route_waypoints` filtrando por `routine_trip_waypoint_id`, sin tocar waypoints custom de pasajeros (`routine_trip_waypoint_id IS NULL`).
+
+**Promoción de punto sugerido a waypoint con applicable_days:**
+Si el conductor acepta un punto personalizado (`ACCEPTED_CUSTOM`) de un suscriptor y quiere que esté disponible para otros pasajeros en los mismos días, puede llamar al endpoint de agregar waypoint con `applicableDays = subscribedDays` de esa suscripción. La suscripción original **no** migra automáticamente a `WAYPOINT`; permanece `ACCEPTED_CUSTOM`. El nuevo waypoint beneficia a futuros suscriptores que lo seleccionen explícitamente.
+
+**Validación de `applicableDays`:** debe ser subconjunto no vacío de `routineTrip.recurrenceDays`. Error si se envían días que la plantilla no opera.
+
+**Implicación para el frontend:** Si el conductor no define waypoints, la UI debe presentar al pasajero la opción de sugerir un punto personalizado o seleccionar el origen del viaje (ver sección 7).
 
 ---
 
@@ -176,7 +188,7 @@ Una `TripOccurrence` es un registro `Trip` normal con `tripType = ROUTINE` y un 
 | `customPickupName` | String? | Nombre del punto sugerido |
 | `routeDeviationMeters` | Int? | Calculado al crear la suscripción |
 | `timeOverheadSeconds` | Int? | Calculado al crear la suscripción |
-| `pickupType` | Enum | `WAYPOINT` / `SUGGESTED` / `ACCEPTED_CUSTOM` |
+| `pickupType` | Enum | `ORIGIN` / `WAYPOINT` / `SUGGESTED` / `ACCEPTED_CUSTOM` |
 | `dropoffWaypointId` | UUID? | Punto de bajada si el destino tiene múltiples entradas |
 | `status` | Enum | Estado actual de la suscripción |
 | `consecutiveNoShows` | Int | Contador para suspensión automática |
@@ -230,9 +242,10 @@ Para viajes interurbanos: el conductor define waypoints → el pasajero elige un
 
 | `pickupType` | Descripción | Flujo |
 |---|---|---|
+| `ORIGIN` | El pasajero aborda en el punto de origen del viaje | Sin campos adicionales; valor por defecto si no se especifica pickup. El pasajero puede enviarlo explícitamente aunque existan waypoints predefinidos. |
 | `WAYPOINT` | El pasajero elige un waypoint predefinido del conductor | `pickupWaypointId` no nulo; no requiere validación geométrica |
 | `SUGGESTED` | El pasajero sugiere coordenadas propias; pendiente de aprobación del conductor | `customPickupLat/Lng` no nulo; se calculan `routeDeviationMeters` y `timeOverheadSeconds` |
-| `ACCEPTED_CUSTOM` | El conductor aceptó el punto sugerido | Punto aprobado; genera `RouteWaypoint` en la ocurrencia si otros pasajeros pueden beneficiarse |
+| `ACCEPTED_CUSTOM` | El conductor aceptó el punto sugerido | Punto aprobado; el conductor puede luego promoverlo a `RoutineTripWaypoint` con `applicableDays` para que futuros pasajeros lo vean. Reservado para la transición en `acceptSubscription()`; el pasajero no puede enviarlo al crear la suscripción. |
 
 ### 7.3 Validación automática al crear la suscripción
 
@@ -271,11 +284,20 @@ Cuando el pasajero envía coordenadas de pickup personalizado:
 }
 ```
 
-### 7.5 Promoción a waypoint compartido
+### 7.5 Promoción a waypoint de plantilla con `applicableDays`
 
-Cuando el conductor acepta un pickup personalizado, el sistema evalúa si hay otras suscripciones en la misma ocurrencia con pickups personalizados a menos de 200m del punto recién aceptado. Si los hay, sugiere al conductor unificarlos en un punto intermedio. Si el conductor acepta la unificación, todos los bookings afectados son notificados del nuevo punto acordado.
+Cuando el conductor acepta un punto personalizado (`ACCEPTED_CUSTOM`) y decide formalizarlo como parada permanente en la plantilla, puede llamar al endpoint `POST /routine-trips/{id}/waypoints` incluyendo `applicableDays` con los días de suscripción del pasajero original.
 
-Independientemente de la unificación, al generarse cada `TripOccurrence`, el punto aceptado se convierte en un `RouteWaypoint` temporal de esa ocurrencia para que el conductor vea claramente en su mapa todas las paradas del día.
+**Efecto:**
+- Se crea un `RoutineTripWaypoint` con `applicableDays` igual a los días especificados.
+- Se propaga inmediatamente a todas las ocurrencias futuras publicadas que caigan en esos días.
+- La suscripción original del pasajero **no** migra automáticamente a `WAYPOINT`; permanece `ACCEPTED_CUSTOM`.
+- Futuros pasajeros que quieran ese punto pueden seleccionarlo como `WAYPOINT` al suscribirse.
+
+**Sugerencia de unificación** *(Backlog):*
+Si hay múltiples pickups personalizados a < 200m entre sí, el sistema puede sugerir al conductor unificarlos en un punto intermedio. Al aceptar, todos los bookings afectados son notificados del nuevo punto acordado.
+
+Independientemente de la unificación, al generarse cada `TripOccurrence`, los puntos `ACCEPTED_CUSTOM` de los suscriptores activos se incluyen como `RouteWaypoint`s de esa ocurrencia para que el conductor vea todas las paradas del día en el mapa.
 
 ### 7.6 Override de pickup para una ocurrencia puntual
 
@@ -429,8 +451,9 @@ Cuando `routineTrip.studentsOnly = true`, el pasajero debe verificar su condici�
 3. Configurar suscripción
    - Elige días de su interés (subset de los días del conductor)
    - Elige punto de recogida:
-     a. De la lista de waypoints predefinidos
-     b. Sugiere su propia ubicación (si el conductor lo permite)
+     a. El punto de origen del viaje (`ORIGIN` — siempre disponible)
+     b. De la lista de waypoints predefinidos del conductor (`WAYPOINT`)
+     c. Sugiere su propia ubicación (`SUGGESTED`, si el conductor lo permite)
    - Indica si necesita bajada en punto específico (campus tiene varias entradas)
    - Anota necesidades especiales si aplica
    - Define período (inicio y fin opcional)
@@ -589,6 +612,12 @@ Los pasajeros de un `RoutineTrip` forman implícitamente un grupo. Se puede habi
 13. El SOAT vencido pausa la plantilla; su renovación no la reactiva automáticamente (requiere acción del conductor).
 14. `studentsOnly = true` requiere `StudentVerification` en estado `APPROVED` y no expirada.
 15. Un override de pickup puntual debe solicitarse con > 2 horas de anticipación.
+16. `applicableDays` en un waypoint debe ser subconjunto no vacío de `routineTrip.recurrenceDays`; se valida al crear el waypoint con plantilla en `ACTIVE`.
+17. Al agregar un waypoint a plantilla `ACTIVE`, la propagación solo afecta ocurrencias con `departure_at > NOW() AND status = 'PUBLISHED'`; las ocurrencias pasadas o en curso no se modifican.
+18. Al reordenar waypoints en plantilla `ACTIVE`, el nuevo orden se propaga a ocurrencias futuras publicadas actualizando `order_index` en `route_waypoints` vía `routine_trip_waypoint_id`. Los waypoints custom de pasajeros (`routine_trip_waypoint_id IS NULL`) no son afectados.
+19. El reordenamiento de waypoints no invalida suscripciones con `pickupType = WAYPOINT`; el `pickupWaypointId` sigue referenciando el mismo waypoint; solo cambia cuándo el conductor pasa por él.
+20. `pickupType = ORIGIN` es válido aunque existan waypoints predefinidos en la plantilla. El pasajero puede seleccionarlo explícitamente o llegar por defecto si no especifica ningún campo de pickup.
+21. La `routeLine` de la plantilla no se actualiza automáticamente al agregar o reordenar waypoints; el conductor debe actualizarla manualmente si cambia el trazado de la ruta.
 
 ---
 
@@ -607,8 +636,9 @@ Los pasajeros de un `RoutineTrip` forman implícitamente un grupo. Se puede habi
 | `POST` | `/routine-trips/{id}/publish` | Conductor | `DRAFT → ACTIVE` |
 | `POST` | `/routine-trips/{id}/pause` | Conductor | `ACTIVE → PAUSED` |
 | `DELETE` | `/routine-trips/{id}` | Conductor | `→ CANCELLED` |
-| `POST` | `/routine-trips/{id}/waypoints` | Conductor | Agregar waypoint |
+| `POST` | `/routine-trips/{id}/waypoints` | Conductor | Agregar waypoint (con `applicableDays` opcional en `ACTIVE`) |
 | `DELETE` | `/routine-trips/{id}/waypoints/{wId}` | Conductor | Eliminar waypoint (solo en `DRAFT`) |
+| `PUT` | `/routine-trips/{id}/waypoints/reorder` | Conductor | Reordenar waypoints (propaga a ocurrencias si `ACTIVE`) |
 | `GET` | `/routine-trips/search` | Pasajero | Búsqueda con filtros |
 
 ### `RoutineSubscription`
@@ -658,8 +688,9 @@ Los pasajeros de un `RoutineTrip` forman implícitamente un grupo. Se puede habi
 1. **Búsqueda:** selector de destino (universidad o punto en mapa), selector de días, selector de hora límite, opcional: "buscar cerca de mi ubicación" para mostrar `nearestWaypointDistanceMeters`.
 2. **Tarjeta de resultado:** mostrar `reliabilityScore` del conductor, precio, días disponibles, cupos, distancia al punto más cercano. Badge de candado si requiere verificación estudiantil.
 3. **Configuración de suscripción:**
-   - Si hay waypoints predefinidos: lista de opciones con hora estimada de paso.
-   - Si `allowsCustomPickup = true` y no hay waypoints: opción de "usar mi ubicación actual" con mensaje de validación en tiempo real antes de enviar.
+   - Siempre mostrar "Punto de origen del viaje" como primera opción (`pickupType = ORIGIN`).
+   - Si hay waypoints predefinidos: lista adicional con hora estimada de paso. Los waypoints con `applicableDays` se muestran solo si aplican en alguno de los `subscribedDays` seleccionados.
+   - Si `allowsCustomPickup = true`: opción de "usar mi ubicación actual" (`SUGGESTED`) con mensaje de validación en tiempo real antes de enviar.
    - Selector de días de interés (subconjunto de los días del conductor).
    - Selector de período.
    - Campo opcional de necesidades especiales con advertencia de que puede requerir revisión manual.
