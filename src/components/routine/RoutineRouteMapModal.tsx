@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -15,6 +15,7 @@ import { Colors, Shadows } from '@/constants/colors';
 import { haversineMeters } from '@/lib/geo';
 import { tomtomCalculateRoute } from '@/lib/tomtom-routing';
 import { routineTripsApi } from '@/api/routine-trips';
+import type { RecurrenceDay } from '@/types/api';
 
 // ── Types ──
 
@@ -23,6 +24,7 @@ interface WaypointMapStop {
   latitude: number;
   longitude: number;
   name: string;
+  applicableDays?: RecurrenceDay[];
 }
 
 interface SuggestedStop {
@@ -33,8 +35,8 @@ interface SuggestedStop {
 }
 
 type OrderedStop =
-  | { kind: 'waypoint'; data: WaypointMapStop }
-  | { kind: 'suggested'; data: SuggestedStop };
+  | { kind: 'waypoint'; data: WaypointMapStop; }
+  | { kind: 'suggested'; data: SuggestedStop; };
 
 interface RoutineRouteMapModalProps {
   visible: boolean;
@@ -52,12 +54,13 @@ interface RoutineRouteMapModalProps {
   routeLine?: [number, number][];
   waypoints?: WaypointMapStop[];
   suggestedStop?: SuggestedStop;
+  subscribedDays?: RecurrenceDay[];
 }
 
 // ── Helpers ──
 
 function closestRouteIdx(
-  coords: { latitude: number; longitude: number }[],
+  coords: { latitude: number; longitude: number; }[],
   lat: number,
   lng: number,
 ): number {
@@ -80,7 +83,7 @@ function buildInitialOrder(
   const withIdx = (lat: number, lng: number) =>
     baseCoords.length >= 2 ? closestRouteIdx(baseCoords, lat, lng) : 0;
 
-  const entries: Array<{ stop: OrderedStop; idx: number }> = [
+  const entries: Array<{ stop: OrderedStop; idx: number; }> = [
     ...waypoints.map((wp) => ({
       stop: { kind: 'waypoint' as const, data: wp },
       idx: withIdx(wp.latitude, wp.longitude),
@@ -95,6 +98,12 @@ function buildInitialOrder(
 
   return entries.sort((a, b) => a.idx - b.idx).map((e) => e.stop);
 }
+
+// ── Day labels ──
+
+const DAY_LABELS: Record<RecurrenceDay, string> = {
+  MON: 'Lun', TUE: 'Mar', WED: 'Mié', THU: 'Jue', FRI: 'Vie', SAT: 'Sáb', SUN: 'Dom',
+};
 
 // ── Component ──
 
@@ -114,21 +123,39 @@ export function RoutineRouteMapModal({
   routeLine,
   waypoints = [],
   suggestedStop,
+  subscribedDays,
 }: RoutineRouteMapModalProps) {
   const mapRef = useRef<MapView>(null);
-  const [routeLineCoords, setRouteLineCoords] = useState<{ latitude: number; longitude: number }[]>([]);
+  const [routeLineCoords, setRouteLineCoords] = useState<{ latitude: number; longitude: number; }[]>([]);
   const [loading, setLoading] = useState(false);
   const [orderedStops, setOrderedStops] = useState<OrderedStop[]>([]);
   const [isDirty, setIsDirty] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [selectedDay, setSelectedDay] = useState<RecurrenceDay | null>(
+    subscribedDays?.[0] ?? null,
+  );
 
-  // Initialize order from props when modal opens — sort by position on route
+  const filteredWaypoints = useMemo(() => {
+    if (selectedDay === null) return waypoints;
+    return waypoints.filter(
+      (w) => !w.applicableDays?.length || w.applicableDays.includes(selectedDay),
+    );
+  }, [waypoints, selectedDay]);
+
+  // Reset selectedDay and dirty flag when modal opens
   useEffect(() => {
     if (visible) {
-      setOrderedStops(buildInitialOrder(waypoints, suggestedStop, routeLine));
+      setSelectedDay(subscribedDays?.[0] ?? null);
       setIsDirty(false);
     }
-  }, [visible, waypoints, suggestedStop, routeLine]);
+  }, [visible, subscribedDays]);
+
+  // Rebuild ordered stops whenever day filter or route data changes
+  useEffect(() => {
+    if (visible) {
+      setOrderedStops(buildInitialOrder(filteredWaypoints, suggestedStop, routeLine));
+    }
+  }, [visible, filteredWaypoints, suggestedStop, routeLine]);
 
   const fallbackCoords = [
     { latitude: originLatitude, longitude: originLongitude },
@@ -139,6 +166,7 @@ export function RoutineRouteMapModal({
   // Recalculate route using user-defined order whenever orderedStops changes
   useEffect(() => {
     if (!visible) return;
+    let cancelled = false;
 
     const baseCoords = routeLine?.map((p) => ({ latitude: p[0], longitude: p[1] })) ?? [];
 
@@ -156,9 +184,11 @@ export function RoutineRouteMapModal({
 
     setLoading(true);
     tomtomCalculateRoute(tomtomStops)
-      .then((result) => setRouteLineCoords(result.points))
-      .catch(() => setRouteLineCoords(baseCoords))
-      .finally(() => setLoading(false));
+      .then((result) => { if (!cancelled) setRouteLineCoords(result.points); })
+      .catch(() => { if (!cancelled) setRouteLineCoords(baseCoords); })
+      .finally(() => { if (!cancelled) setLoading(false); });
+
+    return () => { cancelled = true; };
   }, [visible, routeLine, orderedStops, originLatitude, originLongitude, destinationLatitude, destinationLongitude]);
 
   // Fit map to all coords after route loads
@@ -226,7 +256,7 @@ export function RoutineRouteMapModal({
 
       // 2. Reorder all waypoints in the user-defined order
       const orderedIds = finalStops
-        .filter((s): s is { kind: 'waypoint'; data: WaypointMapStop } => s.kind === 'waypoint')
+        .filter((s): s is { kind: 'waypoint'; data: WaypointMapStop; } => s.kind === 'waypoint')
         .map((s) => s.data.id);
       if (orderedIds.length > 0) {
         await routineTripsApi.reorderWaypoints(routineTripId, { orderedIds });
@@ -248,7 +278,7 @@ export function RoutineRouteMapModal({
     setIsSaving(true);
     try {
       const waypointIds = orderedStops
-        .filter((s): s is { kind: 'waypoint'; data: WaypointMapStop } => s.kind === 'waypoint')
+        .filter((s): s is { kind: 'waypoint'; data: WaypointMapStop; } => s.kind === 'waypoint')
         .map((s) => s.data.id);
       await routineTripsApi.reorderWaypoints(routineTripId, { orderedIds: waypointIds });
       setIsDirty(false);
@@ -259,7 +289,7 @@ export function RoutineRouteMapModal({
     }
   };
 
-  const canReorder = orderedStops.length > 1;
+  const canReorder = orderedStops.length > 1 && selectedDay === null;
 
   return (
     <Modal
@@ -289,6 +319,49 @@ export function RoutineRouteMapModal({
           <Text style={{ fontSize: 15, fontWeight: '600', color: '#fff' }}>Ruta del viaje</Text>
           <View style={{ width: 36 }} />
         </View>
+
+        {/* Day selector — only shown when subscription spans multiple days */}
+        {subscribedDays && subscribedDays.length > 1 && (
+          <View style={{ paddingHorizontal: 16, paddingBottom: 10 }}>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={{ gap: 6 }}
+            >
+              <TouchableOpacity
+                onPress={() => setSelectedDay(null)}
+                style={{
+                  paddingHorizontal: 14,
+                  paddingVertical: 6,
+                  borderRadius: 20,
+                  backgroundColor: selectedDay === null ? Colors.primary[500] : 'transparent',
+                  borderWidth: 1,
+                  borderColor: selectedDay === null ? Colors.primary[500] : 'rgba(255,255,255,0.3)',
+                }}
+              >
+                <Text style={{ fontSize: 12, fontWeight: '600', color: '#fff' }}>Todos</Text>
+              </TouchableOpacity>
+              {subscribedDays.map((day) => (
+                <TouchableOpacity
+                  key={day}
+                  onPress={() => setSelectedDay(day)}
+                  style={{
+                    paddingHorizontal: 14,
+                    paddingVertical: 6,
+                    borderRadius: 20,
+                    backgroundColor: selectedDay === day ? Colors.primary[500] : 'transparent',
+                    borderWidth: 1,
+                    borderColor: selectedDay === day ? Colors.primary[500] : 'rgba(255,255,255,0.3)',
+                  }}
+                >
+                  <Text style={{ fontSize: 12, fontWeight: '600', color: '#fff' }}>
+                    {DAY_LABELS[day]}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
+        )}
 
         {loading ? (
           <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
@@ -374,6 +447,19 @@ export function RoutineRouteMapModal({
                 contentContainerStyle={{ paddingBottom: 4 }}
                 showsVerticalScrollIndicator={false}
               >
+                {/* Day preview info */}
+                {selectedDay !== null && (
+                  <Text style={{ fontSize: 11, color: '#64748b', marginBottom: 8, textAlign: 'center' }}>
+                    Vista del {DAY_LABELS[selectedDay]} · cambia a “Todos” para reordenar paradas
+                  </Text>
+                )}
+                {selectedDay !== null && suggestedStop && (
+                  <View style={{ backgroundColor: '#FFFBEB', borderRadius: 6, paddingHorizontal: 8, paddingVertical: 4, marginBottom: 8 }}>
+                    <Text style={{ fontSize: 11, color: '#92400e' }}>
+                      El punto de recogida (naranja) aplica a todos los días
+                    </Text>
+                  </View>
+                )}
                 {/* Origin (fixed) */}
                 <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 }}>
                   <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: Colors.primary[500] }} />

@@ -268,6 +268,7 @@ export default function SubscriptionsScreen() {
           destinationLongitude={routineTrip.destinationLongitude}
           routeLine={routineTrip.routeLine}
           waypoints={routeWaypoints}
+          subscribedDays={mapSub.subscribedDays}
           suggestedStop={
             mapSub.pickupType === 'SUGGESTED' &&
               mapSub.customPickupLatitude != null &&
