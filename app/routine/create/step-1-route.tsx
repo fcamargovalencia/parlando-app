@@ -20,7 +20,6 @@ export default function Step1RouteScreen() {
     formData,
     updateForm,
     setSelectedUniversity,
-    selectedUniversity,
     validateAndProceed,
     errors,
   } = usePublishRoutineTrip();
