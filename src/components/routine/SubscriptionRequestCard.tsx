@@ -12,6 +12,7 @@ import {
 } from 'lucide-react-native';
 import { Avatar, Badge, Card } from '@/components/ui';
 import { Colors } from '@/constants/colors';
+import { metersLabel } from '@/utils/routine-trip.utils';
 import type { RecurrenceDay, RoutineSubscriptionResponse } from '@/types/api';
 
 const DAY_LABELS: Record<RecurrenceDay, string> = {
@@ -23,10 +24,6 @@ const DAY_LABELS: Record<RecurrenceDay, string> = {
   SAT: 'Sáb',
   SUN: 'Dom',
 };
-
-function metersLabel(m: number): string {
-  return m < 1000 ? `${Math.round(m)} m` : `${(m / 1000).toFixed(1)} km`;
-}
 
 function secondsToMinutes(s: number): number {
   return Math.round(s / 60);

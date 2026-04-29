@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity } from 'react-native';
 
 interface State {
   hasError: boolean;
@@ -24,17 +24,17 @@ export class ErrorBoundary extends React.Component<React.PropsWithChildren, Stat
   render() {
     if (this.state.hasError) {
       return (
-        <View style={styles.container}>
-          <Text style={styles.title}>Algo salió mal</Text>
-          <Text style={styles.message}>
+        <View className="flex-1 items-center justify-center p-8 bg-neutral-50">
+          <Text className="text-lg font-bold text-neutral-900 mb-2">Algo salió mal</Text>
+          <Text className="text-xs text-neutral-500 text-center mb-8">
             {this.state.error?.message ?? 'Error inesperado'}
           </Text>
           <TouchableOpacity
-            style={styles.button}
+            className="bg-primary-700 px-6 py-3 rounded-xl"
             onPress={this.handleRetry}
             activeOpacity={0.8}
           >
-            <Text style={styles.buttonText}>Reintentar</Text>
+            <Text className="text-white text-sm font-semibold">Reintentar</Text>
           </TouchableOpacity>
         </View>
       );
@@ -43,35 +43,4 @@ export class ErrorBoundary extends React.Component<React.PropsWithChildren, Stat
   }
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    padding: 32,
-    backgroundColor: '#F9FAFB',
-  },
-  title: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#111827',
-    marginBottom: 8,
-  },
-  message: {
-    fontSize: 14,
-    color: '#6B7280',
-    textAlign: 'center',
-    marginBottom: 32,
-  },
-  button: {
-    backgroundColor: '#005660',
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 12,
-  },
-  buttonText: {
-    color: '#FFFFFF',
-    fontSize: 15,
-    fontWeight: '600',
-  },
-});
+

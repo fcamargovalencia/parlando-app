@@ -189,10 +189,7 @@ export default function OccurrencesScreen() {
   };
 
   const handleView = (tripId: string) => {
-    router.push({
-      pathname: '/routine/[id]/occurrence/[tripId]',
-      params: { id: routineTripId ?? '', tripId },
-    } as any);
+    router.push(`/routine/${routineTripId}/occurrence/${tripId}`);
   };
 
   const handlePressCancel = (occurrence: TripResponse) => {

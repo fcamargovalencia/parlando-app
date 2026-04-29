@@ -22,7 +22,7 @@ interface RoutineTripCardProps {
   onRoutePress?: () => void;
 }
 
-export function RoutineTripCard({ result, onPress, onRoutePress }: RoutineTripCardProps) {
+export const RoutineTripCard = React.memo(function RoutineTripCard({ result, onPress, onRoutePress }: RoutineTripCardProps) {
   const {
     driverName, originName, destinationName, departureTime, requiredArrivalTime,
     recurrenceDays, pricePerSeat, currency, availableSeats,
@@ -124,4 +124,4 @@ export function RoutineTripCard({ result, onPress, onRoutePress }: RoutineTripCa
       </Card>
     </TouchableOpacity>
   );
-}
+});

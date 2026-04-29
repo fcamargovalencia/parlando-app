@@ -27,7 +27,7 @@ function RoutineOccurrenceBanner({ routineTripId, departureAt }: { routineTripId
   return (
     <TouchableOpacity
       activeOpacity={0.8}
-      onPress={() => router.push({ pathname: '/routine/[id]', params: { id: routineTripId } } as any)}
+      onPress={() => router.push(`/routine/${routineTripId}`)}
       className="flex-row items-center gap-3 rounded-2xl px-4 py-3"
       style={{ backgroundColor: Colors.primary[50], borderWidth: 1, borderColor: Colors.primary[200] }}
     >

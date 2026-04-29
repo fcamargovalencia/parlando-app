@@ -54,7 +54,7 @@ export default function MessagesScreen() {
                     otherUserPhoto: item.counterpartPhotoUrl ?? '',
                     tripStatus: item.tripStatus ?? '',
                   },
-                } as any)
+                })
               }
             />
           )}

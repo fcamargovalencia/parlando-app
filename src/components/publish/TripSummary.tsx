@@ -41,7 +41,7 @@ interface Props {
   selectedVehicle: VehicleResponse | null;
 }
 
-export function TripSummary({
+export const TripSummary = React.memo(function TripSummary({
   form,
   tripType,
   tripTypeLabel,
@@ -189,4 +189,4 @@ export function TripSummary({
       </View>
     </>
   );
-}
+});

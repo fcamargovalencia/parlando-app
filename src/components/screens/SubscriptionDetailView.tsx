@@ -75,6 +75,276 @@ interface Props {
   };
 }
 
+// ── Modal Subcomponents ──
+
+interface PauseModalProps {
+  visible: boolean;
+  hasPauseTo: boolean;
+  pauseFrom: string | null;
+  pauseTo: string | null;
+  pauseReason: string;
+  isSubmitting: boolean;
+  bottomInset: number;
+  dispatch: React.Dispatch<SubscriptionDetailAction>;
+  onClose: () => void;
+  onConfirm: () => void;
+}
+
+function PauseModal({
+  visible, hasPauseTo, pauseFrom, pauseTo, pauseReason, isSubmitting, bottomInset, dispatch, onClose, onConfirm,
+}: PauseModalProps) {
+  return (
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+      <View className="flex-1 justify-end" style={{ backgroundColor: Colors.overlay }}>
+        <View className="bg-white rounded-t-3xl px-6 pt-5" style={{ paddingBottom: bottomInset + 24 }}>
+          <View className="w-10 h-1 rounded-full bg-neutral-300 self-center mb-5" />
+          <Text className="text-lg font-bold text-neutral-900 mb-1">Pausar suscripción</Text>
+          <Text className="text-sm text-neutral-500 mb-5">
+            Los bookings en ese rango serán cancelados. Al reactivar, se generarán nuevos bookings para el período restante.
+          </Text>
+
+          <Text className="text-sm font-medium text-neutral-700 mb-1">Desde *</Text>
+          <TouchableOpacity
+            onPress={() => dispatch({ type: 'SHOW_PAUSE_FROM_PICKER' })}
+            className="border border-neutral-200 rounded-xl px-4 py-3 mb-4"
+          >
+            <Text className={pauseFrom ? 'text-neutral-800' : 'text-neutral-400'}>
+              {pauseFrom ? formatDate(pauseFrom) : 'Seleccionar fecha'}
+            </Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            onPress={() => dispatch({ type: 'TOGGLE_HAS_PAUSE_TO' })}
+            className="flex-row items-center gap-2 mb-3"
+          >
+            <View
+              className={`w-4 h-4 rounded border ${hasPauseTo ? 'bg-primary-500 border-primary-500' : 'border-neutral-300'}`}
+            />
+            <Text className="text-sm text-neutral-700">Tiene fecha de fin</Text>
+          </TouchableOpacity>
+
+          {hasPauseTo && (
+            <>
+              <Text className="text-sm font-medium text-neutral-700 mb-1">Hasta</Text>
+              <TouchableOpacity
+                onPress={() => dispatch({ type: 'SHOW_PAUSE_TO_PICKER' })}
+                className="border border-neutral-200 rounded-xl px-4 py-3 mb-4"
+              >
+                <Text className={pauseTo ? 'text-neutral-800' : 'text-neutral-400'}>
+                  {pauseTo ? formatDate(pauseTo) : 'Seleccionar fecha'}
+                </Text>
+              </TouchableOpacity>
+            </>
+          )}
+
+          <Text className="text-sm font-medium text-neutral-700 mb-1">Motivo (opcional)</Text>
+          <TextInput
+            value={pauseReason}
+            onChangeText={(v) => dispatch({ type: 'SET_PAUSE_REASON', payload: v })}
+            placeholder="¿Por qué pausas la suscripción?"
+            className="border border-neutral-200 rounded-xl px-4 py-3 text-sm text-neutral-800 mb-5"
+            multiline
+            numberOfLines={2}
+          />
+
+          <View className="flex-row gap-3">
+            <Button variant="outline" className="flex-1" onPress={onClose}>
+              Cancelar
+            </Button>
+            <Button
+              className="flex-1"
+              disabled={!pauseFrom || isSubmitting}
+              loading={isSubmitting}
+              onPress={onConfirm}
+            >
+              Pausar
+            </Button>
+          </View>
+        </View>
+      </View>
+    </Modal>
+  );
+}
+
+interface ResumeModalProps {
+  visible: boolean;
+  isSubmitting: boolean;
+  bottomInset: number;
+  onClose: () => void;
+  onConfirm: () => void;
+}
+
+function ResumeModal({ visible, isSubmitting, bottomInset, onClose, onConfirm }: ResumeModalProps) {
+  return (
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+      <View className="flex-1 justify-end" style={{ backgroundColor: Colors.overlay }}>
+        <View className="bg-white rounded-t-3xl px-6 pt-5" style={{ paddingBottom: bottomInset + 24 }}>
+          <View className="w-10 h-1 rounded-full bg-neutral-300 self-center mb-5" />
+          <Text className="text-lg font-bold text-neutral-900 mb-2">¿Reactivar suscripción?</Text>
+          <Text className="text-sm text-neutral-500 mb-6">
+            Se generarán nuevos bookings para las próximas ocurrencias.
+          </Text>
+          <View className="flex-row gap-3">
+            <Button variant="outline" className="flex-1" onPress={onClose}>
+              Cancelar
+            </Button>
+            <Button
+              className="flex-1"
+              disabled={isSubmitting}
+              loading={isSubmitting}
+              onPress={onConfirm}
+            >
+              Reactivar
+            </Button>
+          </View>
+        </View>
+      </View>
+    </Modal>
+  );
+}
+
+interface CancelModalProps {
+  visible: boolean;
+  isSubmitting: boolean;
+  cancelReason: string;
+  bottomInset: number;
+  dispatch: React.Dispatch<SubscriptionDetailAction>;
+  onClose: () => void;
+  onConfirm: () => void;
+}
+
+function CancelModal({
+  visible, isSubmitting, cancelReason, bottomInset, dispatch, onClose, onConfirm,
+}: CancelModalProps) {
+  return (
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+      <View className="flex-1 justify-end" style={{ backgroundColor: Colors.overlay }}>
+        <View className="bg-white rounded-t-3xl px-6 pt-5" style={{ paddingBottom: bottomInset + 24 }}>
+          <View className="w-10 h-1 rounded-full bg-neutral-300 self-center mb-5" />
+          <Text className="text-lg font-bold text-neutral-900 mb-1">Cancelar suscripción</Text>
+          <Text className="text-sm text-neutral-500 mb-5">
+            Se cancelarán todas las ocurrencias futuras. Esta acción no se puede deshacer.
+          </Text>
+          <Text className="text-sm font-medium text-neutral-700 mb-1">Motivo (opcional)</Text>
+          <TextInput
+            value={cancelReason}
+            onChangeText={(v) => dispatch({ type: 'SET_CANCEL_REASON', payload: v })}
+            placeholder="Ej: Ya no necesito el servicio"
+            className="border border-neutral-200 rounded-xl px-4 py-3 text-sm text-neutral-800 mb-5"
+            multiline
+            numberOfLines={2}
+          />
+          <View className="flex-row gap-3">
+            <Button variant="outline" className="flex-1" onPress={onClose}>
+              Volver
+            </Button>
+            <Button
+              variant="danger"
+              className="flex-1"
+              disabled={isSubmitting}
+              loading={isSubmitting}
+              onPress={onConfirm}
+            >
+              Cancelar suscripción
+            </Button>
+          </View>
+        </View>
+      </View>
+    </Modal>
+  );
+}
+
+interface BookingDetailModalProps {
+  visible: boolean;
+  selectedBooking: RoutineBookingResponse | null;
+  isSubmitting: boolean;
+  overrideName: string;
+  overrideLat: string;
+  overrideLng: string;
+  bottomInset: number;
+  dispatch: React.Dispatch<SubscriptionDetailAction>;
+  onClose: () => void;
+  onOverride: () => void;
+}
+
+function BookingDetailModal({
+  visible, selectedBooking, isSubmitting, overrideName, overrideLat, overrideLng, bottomInset, dispatch, onClose, onOverride,
+}: BookingDetailModalProps) {
+  return (
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={onClose}>
+      <View className="flex-1 justify-end" style={{ backgroundColor: Colors.overlay }}>
+        <View className="bg-white rounded-t-3xl px-6 pt-5" style={{ paddingBottom: bottomInset + 24 }}>
+          <View className="w-10 h-1 rounded-full bg-neutral-300 self-center mb-5" />
+          {selectedBooking && (
+            <>
+              <Text className="text-lg font-bold text-neutral-900 mb-4">
+                Viaje del {formatDate(selectedBooking.occurrenceDate)}
+              </Text>
+
+              <View className="gap-2 mb-5">
+                <View className="flex-row items-center gap-2">
+                  <Clock size={14} color={Colors.neutral[500]} />
+                  <Text className="text-sm text-neutral-700">
+                    Ocurrencia: {formatDate(selectedBooking.occurrenceDate)}
+                  </Text>
+                </View>
+                <View className="bg-neutral-100 rounded-xl px-3 py-2 mt-1">
+                  <Text className="text-sm font-medium text-neutral-700">
+                    Estado: {BOOKING_STATUS_LABEL[selectedBooking.status] ?? selectedBooking.status}
+                  </Text>
+                </View>
+              </View>
+
+              {selectedBooking.status === 'ACCEPTED' &&
+                (parseISO(selectedBooking.occurrenceDate).getTime() - Date.now()) /
+                (1000 * 60 * 60) >= 2 && (
+                  <View className="border border-neutral-200 rounded-2xl p-4 gap-3 mb-4">
+                    <Text className="text-sm font-semibold text-neutral-800">
+                      Cambiar punto de recogida para este día
+                    </Text>
+                    <TextInput
+                      value={overrideName}
+                      onChangeText={(v) => dispatch({ type: 'SET_OVERRIDE_NAME', payload: v })}
+                      placeholder="Nombre del punto"
+                      className="border border-neutral-200 rounded-xl px-3 py-2.5 text-sm text-neutral-800"
+                    />
+                    <View className="flex-row gap-2">
+                      <TextInput
+                        value={overrideLat}
+                        onChangeText={(v) => dispatch({ type: 'SET_OVERRIDE_LAT', payload: v })}
+                        placeholder="Latitud"
+                        keyboardType="decimal-pad"
+                        className="flex-1 border border-neutral-200 rounded-xl px-3 py-2.5 text-sm text-neutral-800"
+                      />
+                      <TextInput
+                        value={overrideLng}
+                        onChangeText={(v) => dispatch({ type: 'SET_OVERRIDE_LNG', payload: v })}
+                        placeholder="Longitud"
+                        keyboardType="decimal-pad"
+                        className="flex-1 border border-neutral-200 rounded-xl px-3 py-2.5 text-sm text-neutral-800"
+                      />
+                    </View>
+                    <Button
+                      disabled={isSubmitting || !overrideName.trim() || !overrideLat || !overrideLng}
+                      loading={isSubmitting}
+                      onPress={onOverride}
+                    >
+                      Enviar cambio
+                    </Button>
+                  </View>
+                )}
+
+              <Button variant="outline" onPress={onClose}>
+                Cerrar
+              </Button>
+            </>
+          )}
+        </View>
+      </View>
+    </Modal>
+  );
+}
+
 export function SubscriptionDetailView({ uiState, dispatch, subscription, bookings, handlers }: Props) {
   const router = useRouter();
   const insets = useSafeAreaInsets();
@@ -240,236 +510,55 @@ export function SubscriptionDetailView({ uiState, dispatch, subscription, bookin
         )}
       </ScrollView>
 
-      {/* Pause Modal */}
-      <Modal
+      <PauseModal
         visible={activeModal === 'pause'}
-        transparent
-        animationType="slide"
-        onRequestClose={handlers.closeModal}
-      >
-        <View className="flex-1 justify-end" style={{ backgroundColor: Colors.overlay }}>
-          <View className="bg-white rounded-t-3xl px-6 pt-5" style={{ paddingBottom: insets.bottom + 24 }}>
-            <View className="w-10 h-1 rounded-full bg-neutral-300 self-center mb-5" />
-            <Text className="text-lg font-bold text-neutral-900 mb-1">Pausar suscripción</Text>
-            <Text className="text-sm text-neutral-500 mb-5">
-              Los bookings en ese rango serán cancelados. Al reactivar, se generarán nuevos bookings para el período restante.
-            </Text>
+        hasPauseTo={hasPauseTo}
+        pauseFrom={pauseFrom}
+        pauseTo={pauseTo}
+        pauseReason={pauseReason}
+        isSubmitting={isSubmitting}
+        bottomInset={insets.bottom}
+        dispatch={dispatch}
+        onClose={handlers.closeModal}
+        onConfirm={handlers.handlePause}
+      />
 
-            <Text className="text-sm font-medium text-neutral-700 mb-1">Desde *</Text>
-            <TouchableOpacity
-              onPress={() => dispatch({ type: 'SHOW_PAUSE_FROM_PICKER' })}
-              className="border border-neutral-200 rounded-xl px-4 py-3 mb-4"
-            >
-              <Text className={pauseFrom ? 'text-neutral-800' : 'text-neutral-400'}>
-                {pauseFrom ? formatDate(pauseFrom) : 'Seleccionar fecha'}
-              </Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              onPress={() => dispatch({ type: 'TOGGLE_HAS_PAUSE_TO' })}
-              className="flex-row items-center gap-2 mb-3"
-            >
-              <View
-                className={`w-4 h-4 rounded border ${hasPauseTo ? 'bg-primary-500 border-primary-500' : 'border-neutral-300'}`}
-              />
-              <Text className="text-sm text-neutral-700">Tiene fecha de fin</Text>
-            </TouchableOpacity>
-
-            {hasPauseTo && (
-              <>
-                <Text className="text-sm font-medium text-neutral-700 mb-1">Hasta</Text>
-                <TouchableOpacity
-                  onPress={() => dispatch({ type: 'SHOW_PAUSE_TO_PICKER' })}
-                  className="border border-neutral-200 rounded-xl px-4 py-3 mb-4"
-                >
-                  <Text className={pauseTo ? 'text-neutral-800' : 'text-neutral-400'}>
-                    {pauseTo ? formatDate(pauseTo) : 'Seleccionar fecha'}
-                  </Text>
-                </TouchableOpacity>
-              </>
-            )}
-
-            <Text className="text-sm font-medium text-neutral-700 mb-1">Motivo (opcional)</Text>
-            <TextInput
-              value={pauseReason}
-              onChangeText={(v) => dispatch({ type: 'SET_PAUSE_REASON', payload: v })}
-              placeholder="¿Por qué pausas la suscripción?"
-              className="border border-neutral-200 rounded-xl px-4 py-3 text-sm text-neutral-800 mb-5"
-              multiline
-              numberOfLines={2}
-            />
-
-            <View className="flex-row gap-3">
-              <Button variant="outline" className="flex-1" onPress={handlers.closeModal}>
-                Cancelar
-              </Button>
-              <Button
-                className="flex-1"
-                disabled={!pauseFrom || isSubmitting}
-                loading={isSubmitting}
-                onPress={handlers.handlePause}
-              >
-                Pausar
-              </Button>
-            </View>
-          </View>
-        </View>
-      </Modal>
-
-      {/* Resume Modal */}
-      <Modal
+      <ResumeModal
         visible={activeModal === 'resume'}
-        transparent
-        animationType="slide"
-        onRequestClose={handlers.closeModal}
-      >
-        <View className="flex-1 justify-end" style={{ backgroundColor: Colors.overlay }}>
-          <View className="bg-white rounded-t-3xl px-6 pt-5" style={{ paddingBottom: insets.bottom + 24 }}>
-            <View className="w-10 h-1 rounded-full bg-neutral-300 self-center mb-5" />
-            <Text className="text-lg font-bold text-neutral-900 mb-2">¿Reactivar suscripción?</Text>
-            <Text className="text-sm text-neutral-500 mb-6">
-              Se generarán nuevos bookings para las próximas ocurrencias.
-            </Text>
-            <View className="flex-row gap-3">
-              <Button variant="outline" className="flex-1" onPress={handlers.closeModal}>
-                Cancelar
-              </Button>
-              <Button
-                className="flex-1"
-                disabled={isSubmitting}
-                loading={isSubmitting}
-                onPress={handlers.handleResume}
-              >
-                Reactivar
-              </Button>
-            </View>
-          </View>
-        </View>
-      </Modal>
+        isSubmitting={isSubmitting}
+        bottomInset={insets.bottom}
+        onClose={handlers.closeModal}
+        onConfirm={handlers.handleResume}
+      />
 
-      {/* Cancel Modal */}
-      <Modal
+      <CancelModal
         visible={activeModal === 'cancel'}
-        transparent
-        animationType="slide"
-        onRequestClose={handlers.closeModal}
-      >
-        <View className="flex-1 justify-end" style={{ backgroundColor: Colors.overlay }}>
-          <View className="bg-white rounded-t-3xl px-6 pt-5" style={{ paddingBottom: insets.bottom + 24 }}>
-            <View className="w-10 h-1 rounded-full bg-neutral-300 self-center mb-5" />
-            <Text className="text-lg font-bold text-neutral-900 mb-1">Cancelar suscripción</Text>
-            <Text className="text-sm text-neutral-500 mb-5">
-              Se cancelarán todas las ocurrencias futuras. Esta acción no se puede deshacer.
-            </Text>
-            <Text className="text-sm font-medium text-neutral-700 mb-1">Motivo (opcional)</Text>
-            <TextInput
-              value={cancelReason}
-              onChangeText={(v) => dispatch({ type: 'SET_CANCEL_REASON', payload: v })}
-              placeholder="Ej: Ya no necesito el servicio"
-              className="border border-neutral-200 rounded-xl px-4 py-3 text-sm text-neutral-800 mb-5"
-              multiline
-              numberOfLines={2}
-            />
-            <View className="flex-row gap-3">
-              <Button variant="outline" className="flex-1" onPress={handlers.closeModal}>
-                Volver
-              </Button>
-              <Button
-                variant="danger"
-                className="flex-1"
-                disabled={isSubmitting}
-                loading={isSubmitting}
-                onPress={handlers.handleCancel}
-              >
-                Cancelar suscripción
-              </Button>
-            </View>
-          </View>
-        </View>
-      </Modal>
+        isSubmitting={isSubmitting}
+        cancelReason={cancelReason}
+        bottomInset={insets.bottom}
+        dispatch={dispatch}
+        onClose={handlers.closeModal}
+        onConfirm={handlers.handleCancel}
+      />
 
-      {/* Booking Detail Modal */}
-      <Modal
+      <BookingDetailModal
         visible={activeModal === 'bookingDetail' && selectedBooking !== null}
-        transparent
-        animationType="slide"
-        onRequestClose={handlers.closeModal}
-      >
-        <View className="flex-1 justify-end" style={{ backgroundColor: Colors.overlay }}>
-          <View className="bg-white rounded-t-3xl px-6 pt-5" style={{ paddingBottom: insets.bottom + 24 }}>
-            <View className="w-10 h-1 rounded-full bg-neutral-300 self-center mb-5" />
-            {selectedBooking && (
-              <>
-                <Text className="text-lg font-bold text-neutral-900 mb-4">
-                  Viaje del {formatDate(selectedBooking.occurrenceDate)}
-                </Text>
-
-                <View className="gap-2 mb-5">
-                  <View className="flex-row items-center gap-2">
-                    <Clock size={14} color={Colors.neutral[500]} />
-                    <Text className="text-sm text-neutral-700">
-                      Ocurrencia: {formatDate(selectedBooking.occurrenceDate)}
-                    </Text>
-                  </View>
-                  <View className="bg-neutral-100 rounded-xl px-3 py-2 mt-1">
-                    <Text className="text-sm font-medium text-neutral-700">
-                      Estado: {BOOKING_STATUS_LABEL[selectedBooking.status] ?? selectedBooking.status}
-                    </Text>
-                  </View>
-                </View>
-
-                {selectedBooking.status === 'ACCEPTED' &&
-                  (parseISO(selectedBooking.occurrenceDate).getTime() - Date.now()) /
-                  (1000 * 60 * 60) >= 2 && (
-                    <View className="border border-neutral-200 rounded-2xl p-4 gap-3 mb-4">
-                      <Text className="text-sm font-semibold text-neutral-800">
-                        Cambiar punto de recogida para este día
-                      </Text>
-                      <TextInput
-                        value={overrideName}
-                        onChangeText={(v) => dispatch({ type: 'SET_OVERRIDE_NAME', payload: v })}
-                        placeholder="Nombre del punto"
-                        className="border border-neutral-200 rounded-xl px-3 py-2.5 text-sm text-neutral-800"
-                      />
-                      <View className="flex-row gap-2">
-                        <TextInput
-                          value={overrideLat}
-                          onChangeText={(v) => dispatch({ type: 'SET_OVERRIDE_LAT', payload: v })}
-                          placeholder="Latitud"
-                          keyboardType="decimal-pad"
-                          className="flex-1 border border-neutral-200 rounded-xl px-3 py-2.5 text-sm text-neutral-800"
-                        />
-                        <TextInput
-                          value={overrideLng}
-                          onChangeText={(v) => dispatch({ type: 'SET_OVERRIDE_LNG', payload: v })}
-                          placeholder="Longitud"
-                          keyboardType="decimal-pad"
-                          className="flex-1 border border-neutral-200 rounded-xl px-3 py-2.5 text-sm text-neutral-800"
-                        />
-                      </View>
-                      <Button
-                        disabled={isSubmitting || !overrideName.trim() || !overrideLat || !overrideLng}
-                        loading={isSubmitting}
-                        onPress={handlers.handleOverridePickup}
-                      >
-                        Enviar cambio
-                      </Button>
-                    </View>
-                  )}
-
-                <Button variant="outline" onPress={handlers.closeModal}>
-                  Cerrar
-                </Button>
-              </>
-            )}
-          </View>
-        </View>
-      </Modal>
+        selectedBooking={selectedBooking}
+        isSubmitting={isSubmitting}
+        overrideName={overrideName}
+        overrideLat={overrideLat}
+        overrideLng={overrideLng}
+        bottomInset={insets.bottom}
+        dispatch={dispatch}
+        onClose={handlers.closeModal}
+        onOverride={handlers.handleOverridePickup}
+      />
 
       {/* Date pickers */}
       <DatePickerModal
         visible={showPauseFromPicker}
         mode="date"
+        title="Pausar desde"
         value={pauseFrom ? parseISO(pauseFrom) : now}
         minimumDate={now}
         onConfirm={(d) => {
@@ -481,6 +570,7 @@ export function SubscriptionDetailView({ uiState, dispatch, subscription, bookin
       <DatePickerModal
         visible={showPauseToPicker}
         mode="date"
+        title="Pausar hasta"
         value={pauseTo ? parseISO(pauseTo) : now}
         minimumDate={pauseFrom ? parseISO(pauseFrom) : now}
         onConfirm={(d) => {

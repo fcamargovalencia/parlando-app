@@ -197,7 +197,7 @@ export default function Step5WaypointsScreen() {
             size="lg"
             onPress={() => {
               if (tripId) {
-                router.replace(`/routine/${tripId}` as never);
+                router.replace(`/routine/${tripId}`);
               } else {
                 router.back();
               }

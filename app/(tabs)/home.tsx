@@ -140,7 +140,7 @@ export default function HomeScreen() {
             {todayTrips.map((trip) => (
               <TouchableOpacity
                 key={trip.id}
-                onPress={() => router.push({ pathname: '/routine/[id]/occurrences', params: { id: trip.id } } as any)}
+                onPress={() => router.push(`/routine/${trip.id}/occurrences`)}
                 activeOpacity={0.8}
                 className="flex-row items-center rounded-2xl p-4 mb-2 gap-3 bg-white"
                 style={{ borderWidth: 1.5, borderColor: Colors.primary[100] }}

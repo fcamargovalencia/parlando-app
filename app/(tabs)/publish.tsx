@@ -186,7 +186,7 @@ export default function PublishScreen() {
               <TouchableOpacity
                 onPress={() => {
                   if (step === 1 && tripType === 'ROUTINE') {
-                    router.push('/routine/create/step-1-route' as never);
+                    router.push('/routine/create/step-1-route');
                     return;
                   }
                   goNext();

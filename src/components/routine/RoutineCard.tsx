@@ -49,7 +49,7 @@ const STATUS_ACCENT: Record<RoutineTripStatus, string> = {
   CANCELLED: Colors.neutral[300],
 };
 
-const STATUS_CHIP: Record<RoutineTripStatus, { bg: string; text: string; label: string }> = {
+const STATUS_CHIP: Record<RoutineTripStatus, { bg: string; text: string; label: string; }> = {
   DRAFT: { bg: 'bg-neutral-100', text: 'text-neutral-600', label: 'Borrador' },
   ACTIVE: { bg: 'bg-green-100', text: 'text-green-700', label: 'Activa' },
   PAUSED: { bg: 'bg-yellow-100', text: 'text-yellow-700', label: 'Pausada' },
@@ -67,7 +67,7 @@ export interface RoutineCardProps {
   onViewTrips: () => void;
 }
 
-export function RoutineCard({ trip, actioning, onPress, onEdit, onPause, onResume, onViewTrips }: RoutineCardProps) {
+export const RoutineCard = React.memo(function RoutineCard({ trip, actioning, onPress, onEdit, onPause, onResume, onViewTrips }: RoutineCardProps) {
   const status = trip.status as RoutineTripStatus;
   const chip = STATUS_CHIP[status];
   const accentColor = STATUS_ACCENT[status];
@@ -250,4 +250,4 @@ export function RoutineCard({ trip, actioning, onPress, onEdit, onPause, onResum
       </View>
     </TouchableOpacity>
   );
-}
+});

@@ -132,7 +132,6 @@ export default function MySubscriptionsScreen() {
   const filtered = mySubscriptions.filter((s: RoutineSubscriptionResponse) =>
     TAB_STATUSES[activeTab].includes(s.status),
   );
-  console.warn('[Subscriptions] count:', mySubscriptions.length, 'first routineTrip:', mySubscriptions[0]?.routineTrip);
 
   const activeCount = mySubscriptions.filter((s) => s.status === 'ACCEPTED').length;
   const pendingCount = mySubscriptions.filter((s) => s.status === 'PENDING').length;

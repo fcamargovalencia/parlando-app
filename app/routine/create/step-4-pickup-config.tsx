@@ -9,17 +9,8 @@ import { useRouter } from 'expo-router';
 import { Minus, Plus } from 'lucide-react-native';
 import { Screen, Button, Card, Toggle } from '@/components/ui';
 import { usePublishRoutineTrip } from '@/hooks/usePublishRoutineTrip';
+import { metersLabel, secondsLabel } from '@/utils/routine-trip.utils';
 import { Colors } from '@/constants/colors';
-
-function metersLabel(m: number): string {
-  if (m < 1000) return `${m} m`;
-  return `${(m / 1000).toFixed(1)} km`;
-}
-
-function secondsLabel(s: number): string {
-  const min = Math.round(s / 60);
-  return `${min} min`;
-}
 
 interface StepperProps {
   value: number;

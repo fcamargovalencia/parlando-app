@@ -1,4 +1,5 @@
-import { useState, useCallback, useMemo, useEffect } from 'react';
+import { useState, useCallback, useMemo } from 'react';
+import { useFocusEffect } from 'expo-router';
 import { useAuthStore } from '@/stores/auth-store';
 import { useRoutineTripsStore } from '@/stores/routine-trips-store';
 import type { RecurrenceDay, RoutineTripResponse } from '@/types/api';
@@ -24,9 +25,11 @@ export function useHomeScreen() {
 
   const todayTrips = useMemo(() => getTodayRoutineTrips(myRoutineTrips), [myRoutineTrips]);
 
-  useEffect(() => {
-    if (isDriver) fetchMineRoutine();
-  }, [isDriver]);
+  useFocusEffect(
+    useCallback(() => {
+      if (isDriver) fetchMineRoutine();
+    }, [isDriver, fetchMineRoutine]),
+  );
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);

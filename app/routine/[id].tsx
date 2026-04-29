@@ -65,7 +65,7 @@ export default function RoutineTripDetailScreen() {
     if (activeTab === 'days' && id && !subscriptionsByTrip[id]) {
       fetchForTrip(id);
     }
-  }, [activeTab, id]);
+  }, [activeTab, id, subscriptionsByTrip, fetchForTrip]);
 
   if (storeLoading && !selectedTrip) {
     return (
@@ -133,7 +133,7 @@ export default function RoutineTripDetailScreen() {
         paddingTop={insets.top}
         canEdit={!isReadOnly}
         onBack={handlers.goToList}
-        onEdit={() => router.push(`/routine/create/step-1-route?tripId=${id}` as never)}
+        onEdit={() => router.push({ pathname: '/routine/create/step-1-route', params: { tripId: id } })}
       />
 
       {/* Tab bar */}
@@ -295,7 +295,7 @@ export default function RoutineTripDetailScreen() {
               />
               {!isReadOnly && (
                 <TouchableOpacity
-                  onPress={() => router.push(`/routine/create/step-5-waypoints?tripId=${id}` as never)}
+                  onPress={() => router.push({ pathname: '/routine/create/step-5-waypoints', params: { tripId: id } })}
                   className="flex-row items-center"
                 >
                   <Plus size={14} color={Colors.primary[500]} />
@@ -312,7 +312,7 @@ export default function RoutineTripDetailScreen() {
 
           {status === 'ACTIVE' && (
             <TouchableOpacity
-              onPress={() => router.push(`/routine/${id}/subscriptions` as never)}
+              onPress={() => router.push(`/routine/${id}/subscriptions`)}
               className="flex-row items-center bg-white rounded-2xl border border-neutral-200 px-4 py-4"
             >
               <Users size={18} color={Colors.primary[500]} className="mr-3" />
@@ -341,7 +341,7 @@ export default function RoutineTripDetailScreen() {
                     variant="outline"
                     size="md"
                     onPress={() =>
-                      router.push(`/routine/create/step-5-waypoints?tripId=${id}` as never)
+                      router.push({ pathname: '/routine/create/step-5-waypoints', params: { tripId: id } })
                     }
                   >
                     Agregar paradas

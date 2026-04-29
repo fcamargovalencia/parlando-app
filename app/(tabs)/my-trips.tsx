@@ -187,7 +187,7 @@ export default function MyTripsScreen() {
                   actionLabel={routineFilter === 'active' ? 'Crear ruta rutinaria' : undefined}
                   onAction={
                     routineFilter === 'active'
-                      ? () => router.push('/routine/create/step-1-route' as never)
+                      ? () => router.push('/routine/create/step-1-route')
                       : undefined
                   }
                 />

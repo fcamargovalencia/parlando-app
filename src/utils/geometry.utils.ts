@@ -1,6 +1,6 @@
 import { haversineMeters } from '@/lib/geo';
 
-export function pointToSegmentDistanceMeters(
+function pointToSegmentDistanceMeters(
   pLat: number,
   pLng: number,
   aLat: number,

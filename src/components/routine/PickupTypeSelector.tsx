@@ -316,6 +316,46 @@ function CustomPickupMapModal({
   );
 }
 
+// ── Waypoint Option Item ──
+
+interface WaypointOptionItemProps {
+  wp: RoutineWaypointResponse;
+  isSelected: boolean;
+  estimatedTime: string;
+  distanceM: number | null;
+  onPress: () => void;
+}
+
+const WaypointOptionItem = React.memo(function WaypointOptionItem({
+  wp, isSelected, estimatedTime, distanceM, onPress,
+}: WaypointOptionItemProps) {
+  return (
+    <TouchableOpacity
+      onPress={onPress}
+      activeOpacity={0.75}
+      className={`flex-row items-center gap-3 p-3.5 rounded-2xl border ${isSelected ? 'bg-primary-50 border-primary-400' : 'bg-white border-neutral-200'
+        }`}
+    >
+      <View
+        className={`w-5 h-5 rounded-full border-2 items-center justify-center ${isSelected ? 'border-primary-500' : 'border-neutral-300'
+          }`}
+      >
+        {isSelected && <View className="w-2.5 h-2.5 rounded-full bg-primary-500" />}
+      </View>
+      <View className="flex-1">
+        <Text className={`text-sm font-semibold ${isSelected ? 'text-primary-800' : 'text-neutral-800'}`}>
+          {wp.name}
+        </Text>
+        <Text className="text-xs text-neutral-500 mt-0.5">
+          Paso estimado: {estimatedTime}
+          {distanceM !== null ? ` · ${distanceM}m desde ti` : ''}
+        </Text>
+      </View>
+      {isSelected && <CheckCircle size={18} color={Colors.primary[500]} />}
+    </TouchableOpacity>
+  );
+});
+
 // ── Main Component ──
 
 export function PickupTypeSelector({
@@ -429,36 +469,14 @@ export function PickupTypeSelector({
               : null;
 
             return (
-              <TouchableOpacity
+              <WaypointOptionItem
                 key={wp.id}
+                wp={wp}
+                isSelected={isSelected}
+                estimatedTime={estimatedTime}
+                distanceM={distanceM}
                 onPress={() => handleSelectWaypoint(wp)}
-                activeOpacity={0.75}
-                className={`flex-row items-center gap-3 p-3.5 rounded-2xl border ${isSelected
-                  ? 'bg-primary-50 border-primary-400'
-                  : 'bg-white border-neutral-200'
-                  }`}
-              >
-                <View
-                  className={`w-5 h-5 rounded-full border-2 items-center justify-center ${isSelected ? 'border-primary-500' : 'border-neutral-300'
-                    }`}
-                >
-                  {isSelected && (
-                    <View className="w-2.5 h-2.5 rounded-full bg-primary-500" />
-                  )}
-                </View>
-                <View className="flex-1">
-                  <Text
-                    className={`text-sm font-semibold ${isSelected ? 'text-primary-800' : 'text-neutral-800'}`}
-                  >
-                    {wp.name}
-                  </Text>
-                  <Text className="text-xs text-neutral-500 mt-0.5">
-                    Paso estimado: {estimatedTime}
-                    {distanceM !== null ? ` · ${distanceM}m desde ti` : ''}
-                  </Text>
-                </View>
-                {isSelected && <CheckCircle size={18} color={Colors.primary[500]} />}
-              </TouchableOpacity>
+              />
             );
           })}
 

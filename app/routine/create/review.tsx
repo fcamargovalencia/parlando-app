@@ -12,34 +12,8 @@ import { RoutePreview } from '@/components/RoutePreview';
 import { usePublishRoutineTrip } from '@/hooks/usePublishRoutineTrip';
 import { useRoutineTripsStore } from '@/stores/routine-trips-store';
 import { Colors } from '@/constants/colors';
+import { formatDays, formatCOP, metersLabel, secondsLabel } from '@/utils/routine-trip.utils';
 import type { RecurrenceDay } from '@/types/api';
-
-// ── Formatting helpers ──
-
-const DAY_SHORT: Record<RecurrenceDay, string> = {
-  MON: 'Lun', TUE: 'Mar', WED: 'Mié', THU: 'Jue',
-  FRI: 'Vie', SAT: 'Sáb', SUN: 'Dom',
-};
-
-function formatDays(days: RecurrenceDay[] = []): string {
-  if (!days.length) return '—';
-  return days.map((d) => DAY_SHORT[d]).join(' · ');
-}
-
-function formatCOP(amount: number | undefined): string {
-  if (amount == null) return '—';
-  return `$${amount.toLocaleString('es-CO')} COP`;
-}
-
-function metersLabel(m: number | undefined): string {
-  if (!m) return '—';
-  return m < 1000 ? `${m} m` : `${(m / 1000).toFixed(1)} km`;
-}
-
-function secondsLabel(s: number | undefined): string {
-  if (!s) return '—';
-  return `${Math.round(s / 60)} min`;
-}
 
 // ── Error messages returned by the backend for 422 ──
 
@@ -47,7 +21,7 @@ function humanizePublishError(error: unknown): string {
   // Axios wraps backend body in error.response.data; prefer that over error.message
   let msg = '';
   if (typeof error === 'object' && error !== null && 'response' in error) {
-    const axiosResponse = (error as { response?: { data?: { message?: string } } }).response;
+    const axiosResponse = (error as { response?: { data?: { message?: string; }; }; }).response;
     msg = axiosResponse?.data?.message ?? '';
   }
   if (!msg) {
@@ -99,7 +73,7 @@ export default function ReviewScreen() {
       const trip = await saveDraft();
       await fetchMine();
       resetForm();
-      router.replace(`/routine/${trip.id}` as never);
+      router.replace(`/routine/${trip.id}`);
     } catch (err) {
       Alert.alert('Error', err instanceof Error ? err.message : 'Error al guardar borrador');
     }
@@ -116,7 +90,7 @@ export default function ReviewScreen() {
       await publishDraft(tripId);
       await fetchMine();
       resetForm();
-      router.replace(`/routine/${tripId}` as never);
+      router.replace(`/routine/${tripId}`);
     } catch (err) {
       setPublishError(humanizePublishError(err));
     }
@@ -215,7 +189,7 @@ export default function ReviewScreen() {
             <View className="flex-row justify-between">
               <Text className="text-sm text-neutral-500">Precio por cupo</Text>
               <Text className="text-sm font-medium text-neutral-800">
-                {formatCOP(formData.pricePerSeat)}
+                {formData.pricePerSeat != null ? formatCOP(formData.pricePerSeat) : '—'}
               </Text>
             </View>
             <View className="flex-row justify-between">
@@ -245,13 +219,13 @@ export default function ReviewScreen() {
                 <View className="flex-row justify-between">
                   <Text className="text-sm text-neutral-500">Desviación máx.</Text>
                   <Text className="text-sm font-medium text-neutral-800">
-                    {metersLabel(formData.maxPickupDeviationMeters)}
+                    {formData.maxPickupDeviationMeters != null ? metersLabel(formData.maxPickupDeviationMeters) : '—'}
                   </Text>
                 </View>
                 <View className="flex-row justify-between">
                   <Text className="text-sm text-neutral-500">Tiempo extra máx.</Text>
                   <Text className="text-sm font-medium text-neutral-800">
-                    {secondsLabel(formData.maxTimeOverheadSeconds)}
+                    {formData.maxTimeOverheadSeconds != null ? secondsLabel(formData.maxTimeOverheadSeconds) : '—'}
                   </Text>
                 </View>
               </>
