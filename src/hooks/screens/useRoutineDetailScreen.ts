@@ -9,7 +9,10 @@ export function useRoutineDetailScreen(id: string | undefined) {
   const router = useRouter();
   const selectedTrip = useRoutineTripsStore((s) => s.selectedRoutineTrip);
   const fetchById = useRoutineTripsStore((s) => s.fetchById);
-  const storeLoading = useRoutineTripsStore((s) => s.isLoading);
+  // Only treat as "loading" when we don't have matching data yet
+  const storeLoading = useRoutineTripsStore(
+    (s) => s.isLoading && (!s.selectedRoutineTrip || s.selectedRoutineTrip.id !== id),
+  );
 
   const { waypoints, fetchWaypoints } = useRoutineWaypoints();
   const { pauseTrip, resumeTrip, cancelTrip, publishTrip } = useRoutineTrips();
@@ -32,10 +35,13 @@ export function useRoutineDetailScreen(id: string | undefined) {
     setRefreshing(false);
   }, [loadData]);
 
-  const goToList = useCallback(
-    () => router.replace('/(tabs)/my-trips' as never),
-    [router],
-  );
+  const goToList = useCallback(() => {
+    if (router.canGoBack()) {
+      router.back();
+    } else {
+      router.replace('/(tabs)/my-trips' as never);
+    }
+  }, [router]);
 
   const handlePublish = useCallback(() => {
     if (!id) return;

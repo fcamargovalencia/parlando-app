@@ -7,8 +7,8 @@ import {
   Modal,
   ActivityIndicator,
   StyleSheet,
-  SafeAreaView,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import {
   ArrowLeft,
@@ -158,7 +158,7 @@ export default function OccurrenceDetailScreen() {
       </View>
 
       {/* ── Map (40% of screen) ── */}
-      <View style={styles.mapContainer}>
+      <View style={styles.mapContainer} >
         <OccurrenceMapView
           routeLine={routineTrip.routeLine ?? []}
           origin={{ latitude: routineTrip.originLatitude, longitude: routineTrip.originLongitude, name: routineTrip.originName }}
@@ -369,7 +369,7 @@ const styles = StyleSheet.create({
   headerMeta: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 2 },
   headerTime: { fontSize: 12, color: Colors.neutral[500] },
   cancelDayBtn: { padding: 4 },
-  mapContainer: { height: '40%', position: 'relative' },
+  mapContainer: { height: '55%', position: 'relative' },
   fullscreenBtn: {
     position: 'absolute',
     bottom: 12,

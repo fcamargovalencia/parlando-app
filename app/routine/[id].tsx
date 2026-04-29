@@ -83,6 +83,22 @@ export default function RoutineTripDetailScreen() {
     );
   }
 
+  if (storeLoading && (!selectedTrip || selectedTrip.id !== id)) {
+    return (
+      <View className="flex-1 bg-neutral-50">
+        <RoutineTripDetailHeader
+          paddingTop={insets.top}
+          canEdit={false}
+          onBack={handlers.goToList}
+          onEdit={() => { }}
+        />
+        <View className="flex-1 items-center justify-center">
+          <Spinner />
+        </View>
+      </View>
+    );
+  }
+
   if (!selectedTrip || selectedTrip.id !== id) {
     return (
       <View className="flex-1 bg-neutral-50">
@@ -142,11 +158,9 @@ export default function RoutineTripDetailScreen() {
 
       {/* Days tab */}
       {activeTab === 'days' ? (
-        <ScrollView className="flex-1" refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handlers.onRefresh} />}>
-          <View className="pt-4 pb-8">
-            <DayVariantView routineTripId={id ?? ''} recurrenceDays={recurrenceDays} />
-          </View>
-        </ScrollView>
+        <View style={{ flex: 1, paddingTop: 12 }}>
+          <DayVariantView routineTripId={id ?? ''} recurrenceDays={recurrenceDays} />
+        </View>
       ) : null}
 
       {/* Detail tab */}

@@ -53,7 +53,9 @@ function reducer(state: State, action: Action): State {
     case 'FETCH_START':
       return {
         ...state,
-        loading: !action.refreshing,
+        // Only block the UI with a spinner on the very first load (no data yet).
+        // Focus refetches and manual refreshes update silently in the background.
+        loading: !action.refreshing && state.trips.length === 0 && state.bookings.length === 0,
         refreshing: action.refreshing ?? false,
         error: null,
       };
@@ -109,21 +111,7 @@ function unwrapList<T>(res: unknown): T[] {
 
 async function fetchTrips(): Promise<TripResponse[]> {
   const { data: res } = await tripsApi.getMine();
-  const baseTrips = unwrapList<TripResponse>(res);
-
-  // Some backends omit waypoints in /v1/trips/me, so hydrate them per trip.
-  return Promise.all(
-    baseTrips.map(async (trip) => {
-      if (Array.isArray(trip.waypoints)) return trip;
-      try {
-        const { data: wpRes } = await tripsApi.getWaypoints(trip.id);
-        const waypoints = unwrapList<any>(wpRes);
-        return { ...trip, waypoints };
-      } catch {
-        return trip;
-      }
-    }),
-  );
+  return unwrapList<TripResponse>(res);
 }
 
 async function fetchBookings(): Promise<BookingResponse[]> {

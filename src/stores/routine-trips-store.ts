@@ -12,6 +12,7 @@ interface RoutineTripsState {
   waypoints: RoutineWaypointResponse[];
   searchResults: RoutineTripSearchResult[];
   isLoading: boolean;
+  waypointsLoading: boolean;
   error: string | null;
 
   fetchMine: () => Promise<void>;
@@ -30,10 +31,13 @@ export const useRoutineTripsStore = create<RoutineTripsState>((set, get) => ({
   waypoints: [],
   searchResults: [],
   isLoading: false,
+  waypointsLoading: false,
   error: null,
 
   fetchMine: async () => {
-    set({ isLoading: true, error: null });
+    // Only show a blocking spinner on first load; subsequent calls refresh silently.
+    const hasData = get().myRoutineTrips.length > 0;
+    set({ isLoading: !hasData, error: null });
     try {
       const response = await routineTripsApi.getMine();
       set({ myRoutineTrips: response.data.data ?? [] });
@@ -46,6 +50,11 @@ export const useRoutineTripsStore = create<RoutineTripsState>((set, get) => ({
   },
 
   fetchById: async (id: string) => {
+    // Immediately show cached data if available — avoids blank spinner on navigation
+    const cached = get().myRoutineTrips.find((t) => t.id === id);
+    if (cached && get().selectedRoutineTrip?.id !== id) {
+      set({ selectedRoutineTrip: cached });
+    }
     set({ isLoading: true, error: null });
     try {
       const response = await routineTripsApi.getById(id);
@@ -63,11 +72,14 @@ export const useRoutineTripsStore = create<RoutineTripsState>((set, get) => ({
   },
 
   fetchWaypoints: async (id: string) => {
+    set({ waypointsLoading: true });
     try {
       const response = await routineTripsApi.getWaypoints(id);
       set({ waypoints: response.data.data ?? [] });
     } catch {
       set({ waypoints: [] });
+    } finally {
+      set({ waypointsLoading: false });
     }
   },
 

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, ScrollView, StyleSheet } from 'react-native';
 import { Users, Map } from 'lucide-react-native';
 import { OccurrenceMapView } from '@/components/routine/OccurrenceMapView';
 import { Colors } from '@/constants/colors';
@@ -92,8 +92,8 @@ export function DayVariantView({ routineTripId, recurrenceDays }: DayVariantView
         />
       </View>
 
-      {/* Subscribers list */}
-      <View style={styles.listSection}>
+      {/* Subscribers list — scrollable so map keeps flex space */}
+      <ScrollView style={styles.listSection} contentContainerStyle={{ paddingBottom: 24 }}>
         <View style={styles.listHeader}>
           <Users size={15} color={Colors.primary[500]} />
           <Text style={styles.listTitle}>
@@ -110,7 +110,7 @@ export function DayVariantView({ routineTripId, recurrenceDays }: DayVariantView
             <SubscriberRow key={sub.id} sub={sub} />
           ))
         )}
-      </View>
+      </ScrollView>
     </View>
   );
 }
@@ -145,13 +145,14 @@ const styles = StyleSheet.create({
     color: Colors.white,
   },
   mapContainer: {
-    height: 240,
+    flex: 1,
     marginHorizontal: 16,
     borderRadius: 12,
     overflow: 'hidden',
     backgroundColor: Colors.neutral[100],
+    minHeight: 260,
   },
-  listSection: { paddingHorizontal: 16, paddingTop: 16 },
+  listSection: { maxHeight: 220, paddingHorizontal: 16, paddingTop: 16 },
   listHeader: {
     flexDirection: 'row',
     alignItems: 'center',

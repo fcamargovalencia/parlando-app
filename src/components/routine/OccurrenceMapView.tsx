@@ -1,7 +1,8 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { StyleSheet, ViewStyle } from 'react-native';
 import MapView, { Marker, Polyline } from 'react-native-maps';
 import { Colors } from '@/constants/colors';
+import { tomtomCalculateRoute } from '@/lib/tomtom-routing';
 import type { OrderedStop } from '@/hooks/useOccurrenceDetail';
 import type { DayStop } from '@/types/api';
 
@@ -41,8 +42,8 @@ function stopTitle(stop: AnyStop): string {
   if (stop.kind === 'origin') return stop.name;
   if (stop.kind === 'destination') return stop.name;
   if (stop.kind === 'waypoint') return stop.data.name;
-  if (stop.kind === 'passenger') return stop.sub.passenger?.name ?? 'Pasajero';
-  if (stop.kind === 'subscriber') return stop.sub.passenger?.name ?? 'Pasajero';
+  if (stop.kind === 'passenger') return `Pasajero: ${stop.sub.passenger?.name ?? 'Pasajero'}`;
+  if (stop.kind === 'subscriber') return `Pasajero: ${stop.sub.passenger?.name ?? 'Pasajero'}`;
   return '';
 }
 
@@ -50,7 +51,7 @@ function stopColor(stop: AnyStop): string {
   if (stop.kind === 'origin') return Colors.primary[600];
   if (stop.kind === 'destination') return Colors.accent[600];
   if (stop.kind === 'waypoint') return Colors.primary[400];
-  return Colors.accent[500];   // passenger / subscriber
+  return 'orange';   // passenger / subscriber
 }
 
 export function OccurrenceMapView({
@@ -62,10 +63,36 @@ export function OccurrenceMapView({
   fitOnMount = false,
 }: OccurrenceMapViewProps) {
   const mapRef = useRef<MapView>(null);
+  const [computedLine, setComputedLine] = useState<{ latitude: number; longitude: number; }[]>([]);
 
-  const polyline = routeLine.length >= 2
+  const baseLine = routeLine.length >= 2
     ? routeLine.map((p) => ({ latitude: p[0], longitude: p[1] }))
-    : [origin, destination];
+    : [{ latitude: origin.latitude, longitude: origin.longitude }, { latitude: destination.latitude, longitude: destination.longitude }];
+
+  // Compute TomTom route through all ordered stops so the line passes through every pickup
+  useEffect(() => {
+    let cancelled = false;
+
+    const intermediates = orderedStops.flatMap((stop) => {
+      if (stop.kind === 'origin' || stop.kind === 'destination') return [];
+      const c = stopCoords(stop);
+      return c ? [c] : [];
+    });
+
+    const tomtomStops = [
+      { latitude: origin.latitude, longitude: origin.longitude },
+      ...intermediates,
+      { latitude: destination.latitude, longitude: destination.longitude },
+    ];
+
+    tomtomCalculateRoute(tomtomStops)
+      .then((result) => { if (!cancelled) setComputedLine(result.points); })
+      .catch(() => { if (!cancelled) setComputedLine(baseLine); });
+
+    return () => { cancelled = true; };
+  }, [origin.latitude, origin.longitude, destination.latitude, destination.longitude, orderedStops]);
+
+  const polyline = computedLine.length >= 2 ? computedLine : baseLine;
 
   useEffect(() => {
     if (!fitOnMount || polyline.length < 2) return;
@@ -76,13 +103,16 @@ export function OccurrenceMapView({
       });
     }, 400);
     return () => clearTimeout(timer);
-  }, [fitOnMount]);
+  }, [fitOnMount, computedLine.length]);
 
-  const markerStops = [
-    { kind: 'origin' as const, lat: origin.latitude, lng: origin.longitude, name: origin.name },
-    ...orderedStops,
-    { kind: 'destination' as const, lat: destination.latitude, lng: destination.longitude, name: destination.name },
-  ] as AnyStop[];
+  // orderedStops already includes origin/destination from the build helpers,
+  // so use it directly as the marker list to avoid duplicate keys.
+  const markerStops = orderedStops.length > 0
+    ? orderedStops
+    : [
+      { kind: 'origin' as const, lat: origin.latitude, lng: origin.longitude, name: origin.name },
+      { kind: 'destination' as const, lat: destination.latitude, lng: destination.longitude, name: destination.name },
+    ] as AnyStop[];
 
   return (
     <MapView
@@ -117,9 +147,18 @@ export function OccurrenceMapView({
       {markerStops.map((stop, i) => {
         const coords = stopCoords(stop);
         if (!coords) return null;
+        // Use stable identity-based keys so React Native Maps remounts markers
+        // when their data changes (e.g. pinColor won't update on index-key reuse).
+        let key: string;
+        if (stop.kind === 'origin') key = 'origin';
+        else if (stop.kind === 'destination') key = 'destination';
+        else if (stop.kind === 'waypoint') key = `wp-${stop.data.id}`;
+        else if (stop.kind === 'passenger') key = `pax-${stop.booking.id}`;
+        else if (stop.kind === 'subscriber') key = `sub-${stop.sub.id}`;
+        else key = `stop-${i}`;
         return (
           <Marker
-            key={i}
+            key={key}
             coordinate={coords}
             title={stopTitle(stop)}
             pinColor={stopColor(stop)}
