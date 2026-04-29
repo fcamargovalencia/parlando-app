@@ -509,6 +509,7 @@ export interface CreateRoutineWaypointRequest {
 
 export interface ReorderRoutineWaypointsRequest {
   orderedIds: string[];
+  day?: RecurrenceDay;
 }
 
 export interface RoutineWaypointResponse {
@@ -523,6 +524,7 @@ export interface RoutineWaypointResponse {
   estimatedMinutesOffset: number;
   estimatedPickupTime: string;  // "HH:mm" calculated by backend
   applicableDays: RecurrenceDay[];  // empty = applies to all recurrence days
+  dayOrderOverrides?: Record<string, number>;  // day → orderIndex overrides
 }
 
 // ── Búsqueda de RoutineTrip ──

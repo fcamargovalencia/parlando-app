@@ -21,10 +21,12 @@ import type { RecurrenceDay } from '@/types/api';
 
 interface WaypointMapStop {
   id: string;
+  orderIndex?: number;
   latitude: number;
   longitude: number;
   name: string;
   applicableDays?: RecurrenceDay[];
+  dayOrderOverrides?: Record<string, number>;
 }
 
 interface SuggestedStop {
@@ -77,21 +79,34 @@ function buildInitialOrder(
   waypoints: WaypointMapStop[],
   suggestedStop: SuggestedStop | undefined,
   routeLine: [number, number][] | undefined,
+  selectedDay: RecurrenceDay | null,
 ): OrderedStop[] {
   const baseCoords = routeLine?.map((p) => ({ latitude: p[0], longitude: p[1] })) ?? [];
 
-  const withIdx = (lat: number, lng: number) =>
-    baseCoords.length >= 2 ? closestRouteIdx(baseCoords, lat, lng) : 0;
+  const waypointIdx = (wp: WaypointMapStop): number => {
+    // 1. Day-specific override persisted by backend
+    if (selectedDay && wp.dayOrderOverrides?.[selectedDay] !== undefined) {
+      return wp.dayOrderOverrides[selectedDay];
+    }
+    // 2. Global orderIndex from backend
+    if (wp.orderIndex !== undefined) return wp.orderIndex;
+    // 3. Fallback: nearest point on route polyline
+    return baseCoords.length >= 2
+      ? closestRouteIdx(baseCoords, wp.latitude, wp.longitude)
+      : 0;
+  };
 
   const entries: Array<{ stop: OrderedStop; idx: number; }> = [
     ...waypoints.map((wp) => ({
       stop: { kind: 'waypoint' as const, data: wp },
-      idx: withIdx(wp.latitude, wp.longitude),
+      idx: waypointIdx(wp),
     })),
     ...(suggestedStop
       ? [{
         stop: { kind: 'suggested' as const, data: suggestedStop },
-        idx: withIdx(suggestedStop.latitude, suggestedStop.longitude),
+        idx: baseCoords.length >= 2
+          ? closestRouteIdx(baseCoords, suggestedStop.latitude, suggestedStop.longitude)
+          : 0,
       }]
       : []),
   ];
@@ -153,9 +168,10 @@ export function RoutineRouteMapModal({
   // Rebuild ordered stops whenever day filter or route data changes
   useEffect(() => {
     if (visible) {
-      setOrderedStops(buildInitialOrder(filteredWaypoints, suggestedStop, routeLine));
+      setOrderedStops(buildInitialOrder(filteredWaypoints, suggestedStop, routeLine, selectedDay));
+      setIsDirty(false);
     }
-  }, [visible, filteredWaypoints, suggestedStop, routeLine]);
+  }, [visible, filteredWaypoints, suggestedStop, routeLine, selectedDay]);
 
   const fallbackCoords = [
     { latitude: originLatitude, longitude: originLongitude },
@@ -259,7 +275,7 @@ export function RoutineRouteMapModal({
         .filter((s): s is { kind: 'waypoint'; data: WaypointMapStop; } => s.kind === 'waypoint')
         .map((s) => s.data.id);
       if (orderedIds.length > 0) {
-        await routineTripsApi.reorderWaypoints(routineTripId, { orderedIds });
+        await routineTripsApi.reorderWaypoints(routineTripId, { orderedIds, day: selectedDay ?? undefined });
       }
 
       // 3. Accept the subscription
@@ -280,7 +296,7 @@ export function RoutineRouteMapModal({
       const waypointIds = orderedStops
         .filter((s): s is { kind: 'waypoint'; data: WaypointMapStop; } => s.kind === 'waypoint')
         .map((s) => s.data.id);
-      await routineTripsApi.reorderWaypoints(routineTripId, { orderedIds: waypointIds });
+      await routineTripsApi.reorderWaypoints(routineTripId, { orderedIds: waypointIds, day: selectedDay ?? undefined });
       setIsDirty(false);
     } catch {
       Alert.alert('Error', 'No se pudo guardar el orden de las paradas.');
@@ -289,7 +305,7 @@ export function RoutineRouteMapModal({
     }
   };
 
-  const canReorder = orderedStops.length > 1 && selectedDay === null;
+  const canReorder = orderedStops.length > 1;
 
   return (
     <Modal
@@ -450,7 +466,7 @@ export function RoutineRouteMapModal({
                 {/* Day preview info */}
                 {selectedDay !== null && (
                   <Text style={{ fontSize: 11, color: '#64748b', marginBottom: 8, textAlign: 'center' }}>
-                    Vista del {DAY_LABELS[selectedDay]} · cambia a “Todos” para reordenar paradas
+                    Orden del {DAY_LABELS[selectedDay]} · "Todos" muestra el orden global
                   </Text>
                 )}
                 {selectedDay !== null && suggestedStop && (
