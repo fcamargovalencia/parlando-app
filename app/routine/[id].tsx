@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -22,6 +22,7 @@ import { Button, Card, Spinner } from '@/components/ui';
 import { RoutePreview } from '@/components/RoutePreview';
 import { WaypointListItem } from '@/components/routine/WaypointListItem';
 import { RoutineTripDetailHeader } from '@/components/routine/RoutineTripDetailHeader';
+import { DayVariantView } from '@/components/routine/DayVariantView';
 import { Colors } from '@/constants/colors';
 import {
   STATUS_LABELS,
@@ -33,10 +34,11 @@ import {
   secondsLabel,
 } from '@/utils/routine-trip.utils';
 import { useRoutineDetailScreen } from '@/hooks/screens/useRoutineDetailScreen';
+import { useRoutineSubscriptionsStore } from '@/stores/routine-subscriptions-store';
 import { RoutineRouteMapModal } from '@/components/routine/RoutineRouteMapModal';
 import type { RecurrenceDay, RoutineTripStatus } from '@/types/api';
 
-function SectionHeader({ icon, label }: { icon: React.ReactNode; label: string }) {
+function SectionHeader({ icon, label }: { icon: React.ReactNode; label: string; }) {
   return (
     <View className="flex-row items-center mb-3">
       {icon}
@@ -46,13 +48,24 @@ function SectionHeader({ icon, label }: { icon: React.ReactNode; label: string }
 }
 
 export default function RoutineTripDetailScreen() {
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const { id } = useLocalSearchParams<{ id: string; }>();
   const router = useRouter();
   const insets = useSafeAreaInsets();
 
   const { selectedTrip, waypoints, storeLoading, isActioning, refreshing, handlers } =
     useRoutineDetailScreen(id);
   const [mapVisible, setMapVisible] = useState(false);
+  const [activeTab, setActiveTab] = useState<'detail' | 'days'>('detail');
+
+  const fetchForTrip = useRoutineSubscriptionsStore((s) => s.fetchForTrip);
+  const subscriptionsByTrip = useRoutineSubscriptionsStore((s) => s.subscriptionsByTrip);
+
+  // Lazily load subscriptions when Días tab is first opened
+  useEffect(() => {
+    if (activeTab === 'days' && id && !subscriptionsByTrip[id]) {
+      fetchForTrip(id);
+    }
+  }, [activeTab, id]);
 
   if (storeLoading && !selectedTrip) {
     return (
@@ -61,7 +74,7 @@ export default function RoutineTripDetailScreen() {
           paddingTop={insets.top}
           canEdit={false}
           onBack={handlers.goToList}
-          onEdit={() => {}}
+          onEdit={() => { }}
         />
         <View className="flex-1 items-center justify-center">
           <Spinner />
@@ -77,7 +90,7 @@ export default function RoutineTripDetailScreen() {
           paddingTop={insets.top}
           canEdit={false}
           onBack={handlers.goToList}
-          onEdit={() => {}}
+          onEdit={() => { }}
         />
         <View className="flex-1 items-center justify-center px-6">
           <AlertTriangle size={40} color={Colors.neutral[400]} />
@@ -96,6 +109,8 @@ export default function RoutineTripDetailScreen() {
   const status = trip.status as RoutineTripStatus;
   const isReadOnly = status === 'COMPLETED' || status === 'CANCELLED';
 
+  const recurrenceDays = trip.recurrenceDays as RecurrenceDay[];
+
   return (
     <SafeAreaView className="flex-1 bg-neutral-50" edges={['bottom']}>
       <RoutineTripDetailHeader
@@ -104,7 +119,38 @@ export default function RoutineTripDetailScreen() {
         onBack={handlers.goToList}
         onEdit={() => router.push(`/routine/create/step-1-route?tripId=${id}` as never)}
       />
-      <ScrollView
+
+      {/* Tab bar */}
+      <View style={{ flexDirection: 'row', borderBottomWidth: 1, borderBottomColor: Colors.neutral[200], backgroundColor: Colors.white }}>
+        {(['detail', 'days'] as const).map((tab) => {
+          const label = tab === 'detail' ? 'Detalle' : 'Días';
+          const active = activeTab === tab;
+          return (
+            <TouchableOpacity
+              key={tab}
+              onPress={() => setActiveTab(tab)}
+              style={{ flex: 1, paddingVertical: 12, alignItems: 'center', borderBottomWidth: 2, borderBottomColor: active ? Colors.primary[500] : 'transparent' }}
+              activeOpacity={0.7}
+            >
+              <Text style={{ fontSize: 14, fontWeight: active ? '600' : '500', color: active ? Colors.primary[600] : Colors.neutral[500] }}>
+                {label}
+              </Text>
+            </TouchableOpacity>
+          );
+        })}
+      </View>
+
+      {/* Days tab */}
+      {activeTab === 'days' ? (
+        <ScrollView className="flex-1" refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handlers.onRefresh} />}>
+          <View className="pt-4 pb-8">
+            <DayVariantView routineTripId={id ?? ''} recurrenceDays={recurrenceDays} />
+          </View>
+        </ScrollView>
+      ) : null}
+
+      {/* Detail tab */}
+      {activeTab !== 'days' ? <ScrollView
         className="flex-1"
         refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handlers.onRefresh} />}
       >
@@ -335,7 +381,7 @@ export default function RoutineTripDetailScreen() {
             </View>
           )}
         </View>
-      </ScrollView>
+      </ScrollView> : null}
 
       <RoutineRouteMapModal
         visible={mapVisible}

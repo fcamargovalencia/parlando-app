@@ -521,6 +521,8 @@ export interface RoutineWaypointResponse {
   subtitle?: string;
   isPickupPoint: boolean;
   estimatedMinutesOffset: number;
+  estimatedPickupTime: string;  // "HH:mm" calculated by backend
+  applicableDays: RecurrenceDay[];  // empty = applies to all recurrence days
 }
 
 // ── Búsqueda de RoutineTrip ──
@@ -602,21 +604,42 @@ export interface PickupOverrideRequest {
 
 // ── RoutineBooking (occurrence booking) ──
 
-export type RoutineBookingStatus = 'ACCEPTED' | 'CANCELLED' | 'NO_SHOW' | 'COMPLETED';
+export type RoutineBookingStatus =
+  | 'PENDING'
+  | 'ACCEPTED'
+  | 'REJECTED'
+  | 'BOARDED'
+  | 'NO_SHOW'
+  | 'CANCELLED';
 
 export interface RoutineBookingResponse {
   id: string;
+  tripId: string;            // ID of the TripOccurrence
   subscriptionId: string;
-  occurrenceDate: string;   // ISO date "YYYY-MM-DD"
+  passengerId: string;
+  pickupWaypointId?: string;
+  dropoffWaypointId?: string;
+  seatsBooked: number;
   status: RoutineBookingStatus;
-  estimatedPickupTime: string; // "HH:mm"
-  pickupLatitude?: number;
-  pickupLongitude?: number;
-  pickupName?: string;
-  pickupType?: PickupType;
+  boardedAt?: string;
+  occurrenceDate: string;    // ISO date "YYYY-MM-DD" (derived from trip.departureAt)
   createdAt: string;
   updatedAt: string;
+  passenger?: {
+    id: string;
+    name: string;
+    rating: number;
+    verified: boolean;
+  };
 }
+
+// ── DayStop — Layer B (Day Variant Preview, template-level) ──
+
+export type DayStop =
+  | { kind: 'origin'; lat: number; lng: number; name: string; }
+  | { kind: 'waypoint'; data: RoutineWaypointResponse; routeIdx: number; }
+  | { kind: 'subscriber'; sub: RoutineSubscriptionResponse; routeIdx: number; }
+  | { kind: 'destination'; lat: number; lng: number; name: string; };
 
 export interface RoutineSubscriptionResponse {
   id: string;

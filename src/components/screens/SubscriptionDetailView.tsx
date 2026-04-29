@@ -408,15 +408,9 @@ export function SubscriptionDetailView({ uiState, dispatch, subscription, bookin
                   <View className="flex-row items-center gap-2">
                     <Clock size={14} color={Colors.neutral[500]} />
                     <Text className="text-sm text-neutral-700">
-                      Recogida estimada: {selectedBooking.estimatedPickupTime}
+                      Ocurrencia: {formatDate(selectedBooking.occurrenceDate)}
                     </Text>
                   </View>
-                  {selectedBooking.pickupName && (
-                    <View className="flex-row items-center gap-2">
-                      <MapPin size={14} color={Colors.neutral[500]} />
-                      <Text className="text-sm text-neutral-700">{selectedBooking.pickupName}</Text>
-                    </View>
-                  )}
                   <View className="bg-neutral-100 rounded-xl px-3 py-2 mt-1">
                     <Text className="text-sm font-medium text-neutral-700">
                       Estado: {BOOKING_STATUS_LABEL[selectedBooking.status] ?? selectedBooking.status}
@@ -426,7 +420,7 @@ export function SubscriptionDetailView({ uiState, dispatch, subscription, bookin
 
                 {selectedBooking.status === 'ACCEPTED' &&
                   (parseISO(selectedBooking.occurrenceDate).getTime() - Date.now()) /
-                    (1000 * 60 * 60) >= 2 && (
+                  (1000 * 60 * 60) >= 2 && (
                     <View className="border border-neutral-200 rounded-2xl p-4 gap-3 mb-4">
                       <Text className="text-sm font-semibold text-neutral-800">
                         Cambiar punto de recogida para este día

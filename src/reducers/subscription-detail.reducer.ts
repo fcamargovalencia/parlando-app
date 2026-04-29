@@ -19,23 +19,23 @@ export interface SubscriptionDetailState {
 }
 
 export type SubscriptionDetailAction =
-  | { type: 'OPEN_PAUSE_MODAL'; payload: { pauseFrom: string } }
-  | { type: 'OPEN_RESUME_MODAL' }
-  | { type: 'OPEN_CANCEL_MODAL' }
-  | { type: 'OPEN_BOOKING_DETAIL'; payload: RoutineBookingResponse }
-  | { type: 'CLOSE_MODAL' }
-  | { type: 'SET_PAUSE_FROM'; payload: string }
-  | { type: 'SET_PAUSE_TO'; payload: string }
-  | { type: 'TOGGLE_HAS_PAUSE_TO' }
-  | { type: 'SET_PAUSE_REASON'; payload: string }
-  | { type: 'SHOW_PAUSE_FROM_PICKER' }
-  | { type: 'SHOW_PAUSE_TO_PICKER' }
-  | { type: 'HIDE_PICKERS' }
-  | { type: 'SET_CANCEL_REASON'; payload: string }
-  | { type: 'SET_OVERRIDE_NAME'; payload: string }
-  | { type: 'SET_OVERRIDE_LAT'; payload: string }
-  | { type: 'SET_OVERRIDE_LNG'; payload: string }
-  | { type: 'SET_SUBMITTING'; payload: boolean };
+  | { type: 'OPEN_PAUSE_MODAL'; payload: { pauseFrom: string; }; }
+  | { type: 'OPEN_RESUME_MODAL'; }
+  | { type: 'OPEN_CANCEL_MODAL'; }
+  | { type: 'OPEN_BOOKING_DETAIL'; payload: RoutineBookingResponse; }
+  | { type: 'CLOSE_MODAL'; }
+  | { type: 'SET_PAUSE_FROM'; payload: string; }
+  | { type: 'SET_PAUSE_TO'; payload: string; }
+  | { type: 'TOGGLE_HAS_PAUSE_TO'; }
+  | { type: 'SET_PAUSE_REASON'; payload: string; }
+  | { type: 'SHOW_PAUSE_FROM_PICKER'; }
+  | { type: 'SHOW_PAUSE_TO_PICKER'; }
+  | { type: 'HIDE_PICKERS'; }
+  | { type: 'SET_CANCEL_REASON'; payload: string; }
+  | { type: 'SET_OVERRIDE_NAME'; payload: string; }
+  | { type: 'SET_OVERRIDE_LAT'; payload: string; }
+  | { type: 'SET_OVERRIDE_LNG'; payload: string; }
+  | { type: 'SET_SUBMITTING'; payload: boolean; };
 
 export const initialSubscriptionDetailState: SubscriptionDetailState = {
   activeModal: null,
@@ -78,9 +78,9 @@ export function subscriptionDetailReducer(
         ...state,
         activeModal: 'bookingDetail',
         selectedBooking: action.payload,
-        overrideName: action.payload.pickupName ?? '',
-        overrideLat: action.payload.pickupLatitude?.toString() ?? '',
-        overrideLng: action.payload.pickupLongitude?.toString() ?? '',
+        overrideName: '',
+        overrideLat: '',
+        overrideLng: '',
       };
     case 'CLOSE_MODAL':
       return { ...state, activeModal: null, showPauseFromPicker: false, showPauseToPicker: false };

@@ -1,5 +1,5 @@
 import { api } from './client';
-import type { ApiResponse, PageResponse, CreateTripRequest, UpdateTripRequest, TripResponse, SearchTripsParams, RouteWaypointResponse } from '@/types/api';
+import type { ApiResponse, PageResponse, CreateTripRequest, UpdateTripRequest, TripResponse, SearchTripsParams, RouteWaypointResponse, RoutineBookingResponse } from '@/types/api';
 
 export const tripsApi = {
   create: (data: CreateTripRequest) =>
@@ -36,4 +36,7 @@ export const tripsApi = {
 
   getByRoutineTrip: (routineTripId: string) =>
     api.get<ApiResponse<TripResponse[]>>(`/v1/trips/routine/${encodeURIComponent(routineTripId)}`),
+
+  getRoutineBookings: (tripId: string) =>
+    api.get<ApiResponse<RoutineBookingResponse[]>>(`/v1/trips/${encodeURIComponent(tripId)}/routine-bookings`),
 };

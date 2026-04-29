@@ -158,7 +158,7 @@ function OccurrenceRow({
               onPress={onCancel}
               className="flex-row items-center gap-1 px-3 py-1.5 rounded-xl bg-red-50"
             >
-              <XCircle size={12} color={Colors.red?.[600] ?? '#dc2626'} />
+              <XCircle size={12} color="#dc2626" />
               <Text className="text-xs font-semibold text-red-700">Cancelar</Text>
             </TouchableOpacity>
           )}
@@ -189,7 +189,10 @@ export default function OccurrencesScreen() {
   };
 
   const handleView = (tripId: string) => {
-    router.push({ pathname: '/trip/[id]', params: { id: tripId } } as any);
+    router.push({
+      pathname: '/routine/[id]/occurrence/[tripId]',
+      params: { id: routineTripId ?? '', tripId },
+    } as any);
   };
 
   const handlePressCancel = (occurrence: TripResponse) => {
@@ -336,7 +339,7 @@ export default function OccurrencesScreen() {
                 Volver
               </Button>
               <Button
-                variant="destructive"
+                variant="danger"
                 className="flex-1"
                 onPress={handleConfirmCancel}
                 loading={isCancelling}

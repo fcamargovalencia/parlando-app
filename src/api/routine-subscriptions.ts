@@ -60,4 +60,7 @@ export const routineSubscriptionsApi = {
       `/v1/bookings/${encodeURIComponent(bookingId)}/pickup-override`,
       data,
     ),
+
+  markNoShow: (bookingId: string) =>
+    api.patch<ApiResponse<null>>(`/v1/bookings/${encodeURIComponent(bookingId)}/no-show`, {}),
 };

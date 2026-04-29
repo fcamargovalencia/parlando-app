@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import { View, Text, TouchableOpacity } from 'react-native';
-import { CheckCircle2, XCircle, AlertCircle } from 'lucide-react-native';
+import { CheckCircle2, XCircle, AlertCircle, Clock, UserCheck } from 'lucide-react-native';
 import { Colors } from '@/constants/colors';
 import type { RoutineBookingResponse, RoutineBookingStatus } from '@/types/api';
 
@@ -44,6 +44,13 @@ interface StatusConfig {
 }
 
 const BOOKING_STATUS_CONFIG: Record<RoutineBookingStatus, StatusConfig> = {
+  PENDING: {
+    bgClass: 'bg-yellow-50',
+    textClass: 'text-yellow-700',
+    borderClass: 'border-yellow-200',
+    icon: Clock,
+    iconColor: Colors.semantic.warning,
+  },
   ACCEPTED: {
     bgClass: 'bg-green-50',
     textClass: 'text-green-700',
@@ -51,12 +58,19 @@ const BOOKING_STATUS_CONFIG: Record<RoutineBookingStatus, StatusConfig> = {
     icon: CheckCircle2,
     iconColor: Colors.semantic.success,
   },
-  COMPLETED: {
-    bgClass: 'bg-green-50',
-    textClass: 'text-green-700',
-    borderClass: 'border-green-200',
-    icon: CheckCircle2,
-    iconColor: Colors.semantic.success,
+  REJECTED: {
+    bgClass: 'bg-neutral-50',
+    textClass: 'text-neutral-400',
+    borderClass: 'border-neutral-200',
+    icon: XCircle,
+    iconColor: Colors.neutral[400],
+  },
+  BOARDED: {
+    bgClass: 'bg-primary-50',
+    textClass: 'text-primary-700',
+    borderClass: 'border-primary-200',
+    icon: UserCheck,
+    iconColor: Colors.primary[600],
   },
   CANCELLED: {
     bgClass: 'bg-neutral-50',
@@ -75,8 +89,10 @@ const BOOKING_STATUS_CONFIG: Record<RoutineBookingStatus, StatusConfig> = {
 };
 
 const STATUS_LABEL: Record<RoutineBookingStatus, string> = {
+  PENDING: 'Pendiente',
   ACCEPTED: 'Confirmado',
-  COMPLETED: 'Completado',
+  REJECTED: 'Rechazado',
+  BOARDED: 'Abordado',
   CANCELLED: 'Cancelado',
   NO_SHOW: 'No se presentó',
 };
@@ -175,9 +191,6 @@ export function RoutineCalendarView({
                   {day.getDate()}
                 </Text>
                 <Icon size={10} color={config.iconColor} />
-                <Text className={`text-[9px] ${config.textClass} mt-0.5`}>
-                  {booking.estimatedPickupTime}
-                </Text>
               </TouchableOpacity>
             );
           })}
