@@ -43,7 +43,8 @@ export function usePublishScreen({
   const [locationPicker, setLocationPicker] = useState<{
     visible: boolean;
     target: 'origin' | 'destination' | 'waypoint';
-    municipalityFocus?: { latitude: number; longitude: number; name: string };
+    municipalityFocus?: { latitude: number; longitude: number; name: string; delta?: number; };
+    initialLocation?: SelectedLocation;
   }>({ visible: false, target: 'origin' });
 
   // ── Route alternatives (only active on step 5) ──
@@ -134,17 +135,29 @@ export function usePublishScreen({
           },
         });
       } else {
-        handleInlineLocationSelect(target, {
-          latitude: item.latitude,
-          longitude: item.longitude,
-          name: item.name,
-          city: item.city,
-          state: item.state,
-          country: item.country,
+        if (target === 'origin') originSearch.clear();
+        else destinationSearch.clear();
+        setLocationPicker({
+          visible: true,
+          target,
+          municipalityFocus: {
+            latitude: item.latitude,
+            longitude: item.longitude,
+            name: item.name,
+            delta: 0.00625,
+          },
+          initialLocation: {
+            latitude: item.latitude,
+            longitude: item.longitude,
+            name: item.name,
+            city: item.city,
+            state: item.state,
+            country: item.country,
+          },
         });
       }
     },
-    [handleInlineLocationSelect, originSearch, destinationSearch],
+    [originSearch, destinationSearch],
   );
 
   const handleLocationConfirm = useCallback(
@@ -164,6 +177,7 @@ export function usePublishScreen({
         ...p,
         visible: false,
         municipalityFocus: undefined,
+        initialLocation: undefined,
       }));
     },
     [locationPicker.target, waypoints, handleInlineLocationSelect, setWaypoints],

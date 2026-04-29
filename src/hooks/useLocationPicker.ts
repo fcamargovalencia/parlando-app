@@ -32,7 +32,7 @@ interface UseLocationPickerOptions {
   visible: boolean;
   initial?: SelectedLocation | null;
   mode?: 'full' | 'map-only';
-  municipalityFocus?: { latitude: number; longitude: number; name: string; };
+  municipalityFocus?: { latitude: number; longitude: number; name: string; delta?: number; };
   allowCitySelection?: boolean;
   baseRouteLine?: Array<[number, number]>;
   onConfirm: (loc: SelectedLocation) => void;
@@ -87,6 +87,7 @@ export function useLocationPicker({
     latitude: number;
     longitude: number;
     name: string;
+    delta?: number;
   } | null>(null);
 
   const mapRef = useRef<MapView>(null);
@@ -180,7 +181,7 @@ export function useLocationPicker({
       const searchResults = await tomtomService.searchLocations(q, userCoords ?? undefined);
       setResults(searchResults);
     } catch (e: unknown) {
-      if ((e as { name?: string })?.name !== 'AbortError') setResults([]);
+      if ((e as { name?: string; })?.name !== 'AbortError') setResults([]);
     } finally {
       setSearching(false);
     }
@@ -208,16 +209,16 @@ export function useLocationPicker({
       setMunicipalityCenter({ latitude: result.latitude, longitude: result.longitude, name: result.name });
       setMapVisible(true);
     } else {
-      onConfirm({
-        latitude: result.latitude,
-        longitude: result.longitude,
-        name: result.name,
-        city: result.city,
-        state: result.state,
-        country: result.country,
-      });
+      // Pre-position the pin at the POI so the user can verify/adjust before confirming
+      setCenterCoord({ latitude: result.latitude, longitude: result.longitude });
+      setMapName(result.name);
+      setMapCity(result.city);
+      setMapState(result.state);
+      setMapCountry(result.country);
+      setMunicipalityCenter({ latitude: result.latitude, longitude: result.longitude, name: result.name, delta: 0.0125 });
+      setMapVisible(true);
     }
-  }, [allowCitySelection, onConfirm]);
+  }, [allowCitySelection]);
 
   const handleUseMyLocation = useCallback(async () => {
     setLocating(true);
@@ -306,11 +307,12 @@ export function useLocationPicker({
     }
 
     if (municipalityCenter) {
+      const d = municipalityCenter.delta ?? 0.05;
       animateWhenReady({
         latitude: municipalityCenter.latitude,
         longitude: municipalityCenter.longitude,
-        latitudeDelta: 0.05,
-        longitudeDelta: 0.05,
+        latitudeDelta: d,
+        longitudeDelta: d,
       });
       return;
     }
@@ -365,7 +367,7 @@ export function useLocationPicker({
   // ── Derived: map initial region ──
 
   const mapInitialRegion: Region = municipalityCenter
-    ? { latitude: municipalityCenter.latitude, longitude: municipalityCenter.longitude, latitudeDelta: 0.05, longitudeDelta: 0.05 }
+    ? { latitude: municipalityCenter.latitude, longitude: municipalityCenter.longitude, latitudeDelta: municipalityCenter.delta ?? 0.05, longitudeDelta: municipalityCenter.delta ?? 0.05 }
     : routeRegion
       ? routeRegion
       : userCoords

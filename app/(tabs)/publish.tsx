@@ -229,9 +229,9 @@ export default function PublishScreen() {
         }
         onConfirm={handleLocationConfirm}
         onClose={() =>
-          setLocationPicker((p) => ({ ...p, visible: false, municipalityFocus: undefined }))
+          setLocationPicker((p) => ({ ...p, visible: false, municipalityFocus: undefined, initialLocation: undefined }))
         }
-        initial={locationPicker.target === 'origin' ? form.origin : form.destination}
+        initial={locationPicker.initialLocation ?? (locationPicker.target === 'origin' ? form.origin : form.destination)}
         mode={locationPicker.target === 'waypoint' ? 'full' : 'map-only'}
         mapHintText={
           locationPicker.target === 'destination'
