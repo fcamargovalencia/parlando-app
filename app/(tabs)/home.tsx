@@ -8,7 +8,6 @@ import { Bell, ChevronRight, GraduationCap, Repeat2 } from 'lucide-react-native'
 import { Screen, Avatar, DatePickerModal } from '@/components/ui';
 import { LocationPickerModal } from '@/components/LocationPickerModal';
 import { SearchCard } from '@/components/home/SearchCard';
-import { TripTypeSheet } from '@/components/home/TripTypeSheet';
 import { TripTypeQuickActions } from '@/components/home/TripTypeQuickActions';
 import { VerificationBanner } from '@/components/home/VerificationBanner';
 import { useHomeSearch } from '@/hooks/useHomeSearch';
@@ -37,21 +36,26 @@ export default function HomeScreen() {
     tripType,
     isIntercity,
     canSearch,
+    passengers,
+    destinationMode,
+    selectedUniversity,
     setOrigin,
     setDestination,
     setDepartureDate,
     setTripType,
+    setPassengers,
     activePicker,
     setActivePicker,
     openOriginPicker,
     openDestPicker,
     selectTripTypeAndSearch,
     handleSearch,
+    handleDestinationModeChange,
+    handleUniversitySelect,
   } = useHomeSearch();
 
   const onPressVerification = useCallback(() => router.push('/verification'), [router]);
   const onOpenDatePicker = useCallback(() => setActivePicker('date'), [setActivePicker]);
-  const onOpenTripTypeSheet = useCallback(() => setActivePicker('tripType'), [setActivePicker]);
   const onPressRoutineSearch = useCallback(() => router.push('/search/routine'), [router]);
   const onCloseActivePicker = useCallback(() => setActivePicker(null), [setActivePicker]);
   const onConfirmOrigin = useCallback(
@@ -121,10 +125,16 @@ export default function HomeScreen() {
             departureDate={departureDate}
             tripType={tripType}
             canSearch={canSearch}
+            passengers={passengers}
+            destinationMode={destinationMode}
+            selectedUniversity={selectedUniversity}
             onOpenOriginPicker={openOriginPicker}
             onOpenDestPicker={openDestPicker}
             onOpenDatePicker={onOpenDatePicker}
-            onOpenTripTypeSheet={onOpenTripTypeSheet}
+            onTripTypeChange={setTripType}
+            onPassengersChange={setPassengers}
+            onDestinationModeChange={handleDestinationModeChange}
+            onUniversitySelect={handleUniversitySelect}
             onSearch={handleSearch}
           />
         </LinearGradient>
@@ -223,12 +233,6 @@ export default function HomeScreen() {
         onCancel={onCloseActivePicker}
       />
 
-      <TripTypeSheet
-        visible={activePicker === 'tripType'}
-        tripType={tripType}
-        onSelect={setTripType}
-        onClose={onCloseActivePicker}
-      />
     </Screen>
   );
 }

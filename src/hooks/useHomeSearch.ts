@@ -3,11 +3,12 @@ import { useRouter } from 'expo-router';
 import dayjs from 'dayjs';
 import { toLocalISOString } from '@/lib/utils';
 import type { SelectedLocation } from '@/components/LocationPickerModal';
-import type { TripType } from '@/types/api';
+import type { TripType, UniversityResponse } from '@/types/api';
 
 // ── Types ──
 
 export type ActivePicker = 'origin' | 'destination' | 'date' | 'tripType' | null;
+export type DestinationMode = 'place' | 'university';
 
 // ── Hook ──
 
@@ -18,13 +19,24 @@ export function useHomeSearch() {
   const [origin, setOrigin] = useState<SelectedLocation | null>(null);
   const [destination, setDestination] = useState<SelectedLocation | null>(null);
   const [departureDate, setDepartureDate] = useState<Date>(() => new Date());
-  const [tripType, setTripType] = useState<TripType>('INTERCITY');
+  const [tripType, setTripTypeState] = useState<TripType>('INTERCITY');
+
+  // ── Passenger count (INTERCITY/URBAN only) ──
+  const [passengers, setPassengers] = useState(1);
+
+  // ── Routine destination mode ──
+  const [destinationMode, setDestinationModeState] = useState<DestinationMode>('place');
+  const [selectedUniversity, setSelectedUniversity] = useState<UniversityResponse | null>(null);
 
   // ── Single modal state — enforces at most one picker open at a time ──
   const [activePicker, setActivePicker] = useState<ActivePicker>(null);
 
   // ── Derived ──
-  const canSearch = !!origin && !!destination;
+  const canSearch =
+    !!origin &&
+    (tripType === 'ROUTINE' && destinationMode === 'university'
+      ? !!selectedUniversity
+      : !!destination);
   const isIntercity = tripType === 'INTERCITY';
 
   // ── Actions ──
@@ -32,28 +44,60 @@ export function useHomeSearch() {
   const openOriginPicker = useCallback(() => setActivePicker('origin'), []);
   const openDestPicker = useCallback(() => setActivePicker('destination'), []);
 
-  const selectTripTypeAndSearch = useCallback((type: TripType) => {
-    setTripType(type);
-    setActivePicker('origin');
+  const setTripType = useCallback((type: TripType) => {
+    setTripTypeState(type);
+    if (type !== 'ROUTINE') {
+      setDestinationModeState('place');
+      setSelectedUniversity(null);
+    }
   }, []);
 
+  const handleDestinationModeChange = useCallback((mode: DestinationMode) => {
+    setDestinationModeState(mode);
+    if (mode === 'university') {
+      setDestination(null);
+    } else {
+      setSelectedUniversity(null);
+    }
+  }, []);
+
+  const handleUniversitySelect = useCallback(
+    (_id: string, university: UniversityResponse | null) => {
+      setSelectedUniversity(university);
+    },
+    [],
+  );
+
+  const selectTripTypeAndSearch = useCallback(
+    (type: TripType) => {
+      setTripType(type);
+      setActivePicker('origin');
+    },
+    [setTripType],
+  );
+
   const handleSearch = useCallback(() => {
-    if (!origin || !destination) return;
+    if (!origin) return;
 
     if (tripType === 'ROUTINE') {
-      router.push({
-        pathname: '/search/routine',
-        params: {
-          originLat: String(origin.latitude),
-          originLng: String(origin.longitude),
-          originName: origin.name,
-          destLat: String(destination.latitude),
-          destLng: String(destination.longitude),
-          destName: destination.name,
-        },
-      });
+      const params: Record<string, string> = {
+        originLat: String(origin.latitude),
+        originLng: String(origin.longitude),
+        originName: origin.name,
+      };
+      if (destinationMode === 'university' && selectedUniversity) {
+        params.universityId = selectedUniversity.id;
+        params.destName = selectedUniversity.name;
+      } else if (destination) {
+        params.destLat = String(destination.latitude);
+        params.destLng = String(destination.longitude);
+        params.destName = destination.name;
+      }
+      router.push({ pathname: '/search/routine', params });
       return;
     }
+
+    if (!destination) return;
 
     const isToday = dayjs(departureDate).isSame(dayjs(), 'day');
     const from = isToday
@@ -73,9 +117,10 @@ export function useHomeSearch() {
         departureFrom: from,
         departureTo: to,
         tripType,
+        passengers: String(passengers),
       },
     });
-  }, [origin, destination, departureDate, tripType, router]);
+  }, [origin, destination, departureDate, tripType, destinationMode, selectedUniversity, passengers, router]);
 
   return {
     // Form values
@@ -85,12 +130,16 @@ export function useHomeSearch() {
     tripType,
     isIntercity,
     canSearch,
+    passengers,
+    destinationMode,
+    selectedUniversity,
 
     // Setters
     setOrigin,
     setDestination,
     setDepartureDate,
     setTripType,
+    setPassengers,
 
     // Picker state — single source of truth for which picker is visible
     activePicker,
@@ -103,5 +152,7 @@ export function useHomeSearch() {
     // Handlers
     selectTripTypeAndSearch,
     handleSearch,
+    handleDestinationModeChange,
+    handleUniversitySelect,
   };
 }

@@ -367,6 +367,7 @@ export interface SearchTripsParams {
   destLng?: number;
   radiusKm?: number;
   studentsOnly?: boolean;
+  minSeats?: number;
   page?: number;
   size?: number;
 }

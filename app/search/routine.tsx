@@ -18,6 +18,7 @@ import { RoutineRouteMapModal } from '@/components/routine/RoutineRouteMapModal'
 import { UniversityPicker } from '@/components/university/UniversityPicker';
 import { DatePickerModal, EmptyState, Spinner } from '@/components/ui';
 import { Colors } from '@/constants/colors';
+import { universitiesApi } from '@/api/universities';
 import { useSearchRoutineTrips } from '@/hooks/useSearchRoutineTrips';
 import type { RecurrenceDay, RoutineTripSearchResult, UniversityResponse } from '@/types/api';
 
@@ -29,9 +30,11 @@ export default function RoutineSearchScreen() {
   const {
     originLat, originLng, originName,
     destLat, destLng, destName,
+    universityId: initialUniversityId,
   } = useLocalSearchParams<{
     originLat?: string; originLng?: string; originName?: string;
     destLat?: string; destLng?: string; destName?: string;
+    universityId?: string;
   }>();
 
   const { params, setParams, results, isLoading, error, search, hasSearched } =
@@ -51,6 +54,24 @@ export default function RoutineSearchScreen() {
       updates.destinationRadiusMeters = 1000;
     }
     if (Object.keys(updates).length > 0) setParams((prev) => ({ ...prev, ...updates }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Pre-populate university from home search params
+  React.useEffect(() => {
+    if (!initialUniversityId) return;
+    universitiesApi.getById(initialUniversityId).then((res) => {
+      const uni = res.data.data;
+      if (!uni) return;
+      setSelectedUniversityLabel(uni.name);
+      setParams((prev) => ({
+        ...prev,
+        universityId: uni.id,
+        destinationLat: uni.latitude,
+        destinationLng: uni.longitude,
+        destinationRadiusMeters: 500,
+      }));
+    }).catch(() => { });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 

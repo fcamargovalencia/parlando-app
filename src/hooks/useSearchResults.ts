@@ -18,6 +18,7 @@ export interface SearchResultsParams {
   departureFrom: string;
   departureTo: string;
   tripType?: string;
+  minSeats?: number;
 }
 
 // ── State / reducer ──
@@ -94,6 +95,7 @@ export function useSearchResults(params: SearchResultsParams) {
     departureFrom,
     departureTo,
     tripType,
+    minSeats,
   } = params;
 
   const [state, dispatch] = useReducer(reducer, initialState);
@@ -110,6 +112,7 @@ export function useSearchResults(params: SearchResultsParams) {
           departureTo,
           tripType: tripType as TripType | undefined,
           radiusKm: RADIUS_KM,
+          minSeats,
           page,
           size: PAGE_SIZE,
         });
@@ -130,7 +133,7 @@ export function useSearchResults(params: SearchResultsParams) {
         });
       }
     },
-    [originLat, originLng, destLat, destLng, departureFrom, departureTo, tripType],
+    [originLat, originLng, destLat, destLng, departureFrom, departureTo, tripType, minSeats],
   );
 
   const load = useCallback(async () => {

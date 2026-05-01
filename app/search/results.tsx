@@ -29,6 +29,7 @@ export default function SearchResultsScreen() {
     departureFrom: string;
     departureTo: string;
     tripType: string;
+    passengers: string;
   }>();
 
   // Extract primitives once so the hook's deps remain stable
@@ -51,6 +52,7 @@ export default function SearchResultsScreen() {
     departureFrom: params.departureFrom,
     departureTo: params.departureTo,
     tripType: params.tripType,
+    minSeats: params.passengers ? parseInt(params.passengers, 10) : undefined,
   });
 
   const openTripDetail = useCallback(
