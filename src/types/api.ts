@@ -702,22 +702,21 @@ export interface SearchUniversitiesParams {
 
 export interface CreateStudentVerificationRequest {
   universityId: string;
-  studentEmail: string;
+  universityEmail: string;
+  studentIdNumber: string;
   studentCardUrl: string;
 }
 
 export interface StudentVerificationResponse {
   id: string;
-  userId: string;
   universityId: string;
-  studentEmail: string;
-  studentCardUrl: string;
+  universityName: string;
+  universityEmail: string;
+  studentIdNumber: string;
   status: StudentVerificationStatus;
   expiresAt?: string;
-  rejectionReason?: string;
+  reviewerNote?: string;
   createdAt: string;
-  updatedAt: string;
-  university?: UniversityResponse;
 }
 
 // ── Chat ──

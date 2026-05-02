@@ -5,6 +5,7 @@ import {
   TextInput,
   TouchableOpacity,
   ActivityIndicator,
+  ScrollView,
 } from 'react-native';
 import { Search, X } from 'lucide-react-native';
 import { universitiesApi } from '@/api/universities';
@@ -124,7 +125,7 @@ export function UniversityPicker({
       </View>
 
       {showDropdown ? (
-        <View
+        <ScrollView
           style={{
             borderWidth: 1,
             borderTopWidth: 0,
@@ -133,8 +134,10 @@ export function UniversityPicker({
             borderBottomRightRadius: 16,
             backgroundColor: '#fff',
             maxHeight: 220,
-            overflow: 'hidden',
           }}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator
+          nestedScrollEnabled
         >
           {results.length > 0 ? results.map((item, index) => (
             <TouchableOpacity
@@ -156,14 +159,13 @@ export function UniversityPicker({
               </Text>
             </TouchableOpacity>
           )) : !loading ? (
-                <View style={{ padding: 16, alignItems: 'center' }}>
-                  <Text style={{ color: '#94a3b8', fontSize: 13 }}>
-                    Sin resultados para "{query}"
-                  </Text>
-                </View>
-              ) : null
-            }
-        </View>
+            <View style={{ padding: 16, alignItems: 'center' }}>
+              <Text style={{ color: '#94a3b8', fontSize: 13 }}>
+                Sin resultados para "{query}"
+              </Text>
+            </View>
+          ) : null}
+        </ScrollView>
       ) : null}
     </View>
   );

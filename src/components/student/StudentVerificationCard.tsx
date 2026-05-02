@@ -66,8 +66,7 @@ export function StudentVerificationCard({
   };
   const { Icon, iconColor } = config;
 
-  const universityName =
-    verification.university?.shortName ?? verification.university?.name ?? 'Universidad';
+  const universityName = verification.universityName;
 
   return (
     <Card className="mb-3">
@@ -86,7 +85,7 @@ export function StudentVerificationCard({
             <Badge label={config.label} variant={config.variant} />
           </View>
 
-          <Text className="text-sm text-neutral-500 mt-0.5">{verification.studentEmail}</Text>
+          <Text className="text-sm text-neutral-500 mt-0.5">{verification.universityEmail}</Text>
 
           <Text className="text-xs text-neutral-400 mt-1">
             Enviado: {formatDate(verification.createdAt)}
@@ -124,9 +123,9 @@ export function StudentVerificationCard({
 
           {verification.status === 'REJECTED' && (
             <View className="mt-2">
-              {verification.rejectionReason && (
+              {verification.reviewerNote && (
                 <Text className="text-xs text-red-600 leading-4 mb-1.5">
-                  Motivo: {verification.rejectionReason}
+                  Motivo: {verification.reviewerNote}
                 </Text>
               )}
               {onRetry && (

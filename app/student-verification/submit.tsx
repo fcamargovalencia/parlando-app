@@ -20,6 +20,7 @@ import {
   CheckCircle2,
   GraduationCap,
   AlertTriangle,
+  Hash,
   X,
 } from 'lucide-react-native';
 import { Button, Card } from '@/components/ui';
@@ -67,19 +68,21 @@ export default function StudentVerificationSubmitScreen() {
   const [selectedUniversityId, setSelectedUniversityId] = useState<string>(
     preselectedUniversityId ?? '',
   );
-  const [studentEmail, setStudentEmail] = useState('');
+  const [universityEmail, setUniversityEmail] = useState('');
+  const [studentIdNumber, setStudentIdNumber] = useState('');
   const [cardImageUri, setCardImageUri] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [errors, setErrors] = useState<{
     university?: string;
     email?: string;
+    studentId?: string;
     card?: string;
   }>({});
 
   // ── derived state ──
   const domain = selectedUniversity?.domainEmail ?? '';
   const emailMatchesDomainFlag =
-    studentEmail.trim().length > 0 && domain ? emailMatchesDomain(studentEmail, domain) : null;
+    universityEmail.trim().length > 0 && domain ? emailMatchesDomain(universityEmail, domain) : null;
 
   // ── handlers ──
 
@@ -103,12 +106,13 @@ export default function StudentVerificationSubmitScreen() {
   const validate = useCallback(() => {
     const newErrors: typeof errors = {};
     if (!selectedUniversityId) newErrors.university = 'Selecciona una universidad';
-    if (!studentEmail.trim()) newErrors.email = 'Ingresa tu correo institucional';
-    else if (!studentEmail.includes('@')) newErrors.email = 'Ingresa un correo válido';
+    if (!universityEmail.trim()) newErrors.email = 'Ingresa tu correo institucional';
+    else if (!universityEmail.includes('@')) newErrors.email = 'Ingresa un correo válido';
+    if (!studentIdNumber.trim()) newErrors.studentId = 'Ingresa tu número de carnet';
     if (!cardImageUri) newErrors.card = 'Adjunta una foto de tu carnet estudiantil';
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
-  }, [selectedUniversityId, studentEmail, cardImageUri]);
+  }, [selectedUniversityId, universityEmail, studentIdNumber, cardImageUri]);
 
   const handleSubmit = useCallback(async () => {
     if (!validate()) return;
@@ -122,7 +126,8 @@ export default function StudentVerificationSubmitScreen() {
 
       await submit({
         universityId: selectedUniversityId,
-        studentEmail: studentEmail.trim(),
+        universityEmail: universityEmail.trim(),
+        studentIdNumber: studentIdNumber.trim(),
         studentCardUrl: cardUrl,
       });
 
@@ -143,7 +148,8 @@ export default function StudentVerificationSubmitScreen() {
     cardImageUri,
     submit,
     selectedUniversityId,
-    studentEmail,
+    universityEmail,
+    studentIdNumber,
     emailMatchesDomainFlag,
     router,
   ]);
@@ -198,9 +204,9 @@ export default function StudentVerificationSubmitScreen() {
               color={errors.email ? Colors.semantic.error : Colors.neutral[400]}
             />
             <TextInput
-              value={studentEmail}
+              value={universityEmail}
               onChangeText={(text) => {
-                setStudentEmail(text);
+                setUniversityEmail(text);
                 setErrors((prev) => ({ ...prev, email: undefined }));
               }}
               placeholder={domain ? `ejemplo@${domain.replace(/^@/, '')}` : 'correo@universidad.edu.co'}
@@ -232,10 +238,41 @@ export default function StudentVerificationSubmitScreen() {
               </Text>
             </View>
           )}
-          {domain && !studentEmail && (
+          {domain && !universityEmail && (
             <Text className="text-xs text-neutral-400 mt-1.5">
               Se espera un email {domain.startsWith('@') ? domain : `@${domain}`}
             </Text>
+          )}
+        </View>
+
+        {/* Student ID input */}
+        <View className="mx-4 mb-4">
+          <Text className="text-sm font-semibold text-neutral-700 mb-2">
+            Número de carnet
+          </Text>
+          <View
+            className={`flex-row items-center gap-2 px-4 py-3.5 rounded-2xl border bg-white ${errors.studentId ? 'border-red-400' : 'border-neutral-200'
+              }`}
+          >
+            <Hash
+              size={16}
+              color={errors.studentId ? Colors.semantic.error : Colors.neutral[400]}
+            />
+            <TextInput
+              value={studentIdNumber}
+              onChangeText={(text) => {
+                setStudentIdNumber(text);
+                setErrors((prev) => ({ ...prev, studentId: undefined }));
+              }}
+              placeholder="ej. 20231234"
+              placeholderTextColor={Colors.neutral[400]}
+              autoCapitalize="none"
+              autoCorrect={false}
+              className="flex-1 text-base text-neutral-900"
+            />
+          </View>
+          {errors.studentId && (
+            <Text className="text-red-500 text-xs mt-1">{errors.studentId}</Text>
           )}
         </View>
 
@@ -303,11 +340,12 @@ export default function StudentVerificationSubmitScreen() {
         {/* Submit button */}
         <View className="mx-4 mt-2">
           <Button
-            title={isBusy ? 'Enviando...' : 'Enviar verificación'}
             onPress={handleSubmit}
             disabled={isBusy}
             variant="primary"
-          />
+          >
+            {isBusy ? 'Enviando...' : 'Enviar verificación'}
+          </Button>
         </View>
       </ScrollView>
     </KeyboardAvoidingView>
