@@ -21,10 +21,15 @@ import {
   GraduationCap,
   AlertTriangle,
   Hash,
+  Images,
   X,
 } from 'lucide-react-native';
 import { Button, Card } from '@/components/ui';
 import { UniversityPicker } from '@/components/university/UniversityPicker';
+import {
+  CapturePhotoModal,
+  type CapturedPhoto,
+} from '@/components/verification/CapturePhotoModal';
 import { Colors } from '@/constants/colors';
 import { uploadImageToCloudinary } from '@/lib/cloudinary';
 import { useStudentVerification } from '@/hooks/useStudentVerification';
@@ -32,7 +37,7 @@ import type { UniversityResponse } from '@/types/api';
 
 // ── helpers ──
 
-async function pickCardImage(): Promise<string | null> {
+async function pickFromGallery(): Promise<CapturedPhoto | null> {
   const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
   if (!permission.granted) {
     Alert.alert('Permiso requerido', 'Debes permitir acceso a la galería para seleccionar el carnet.');
@@ -45,7 +50,8 @@ async function pickCardImage(): Promise<string | null> {
     aspect: [4, 3],
   });
   if (result.canceled || !result.assets?.[0]?.uri) return null;
-  return result.assets[0].uri;
+  const asset = result.assets[0];
+  return { uri: asset.uri, width: asset.width, height: asset.height };
 }
 
 function emailMatchesDomain(email: string, domain: string): boolean {
@@ -70,7 +76,8 @@ export default function StudentVerificationSubmitScreen() {
   );
   const [universityEmail, setUniversityEmail] = useState('');
   const [studentIdNumber, setStudentIdNumber] = useState('');
-  const [cardImageUri, setCardImageUri] = useState<string | null>(null);
+  const [cardPhoto, setCardPhoto] = useState<CapturedPhoto | null>(null);
+  const [showCamera, setShowCamera] = useState(false);
   const [isUploading, setIsUploading] = useState(false);
   const [errors, setErrors] = useState<{
     university?: string;
@@ -95,10 +102,21 @@ export default function StudentVerificationSubmitScreen() {
     [],
   );
 
-  const handlePickImage = useCallback(async () => {
-    const uri = await pickCardImage();
-    if (uri) {
-      setCardImageUri(uri);
+  const handleOpenCamera = useCallback(() => {
+    setShowCamera(true);
+    setErrors((prev) => ({ ...prev, card: undefined }));
+  }, []);
+
+  const handleCapturedPhoto = useCallback((photo: CapturedPhoto) => {
+    setCardPhoto(photo);
+    setShowCamera(false);
+    setErrors((prev) => ({ ...prev, card: undefined }));
+  }, []);
+
+  const handlePickFromGallery = useCallback(async () => {
+    const photo = await pickFromGallery();
+    if (photo) {
+      setCardPhoto(photo);
       setErrors((prev) => ({ ...prev, card: undefined }));
     }
   }, []);
@@ -109,17 +127,17 @@ export default function StudentVerificationSubmitScreen() {
     if (!universityEmail.trim()) newErrors.email = 'Ingresa tu correo institucional';
     else if (!universityEmail.includes('@')) newErrors.email = 'Ingresa un correo válido';
     if (!studentIdNumber.trim()) newErrors.studentId = 'Ingresa tu número de carnet';
-    if (!cardImageUri) newErrors.card = 'Adjunta una foto de tu carnet estudiantil';
+    if (!cardPhoto) newErrors.card = 'Adjunta una foto de tu carnet estudiantil';
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
-  }, [selectedUniversityId, universityEmail, studentIdNumber, cardImageUri]);
+  }, [selectedUniversityId, universityEmail, studentIdNumber, cardPhoto]);
 
   const handleSubmit = useCallback(async () => {
     if (!validate()) return;
 
     try {
       setIsUploading(true);
-      const cardUrl = await uploadImageToCloudinary(cardImageUri!, {
+      const cardUrl = await uploadImageToCloudinary(cardPhoto!.uri, {
         folder: 'student-cards',
       });
       setIsUploading(false);
@@ -145,7 +163,7 @@ export default function StudentVerificationSubmitScreen() {
     }
   }, [
     validate,
-    cardImageUri,
+    cardPhoto,
     submit,
     selectedUniversityId,
     universityEmail,
@@ -157,197 +175,224 @@ export default function StudentVerificationSubmitScreen() {
   const isBusy = isSubmitting || isUploading;
 
   return (
-    <KeyboardAvoidingView
-      className="flex-1 bg-neutral-50"
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-    >
-      <ScrollView
-        className="flex-1"
-        showsVerticalScrollIndicator={false}
-        keyboardShouldPersistTaps="handled"
-        contentContainerStyle={{ paddingBottom: insets.bottom + 40, paddingTop: 16 }}
+    <>
+      <CapturePhotoModal
+        visible={showCamera}
+        target="documentFront"
+        onClose={() => setShowCamera(false)}
+        onCapture={handleCapturedPhoto}
+        customConfig={{
+          title: 'Foto del carnet',
+          description: 'Alinea el carnet completo dentro del marco, bien iluminado y sin reflejos.',
+          hint: 'Asegúrate de que el texto y tu foto en el carnet sean legibles.',
+        }}
+      />
+      <KeyboardAvoidingView
+        className="flex-1 bg-neutral-50"
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
       >
-        {/* Intro banner */}
-        <View className="mx-4 mb-5 bg-primary-50 rounded-2xl p-4 flex-row items-start gap-3">
-          <GraduationCap size={22} color={Colors.primary[600]} style={{ marginTop: 1 }} />
-          <Text className="flex-1 text-sm text-primary-700 leading-5">
-            La verificación estudiantil te permite acceder a rutas exclusivas para estudiantes
-            universitarios.
-          </Text>
-        </View>
-
-        {/* University picker */}
-        <View className="mx-4 mb-4">
-          <Text className="text-sm font-semibold text-neutral-700 mb-2">Universidad</Text>
-          <UniversityPicker
-            value={selectedUniversityId}
-            selectedLabel={selectedUniversity?.name}
-            onChange={handleUniversityChange}
-            placeholder="Buscar tu universidad..."
-          />
-          {errors.university && (
-            <Text className="text-red-500 text-xs mt-1">{errors.university}</Text>
-          )}
-        </View>
-
-        {/* Email input */}
-        <View className="mx-4 mb-4">
-          <Text className="text-sm font-semibold text-neutral-700 mb-2">
-            Correo institucional
-          </Text>
-          <View
-            className={`flex-row items-center gap-2 px-4 py-3.5 rounded-2xl border bg-white ${errors.email ? 'border-red-400' : 'border-neutral-200'
-              }`}
-          >
-            <AtSign
-              size={16}
-              color={errors.email ? Colors.semantic.error : Colors.neutral[400]}
-            />
-            <TextInput
-              value={universityEmail}
-              onChangeText={(text) => {
-                setUniversityEmail(text);
-                setErrors((prev) => ({ ...prev, email: undefined }));
-              }}
-              placeholder={domain ? `ejemplo@${domain.replace(/^@/, '')}` : 'correo@universidad.edu.co'}
-              placeholderTextColor={Colors.neutral[400]}
-              keyboardType="email-address"
-              autoCapitalize="none"
-              autoCorrect={false}
-              className="flex-1 text-base text-neutral-900"
-            />
-          </View>
-          {errors.email && (
-            <Text className="text-red-500 text-xs mt-1">{errors.email}</Text>
-          )}
-
-          {/* Domain match chip */}
-          {emailMatchesDomainFlag === true && (
-            <View className="flex-row items-center gap-1.5 mt-2">
-              <CheckCircle2 size={13} color={Colors.semantic.success} />
-              <Text className="text-xs text-green-700 font-medium">
-                Auto-aprobación disponible
-              </Text>
-            </View>
-          )}
-          {emailMatchesDomainFlag === false && (
-            <View className="flex-row items-center gap-1.5 mt-2">
-              <AlertTriangle size={13} color={Colors.semantic.warning} />
-              <Text className="text-xs text-yellow-700 font-medium">
-                Requerirá revisión manual
-              </Text>
-            </View>
-          )}
-          {domain && !universityEmail && (
-            <Text className="text-xs text-neutral-400 mt-1.5">
-              Se espera un email {domain.startsWith('@') ? domain : `@${domain}`}
+        <ScrollView
+          className="flex-1"
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+          contentContainerStyle={{ paddingBottom: insets.bottom + 40, paddingTop: 16 }}
+        >
+          {/* Intro banner */}
+          <View className="mx-4 mb-5 bg-primary-50 rounded-2xl p-4 flex-row items-start gap-3">
+            <GraduationCap size={22} color={Colors.primary[600]} style={{ marginTop: 1 }} />
+            <Text className="flex-1 text-sm text-primary-700 leading-5">
+              La verificación estudiantil te permite acceder a rutas exclusivas para estudiantes
+              universitarios.
             </Text>
-          )}
-        </View>
-
-        {/* Student ID input */}
-        <View className="mx-4 mb-4">
-          <Text className="text-sm font-semibold text-neutral-700 mb-2">
-            Número de carnet
-          </Text>
-          <View
-            className={`flex-row items-center gap-2 px-4 py-3.5 rounded-2xl border bg-white ${errors.studentId ? 'border-red-400' : 'border-neutral-200'
-              }`}
-          >
-            <Hash
-              size={16}
-              color={errors.studentId ? Colors.semantic.error : Colors.neutral[400]}
-            />
-            <TextInput
-              value={studentIdNumber}
-              onChangeText={(text) => {
-                setStudentIdNumber(text);
-                setErrors((prev) => ({ ...prev, studentId: undefined }));
-              }}
-              placeholder="ej. 20231234"
-              placeholderTextColor={Colors.neutral[400]}
-              autoCapitalize="none"
-              autoCorrect={false}
-              className="flex-1 text-base text-neutral-900"
-            />
           </View>
-          {errors.studentId && (
-            <Text className="text-red-500 text-xs mt-1">{errors.studentId}</Text>
-          )}
-        </View>
 
-        {/* Card upload */}
-        <View className="mx-4 mb-4">
-          <Text className="text-sm font-semibold text-neutral-700 mb-2">
-            Carnet estudiantil
-          </Text>
-          <Card>
-            <TouchableOpacity
-              onPress={handlePickImage}
-              activeOpacity={0.75}
-              className="flex-row items-center gap-3 py-1"
+          {/* University picker */}
+          <View className="mx-4 mb-4">
+            <Text className="text-sm font-semibold text-neutral-700 mb-2">Universidad</Text>
+            <UniversityPicker
+              value={selectedUniversityId}
+              selectedLabel={selectedUniversity?.name}
+              onChange={handleUniversityChange}
+              placeholder="Buscar tu universidad..."
+            />
+            {errors.university && (
+              <Text className="text-red-500 text-xs mt-1">{errors.university}</Text>
+            )}
+          </View>
+
+          {/* Email input */}
+          <View className="mx-4 mb-4">
+            <Text className="text-sm font-semibold text-neutral-700 mb-2">
+              Correo institucional
+            </Text>
+            <View
+              className={`flex-row items-center gap-2 px-4 py-3.5 rounded-2xl border bg-white ${errors.email ? 'border-red-400' : 'border-neutral-200'
+                }`}
             >
-              <View className="w-12 h-12 rounded-xl bg-primary-50 items-center justify-center">
-                <Camera size={22} color={Colors.primary[600]} />
-              </View>
-              <View className="flex-1">
-                <Text className="text-base text-neutral-800 font-medium">
-                  {cardImageUri ? 'Cambiar foto' : 'Seleccionar foto'}
+              <AtSign
+                size={16}
+                color={errors.email ? Colors.semantic.error : Colors.neutral[400]}
+              />
+              <TextInput
+                value={universityEmail}
+                onChangeText={(text) => {
+                  setUniversityEmail(text);
+                  setErrors((prev) => ({ ...prev, email: undefined }));
+                }}
+                placeholder={domain ? `ejemplo@${domain.replace(/^@/, '')}` : 'correo@universidad.edu.co'}
+                placeholderTextColor={Colors.neutral[400]}
+                keyboardType="email-address"
+                autoCapitalize="none"
+                autoCorrect={false}
+                className="flex-1 text-base text-neutral-900"
+              />
+            </View>
+            {errors.email && (
+              <Text className="text-red-500 text-xs mt-1">{errors.email}</Text>
+            )}
+
+            {/* Domain match chip */}
+            {emailMatchesDomainFlag === true && (
+              <View className="flex-row items-center gap-1.5 mt-2">
+                <CheckCircle2 size={13} color={Colors.semantic.success} />
+                <Text className="text-xs text-green-700 font-medium">
+                  Auto-aprobación disponible
                 </Text>
-                <Text className="text-xs text-neutral-400 mt-0.5">
+              </View>
+            )}
+            {emailMatchesDomainFlag === false && (
+              <View className="flex-row items-center gap-1.5 mt-2">
+                <AlertTriangle size={13} color={Colors.semantic.warning} />
+                <Text className="text-xs text-yellow-700 font-medium">
+                  Requerirá revisión manual
+                </Text>
+              </View>
+            )}
+            {domain && !universityEmail && (
+              <Text className="text-xs text-neutral-400 mt-1.5">
+                Se espera un email {domain.startsWith('@') ? domain : `@${domain}`}
+              </Text>
+            )}
+          </View>
+
+          {/* Student ID input */}
+          <View className="mx-4 mb-4">
+            <Text className="text-sm font-semibold text-neutral-700 mb-2">
+              Número de carnet
+            </Text>
+            <View
+              className={`flex-row items-center gap-2 px-4 py-3.5 rounded-2xl border bg-white ${errors.studentId ? 'border-red-400' : 'border-neutral-200'
+                }`}
+            >
+              <Hash
+                size={16}
+                color={errors.studentId ? Colors.semantic.error : Colors.neutral[400]}
+              />
+              <TextInput
+                value={studentIdNumber}
+                onChangeText={(text) => {
+                  setStudentIdNumber(text);
+                  setErrors((prev) => ({ ...prev, studentId: undefined }));
+                }}
+                placeholder="ej. 20231234"
+                placeholderTextColor={Colors.neutral[400]}
+                autoCapitalize="none"
+                autoCorrect={false}
+                className="flex-1 text-base text-neutral-900"
+              />
+            </View>
+            {errors.studentId && (
+              <Text className="text-red-500 text-xs mt-1">{errors.studentId}</Text>
+            )}
+          </View>
+
+          {/* Card upload */}
+          <View className="mx-4 mb-4">
+            <Text className="text-sm font-semibold text-neutral-700 mb-2">
+              Carnet estudiantil
+            </Text>
+            <Card>
+              {/* Photo preview */}
+              {cardPhoto && (
+                <View className="mb-3">
+                  <Image
+                    source={{ uri: cardPhoto.uri }}
+                    className="w-full h-48 rounded-xl"
+                    resizeMode="cover"
+                  />
+                  <TouchableOpacity
+                    onPress={() => setCardPhoto(null)}
+                    hitSlop={8}
+                    activeOpacity={0.7}
+                    className="absolute top-2 right-2 w-7 h-7 rounded-full bg-black/50 items-center justify-center"
+                  >
+                    <X size={14} color="#fff" />
+                  </TouchableOpacity>
+                </View>
+              )}
+
+              {/* Action buttons */}
+              <View className="flex-row gap-3">
+                <TouchableOpacity
+                  onPress={handleOpenCamera}
+                  activeOpacity={0.75}
+                  className="flex-1 flex-row items-center justify-center gap-2 py-3 rounded-xl bg-primary-50 border border-primary-100"
+                >
+                  <Camera size={18} color={Colors.primary[600]} />
+                  <Text className="text-sm font-semibold text-primary-700">
+                    {cardPhoto ? 'Retomar' : 'Tomar foto'}
+                  </Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={handlePickFromGallery}
+                  activeOpacity={0.75}
+                  className="flex-1 flex-row items-center justify-center gap-2 py-3 rounded-xl bg-neutral-50 border border-neutral-200"
+                >
+                  <Images size={18} color={Colors.neutral[600]} />
+                  <Text className="text-sm font-semibold text-neutral-700">
+                    {cardPhoto ? 'Cambiar' : 'Galería'}
+                  </Text>
+                </TouchableOpacity>
+              </View>
+
+              {!cardPhoto && (
+                <Text className="text-xs text-neutral-400 text-center mt-2">
                   Foto clara del anverso de tu carnet
                 </Text>
-              </View>
-              {cardImageUri && (
-                <TouchableOpacity
-                  onPress={() => setCardImageUri(null)}
-                  hitSlop={8}
-                  activeOpacity={0.7}
-                >
-                  <X size={18} color={Colors.neutral[400]} />
-                </TouchableOpacity>
               )}
-            </TouchableOpacity>
-
-            {cardImageUri && (
-              <Image
-                source={{ uri: cardImageUri }}
-                className="w-full h-48 rounded-xl mt-3"
-                resizeMode="cover"
-              />
+            </Card>
+            {errors.card && (
+              <Text className="text-red-500 text-xs mt-1">{errors.card}</Text>
             )}
-          </Card>
-          {errors.card && (
-            <Text className="text-red-500 text-xs mt-1">{errors.card}</Text>
+          </View>
+
+          {/* Upload progress hint */}
+          {isUploading && (
+            <View className="mx-4 mb-3 flex-row items-center gap-2">
+              <ActivityIndicator size="small" color={Colors.primary[500]} />
+              <Text className="text-sm text-neutral-500">Subiendo imagen...</Text>
+            </View>
           )}
-        </View>
 
-        {/* Upload progress hint */}
-        {isUploading && (
-          <View className="mx-4 mb-3 flex-row items-center gap-2">
-            <ActivityIndicator size="small" color={Colors.primary[500]} />
-            <Text className="text-sm text-neutral-500">Subiendo imagen...</Text>
+          {/* Submit error */}
+          {submitError && (
+            <View className="mx-4 mb-3 bg-red-50 border border-red-200 rounded-2xl p-3">
+              <Text className="text-sm text-red-700">{submitError}</Text>
+            </View>
+          )}
+
+          {/* Submit button */}
+          <View className="mx-4 mt-2">
+            <Button
+              onPress={handleSubmit}
+              disabled={isBusy}
+              variant="primary"
+            >
+              {isBusy ? 'Enviando...' : 'Enviar verificación'}
+            </Button>
           </View>
-        )}
-
-        {/* Submit error */}
-        {submitError && (
-          <View className="mx-4 mb-3 bg-red-50 border border-red-200 rounded-2xl p-3">
-            <Text className="text-sm text-red-700">{submitError}</Text>
-          </View>
-        )}
-
-        {/* Submit button */}
-        <View className="mx-4 mt-2">
-          <Button
-            onPress={handleSubmit}
-            disabled={isBusy}
-            variant="primary"
-          >
-            {isBusy ? 'Enviando...' : 'Enviar verificación'}
-          </Button>
-        </View>
-      </ScrollView>
-    </KeyboardAvoidingView>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </>
   );
 }
