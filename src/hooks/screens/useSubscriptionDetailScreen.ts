@@ -3,6 +3,7 @@ import { Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 import { routineSubscriptionsApi } from '@/api/routine-subscriptions';
 import { useMySubscriptions } from '@/hooks/useMySubscriptions';
+import { useRoutineSubscriptionsStore } from '@/stores/routine-subscriptions-store';
 import {
   subscriptionDetailReducer,
   initialSubscriptionDetailState,
@@ -31,45 +32,50 @@ export function useSubscriptionDetailScreen(id: string | undefined) {
     subscriptionDetailReducer,
     initialSubscriptionDetailState,
   );
-  const [subscription, setSubscription] = useState<RoutineSubscriptionResponse | null>(null);
+  const subscription = useRoutineSubscriptionsStore(
+    useCallback((s) => s.mySubscriptions.find((sub) => sub.id === id) ?? null, [id]),
+  );
+  const fetchMine = useRoutineSubscriptionsStore((s) => s.fetchMine);
   const [bookings, setBookings] = useState<RoutineBookingResponse[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(() => subscription === null);
   const [loadError, setLoadError] = useState<string | null>(null);
 
-  const reloadSubscription = useCallback(async () => {
-    if (!id) return;
-    const res = await routineSubscriptionsApi.getById(id);
-    setSubscription(res.data.data ?? null);
-  }, [id]);
+  // subscription updates reactively from the store; mutations (pause/resume) already
+  // call updateInMine so no explicit reload is needed.
+  const reloadSubscription = useCallback(async () => { }, []);
 
   useEffect(() => {
     if (!id) return;
+    // Already in store (navigated from my-trips screen) — nothing to fetch.
+    if (useRoutineSubscriptionsStore.getState().mySubscriptions.some((s) => s.id === id)) {
+      setIsLoading(false);
+      return;
+    }
     let cancelled = false;
     (async () => {
       setIsLoading(true);
       setLoadError(null);
       try {
-        const [subRes, bkgRes] = await Promise.all([
-          routineSubscriptionsApi.getById(id),
-          routineSubscriptionsApi.getBookings(id),
-        ]);
+        await fetchMine();
         if (!cancelled) {
-          setSubscription(subRes.data.data ?? null);
-          setBookings(bkgRes.data.data ?? []);
+          const found = useRoutineSubscriptionsStore.getState().mySubscriptions.some((s) => s.id === id);
+          if (!found) setLoadError('Suscripción no encontrada');
+          setIsLoading(false);
         }
       } catch (err: unknown) {
-        const anyErr = err as { response?: { data?: { message?: string } }; message?: string };
+        const anyErr = err as { response?: { data?: { message?: string; }; }; message?: string; };
         const msg =
           anyErr?.response?.data?.message ?? anyErr?.message ?? 'Error al cargar la suscripción';
-        if (!cancelled) setLoadError(msg);
-      } finally {
-        if (!cancelled) setIsLoading(false);
+        if (!cancelled) {
+          setLoadError(msg);
+          setIsLoading(false);
+        }
       }
     })();
     return () => {
       cancelled = true;
     };
-  }, [id]);
+  }, [id, fetchMine]);
 
   const handlePause = useCallback(async () => {
     if (!id || !uiState.pauseFrom) return;
@@ -84,7 +90,7 @@ export function useSubscriptionDetailScreen(id: string | undefined) {
       await reloadSubscription();
       dispatch({ type: 'CLOSE_MODAL' });
     } catch (err: unknown) {
-      const anyErr = err as { response?: { data?: { message?: string } } };
+      const anyErr = err as { response?: { data?: { message?: string; }; }; };
       Alert.alert('Error', anyErr?.response?.data?.message ?? 'Error al pausar');
     } finally {
       dispatch({ type: 'SET_SUBMITTING', payload: false });
@@ -107,7 +113,7 @@ export function useSubscriptionDetailScreen(id: string | undefined) {
       await reloadSubscription();
       dispatch({ type: 'CLOSE_MODAL' });
     } catch (err: unknown) {
-      const anyErr = err as { response?: { data?: { message?: string } } };
+      const anyErr = err as { response?: { data?: { message?: string; }; }; };
       Alert.alert('Error', anyErr?.response?.data?.message ?? 'Error al reactivar');
     } finally {
       dispatch({ type: 'SET_SUBMITTING', payload: false });
@@ -122,7 +128,7 @@ export function useSubscriptionDetailScreen(id: string | undefined) {
       dispatch({ type: 'CLOSE_MODAL' });
       router.back();
     } catch (err: unknown) {
-      const anyErr = err as { response?: { data?: { message?: string } } };
+      const anyErr = err as { response?: { data?: { message?: string; }; }; };
       Alert.alert('Error', anyErr?.response?.data?.message ?? 'Error al cancelar');
     } finally {
       dispatch({ type: 'SET_SUBMITTING', payload: false });
@@ -178,7 +184,7 @@ export function useSubscriptionDetailScreen(id: string | undefined) {
       Alert.alert('¡Cambio enviado!', 'El conductor recibirá la solicitud y responderá pronto.');
       dispatch({ type: 'CLOSE_MODAL' });
     } catch (err: unknown) {
-      const anyErr = err as { response?: { data?: { message?: string } } };
+      const anyErr = err as { response?: { data?: { message?: string; }; }; };
       Alert.alert('Error', anyErr?.response?.data?.message ?? 'Error al enviar el cambio');
     } finally {
       dispatch({ type: 'SET_SUBMITTING', payload: false });

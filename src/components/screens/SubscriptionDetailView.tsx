@@ -101,14 +101,10 @@ export function SubscriptionDetailView({ uiState, dispatch, subscription, bookin
       </View>
 
       <ScrollView contentContainerStyle={{ paddingBottom: insets.bottom + 32 }}>
-        <View className="bg-white px-4 py-4 border-b border-neutral-100">
-          <SubscriptionStatusBadge status={status} showDescription />
-        </View>
-
         {trip && (
           <View className="mx-4 mt-4">
             <Card>
-              <CardHeader title="Ruta" />
+              <CardHeader title="Ruta" action={<SubscriptionStatusBadge status={status} />} />
               <View className="gap-3">
                 <View className="flex-row items-start gap-2">
                   <MapPin size={15} color={Colors.primary[500]} />
@@ -124,21 +120,18 @@ export function SubscriptionDetailView({ uiState, dispatch, subscription, bookin
                     <Text className="text-sm font-medium text-neutral-800">{trip.destinationName}</Text>
                   </View>
                 </View>
-                <View className="flex-row items-center gap-2">
+                <View className="flex-row items-center gap-2 flex-wrap">
                   <Clock size={14} color={Colors.neutral[500]} />
                   <Text className="text-sm text-neutral-600">
                     {trip.departureTime} → {trip.requiredArrivalTime}
                   </Text>
-                </View>
-                <View className="flex-row items-center gap-2">
+                  <Text className="text-neutral-300">·</Text>
                   <Calendar size={14} color={Colors.neutral[500]} />
-                  <View className="flex-row flex-wrap gap-1">
-                    {subscribedDays.map((d) => (
-                      <View key={d} className="bg-primary-50 px-2 py-0.5 rounded-full">
-                        <Text className="text-xs font-medium text-primary-700">{DAY_LABELS[d]}</Text>
-                      </View>
-                    ))}
-                  </View>
+                  {subscribedDays.map((d) => (
+                    <View key={d} className="bg-primary-50 px-2 py-0.5 rounded-full">
+                      <Text className="text-xs font-medium text-primary-700">{DAY_LABELS[d]}</Text>
+                    </View>
+                  ))}
                 </View>
               </View>
             </Card>
@@ -149,18 +142,28 @@ export function SubscriptionDetailView({ uiState, dispatch, subscription, bookin
           <Card>
             <CardHeader title="Detalles" />
             <View className="gap-3">
-              <View className="flex-row items-start gap-2">
+              <View className="flex-row items-center gap-2 flex-wrap">
                 <MapPin size={14} color={Colors.neutral[500]} />
-                <View className="flex-1">
-                  <Text className="text-xs text-neutral-400">Punto de recogida</Text>
-                  <Text className="text-sm text-neutral-800">
-                    {pickupType === 'WAYPOINT'
-                      ? 'Parada predefinida de la ruta'
-                      : pickupType === 'SUGGESTED' && customPickupName
-                        ? customPickupName
-                        : 'Origen de la ruta'}
-                  </Text>
-                </View>
+                <Text className="text-sm text-neutral-700">
+                  {pickupType === 'WAYPOINT'
+                    ? 'Parada predefinida'
+                    : pickupType === 'SUGGESTED' && customPickupName
+                      ? customPickupName
+                      : 'Origen de la ruta'}
+                </Text>
+                <Text className="text-neutral-300">·</Text>
+                <User size={14} color={Colors.neutral[500]} />
+                <Text className="text-sm text-neutral-700">
+                  {seatsRequired} cupo{seatsRequired > 1 ? 's' : ''}
+                </Text>
+                {trip && (
+                  <>
+                    <Text className="text-neutral-300">·</Text>
+                    <Text className="text-sm text-neutral-700">
+                      {formatCurrency(trip.pricePerSeat * seatsRequired, trip.currency)} / día
+                    </Text>
+                  </>
+                )}
               </View>
               <View className="flex-row items-start gap-2">
                 <Calendar size={14} color={Colors.neutral[500]} />
@@ -171,15 +174,6 @@ export function SubscriptionDetailView({ uiState, dispatch, subscription, bookin
                     {endDate ? ` · Hasta ${formatDate(endDate)}` : ' · Sin fecha de fin'}
                   </Text>
                 </View>
-              </View>
-              <View className="flex-row items-center gap-2">
-                <User size={14} color={Colors.neutral[500]} />
-                <Text className="text-sm text-neutral-700">
-                  {seatsRequired} cupo{seatsRequired > 1 ? 's' : ''}
-                  {trip
-                    ? `  ·  ${formatCurrency(trip.pricePerSeat * seatsRequired, trip.currency)} / día`
-                    : ''}
-                </Text>
               </View>
             </View>
           </Card>
