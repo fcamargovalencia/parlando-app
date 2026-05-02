@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { routineSubscriptionsApi } from '@/api/routine-subscriptions';
 import { routineTripsApi } from '@/api/routine-trips';
-import type { RoutineSubscriptionResponse, SubscriptionStatus } from '@/types/api';
+import type { RoutineSubscriptionResponse, RoutineTripResponse, SubscriptionStatus } from '@/types/api';
 
 interface RoutineSubscriptionsState {
   // As passenger
@@ -34,7 +34,30 @@ export const useRoutineSubscriptionsStore = create<RoutineSubscriptionsState>((s
     set({ isLoading: true, error: null });
     try {
       const response = await routineSubscriptionsApi.getMine();
-      set({ mySubscriptions: response.data.data ?? [] });
+      const subscriptions = response.data.data ?? [];
+
+      // Enrich subscriptions with routineTrip data (API doesn't include it in /me)
+      const uniqueTripIds = [...new Set(subscriptions.map((s) => s.routineTripId))];
+      const tripMap: Record<string, RoutineTripResponse> = {};
+      await Promise.allSettled(
+        uniqueTripIds.map(async (tripId) => {
+          try {
+            const tripResponse = await routineTripsApi.getById(tripId);
+            if (tripResponse.data.data) {
+              tripMap[tripId] = tripResponse.data.data;
+            }
+          } catch {
+            // ignore individual trip fetch errors
+          }
+        }),
+      );
+
+      const enriched = subscriptions.map((s) => ({
+        ...s,
+        routineTrip: tripMap[s.routineTripId] ?? s.routineTrip,
+      }));
+
+      set({ mySubscriptions: enriched });
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Error al cargar las suscripciones';
       set({ error: message });

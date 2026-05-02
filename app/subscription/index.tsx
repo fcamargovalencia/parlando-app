@@ -3,17 +3,14 @@ import {
   View,
   Text,
   ScrollView,
-  TouchableOpacity,
   RefreshControl,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { Calendar, ChevronRight, Clock, MapPin } from 'lucide-react-native';
-import { Card, EmptyState, FilterTabs, Spinner } from '@/components/ui';
-import { SubscriptionStatusBadge } from '@/components/routine/SubscriptionStatusBadge';
-import { Colors } from '@/constants/colors';
+import { EmptyState, FilterTabs, Spinner } from '@/components/ui';
+import { SubscriptionRow } from '@/components/subscription/SubscriptionRow';
 import { useRoutineSubscriptionsStore } from '@/stores/routine-subscriptions-store';
-import type { RecurrenceDay, RoutineSubscriptionResponse, SubscriptionStatus } from '@/types/api';
+import type { RoutineSubscriptionResponse, SubscriptionStatus } from '@/types/api';
 
 // ── Types ──
 
@@ -25,86 +22,6 @@ const TAB_STATUSES: Record<TabKey, SubscriptionStatus[]> = {
   paused: ['PAUSED'],
   history: ['COMPLETED', 'CANCELLED'],
 };
-
-const DAY_LABELS: Record<RecurrenceDay, string> = {
-  MON: 'Lun', TUE: 'Mar', WED: 'Mié', THU: 'Jue', FRI: 'Vie', SAT: 'Sáb', SUN: 'Dom',
-};
-
-// ── Helpers ──
-
-function formatDate(iso: string): string {
-  try {
-    const [y, m, d] = iso.split('-').map(Number);
-    return new Date(y, m - 1, d).toLocaleDateString('es-CO', {
-      day: '2-digit', month: 'short',
-    });
-  } catch { return iso; }
-}
-
-// ── Subscription row card ──
-
-function SubscriptionRow({
-  subscription,
-  onPress,
-}: {
-  subscription: RoutineSubscriptionResponse;
-  onPress: () => void;
-}) {
-  const trip = subscription.routineTrip;
-
-  return (
-    <TouchableOpacity onPress={onPress} activeOpacity={0.7}>
-      <Card className="mb-3">
-        <View className="flex-row items-start justify-between">
-          <View className="flex-1 mr-3">
-            {/* Route */}
-            <View className="flex-row items-center gap-1.5 mb-1">
-              <MapPin size={13} color={Colors.primary[500]} />
-              <Text className="text-sm font-semibold text-neutral-900" numberOfLines={1}>
-                {trip
-                  ? `${trip.originName} → ${trip.destinationName}`
-                  : `Suscripción ${subscription.id.slice(0, 8)}`}
-              </Text>
-            </View>
-
-            {/* Schedule */}
-            {trip && (
-              <View className="flex-row items-center gap-1.5 mb-2">
-                <Clock size={12} color={Colors.neutral[500]} />
-                <Text className="text-xs text-neutral-500">
-                  {trip.departureTime} → {trip.requiredArrivalTime}
-                </Text>
-              </View>
-            )}
-
-            {/* Days */}
-            <View className="flex-row flex-wrap gap-1 mb-2">
-              {subscription.subscribedDays.map((d) => (
-                <View key={d} className="bg-primary-50 px-1.5 py-0.5 rounded-full">
-                  <Text className="text-[10px] font-medium text-primary-700">{DAY_LABELS[d]}</Text>
-                </View>
-              ))}
-            </View>
-
-            {/* Period */}
-            <View className="flex-row items-center gap-1.5">
-              <Calendar size={12} color={Colors.neutral[400]} />
-              <Text className="text-xs text-neutral-400">
-                Desde {formatDate(subscription.startDate)}
-                {subscription.endDate ? ` · Hasta ${formatDate(subscription.endDate)}` : ''}
-              </Text>
-            </View>
-          </View>
-
-          <View className="items-end gap-2">
-            <SubscriptionStatusBadge status={subscription.status} />
-            <ChevronRight size={16} color={Colors.neutral[400]} />
-          </View>
-        </View>
-      </Card>
-    </TouchableOpacity>
-  );
-}
 
 // ── Screen ──
 

@@ -1,4 +1,4 @@
-import type { BookingResponse, TripResponse, TripType } from './api';
+import type { BookingResponse, RoutineSubscriptionResponse, RoutineTripResponse, TripResponse, TripType } from './api';
 
 // ── Unified filter ──
 
@@ -62,3 +62,19 @@ export interface MyTripItem {
   trip?: TripResponse;
   booking?: BookingResponse;
 }
+
+// ── Routine list items (unified driver templates + passenger subscriptions) ──
+
+export interface RoutineTemplateItem {
+  type: 'template';
+  id: string;
+  data: RoutineTripResponse;
+}
+
+export interface RoutineSubscriptionItem {
+  type: 'subscription';
+  id: string;
+  data: RoutineSubscriptionResponse;
+}
+
+export type RoutineListItem = RoutineTemplateItem | RoutineSubscriptionItem;

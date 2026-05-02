@@ -12,6 +12,7 @@ import { Screen, EmptyState, Spinner, FilterTabs } from '@/components/ui';
 import { MyTripCard } from '@/components/trip/MyTripCard';
 import { RateModal } from '@/components/trip/RateModal';
 import { RoutineCard } from '@/components/routine/RoutineCard';
+import { SubscriptionRow } from '@/components/subscription/SubscriptionRow';
 import { Colors } from '@/constants/colors';
 import {
   useMyTripsScreen,
@@ -89,7 +90,7 @@ export default function MyTripsScreen() {
     routineFilter, setRoutineFilter, routineLoading, filteredRoutine, routineTabs,
     actioningId, onRefresh,
     handleTripPress, handleRoutinePress, handleRoutineEdit, handleViewTrips,
-    handlePause, handleResume,
+    handlePause, handleResume, handleSubscriptionPress,
   } = useMyTripsScreen();
 
   const isUniqueSegment = segment === 'unique';
@@ -178,11 +179,11 @@ export default function MyTripsScreen() {
               ListEmptyComponent={
                 <EmptyState
                   icon={<Repeat size={56} color={Colors.neutral[300]} />}
-                  title={routineFilter === 'active' ? 'Sin rutas rutinarias' : 'Sin resultados'}
+                  title={routineFilter === 'active' ? 'Sin rutas ni suscripciones activas' : 'Sin resultados'}
                   description={
                     routineFilter === 'active'
-                      ? 'Crea tu primera plantilla de ruta recurrente para empezar.'
-                      : `No tienes rutas con estado "${ROUTINE_FILTERS.find((f) => f.key === routineFilter)?.label}".`
+                      ? 'Crea una ruta rutinaria como conductor o suscríbete a una como pasajero.'
+                      : `No tienes rutas ni suscripciones con estado "${ROUTINE_FILTERS.find((f) => f.key === routineFilter)?.label}".`
                   }
                   actionLabel={routineFilter === 'active' ? 'Crear ruta rutinaria' : undefined}
                   onAction={
@@ -192,17 +193,27 @@ export default function MyTripsScreen() {
                   }
                 />
               }
-              renderItem={({ item }) => (
-                <RoutineCard
-                  trip={item}
-                  actioning={actioningId === item.id}
-                  onPress={() => handleRoutinePress(item.id)}
-                  onEdit={() => handleRoutineEdit(item.id)}
-                  onPause={() => handlePause(item.id)}
-                  onResume={() => handleResume(item.id)}
-                  onViewTrips={() => handleViewTrips(item.id)}
-                />
-              )}
+              renderItem={({ item }) => {
+                if (item.type === 'template') {
+                  return (
+                    <RoutineCard
+                      trip={item.data}
+                      actioning={actioningId === item.id}
+                      onPress={() => handleRoutinePress(item.id)}
+                      onEdit={() => handleRoutineEdit(item.id)}
+                      onPause={() => handlePause(item.id)}
+                      onResume={() => handleResume(item.id)}
+                      onViewTrips={() => handleViewTrips(item.id)}
+                    />
+                  );
+                }
+                return (
+                  <SubscriptionRow
+                    subscription={item.data}
+                    onPress={() => handleSubscriptionPress(item.id)}
+                  />
+                );
+              }}
             />
           )}
         </>

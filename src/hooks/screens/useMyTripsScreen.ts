@@ -3,21 +3,29 @@ import { Alert } from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
 import { useMyTrips } from '@/hooks/useMyTrips';
 import { useRoutineTrips } from '@/hooks/useRoutineTrips';
-import type { RoutineTripStatus } from '@/types/api';
+import { useRoutineSubscriptionsStore } from '@/stores/routine-subscriptions-store';
+import type { RoutineSubscriptionResponse, RoutineTripStatus, SubscriptionStatus } from '@/types/api';
+import type { RoutineListItem } from '@/types/my-trips';
 
 export type Segment = 'unique' | 'routine';
-export type RoutineFilterKey = 'active' | 'draft' | 'paused';
+export type RoutineFilterKey = 'active' | 'pending' | 'paused';
 
-const ROUTINE_FILTER_STATUSES: Record<RoutineFilterKey, RoutineTripStatus[]> = {
+const ROUTINE_TEMPLATE_STATUSES: Record<RoutineFilterKey, RoutineTripStatus[]> = {
   active: ['ACTIVE'],
-  draft: ['DRAFT'],
+  pending: ['DRAFT'],
+  paused: ['PAUSED'],
+};
+
+const ROUTINE_SUBSCRIPTION_STATUSES: Record<RoutineFilterKey, SubscriptionStatus[]> = {
+  active: ['ACCEPTED'],
+  pending: ['PENDING'],
   paused: ['PAUSED'],
 };
 
 export const ROUTINE_FILTERS: { key: RoutineFilterKey; label: string; }[] = [
-  { key: 'active', label: 'Activas' },
-  { key: 'draft', label: 'Borradores' },
-  { key: 'paused', label: 'Pausadas' },
+  { key: 'active', label: 'Activos' },
+  { key: 'pending', label: 'En espera' },
+  { key: 'paused', label: 'Pausados' },
 ];
 
 export function useMyTripsScreen() {
@@ -52,17 +60,22 @@ export function useMyTripsScreen() {
   const { myTrips: routineTrips, isLoading: routineLoading, refetch: refetchRoutine, pauseTrip, resumeTrip } =
     useRoutineTrips();
 
+  const mySubscriptions = useRoutineSubscriptionsStore((s) => s.mySubscriptions);
+  const fetchMySubscriptions = useRoutineSubscriptionsStore((s) => s.fetchMine);
+
   useFocusEffect(
     useCallback(() => {
       void reload(false);
       refetchRoutine();
-    }, [reload, refetchRoutine]),
+      void fetchMySubscriptions();
+    }, [reload, refetchRoutine, fetchMySubscriptions]),
   );
 
   const onRefresh = useCallback(() => {
     refresh();
     refetchRoutine();
-  }, [refresh, refetchRoutine]);
+    void fetchMySubscriptions();
+  }, [refresh, refetchRoutine, fetchMySubscriptions]);
 
   const handleTripPress = useCallback(
     (tripId: string) => router.push({ pathname: '/trip/[id]', params: { id: tripId } }),
@@ -133,18 +146,43 @@ export function useMyTripsScreen() {
     [resumeTrip],
   );
 
-  const filteredRoutine = useMemo(() => {
-    const statuses = ROUTINE_FILTER_STATUSES[routineFilter];
-    return routineTrips.filter((t) => statuses.includes(t.status as RoutineTripStatus));
-  }, [routineTrips, routineFilter]);
+  const handleSubscriptionPress = useCallback(
+    (subscriptionId: string) => router.push(`/subscription/${subscriptionId}` as never),
+    [router],
+  );
+
+  const routineItems = useMemo((): RoutineListItem[] => {
+    const templates: RoutineListItem[] = routineTrips.map((t) => ({ type: 'template', id: t.id, data: t }));
+    const subscriptions: RoutineListItem[] = mySubscriptions.map((s: RoutineSubscriptionResponse) => ({
+      type: 'subscription',
+      id: s.id,
+      data: s,
+    }));
+    return [...templates, ...subscriptions];
+  }, [routineTrips, mySubscriptions]);
+
+  const filteredRoutine = useMemo((): RoutineListItem[] => {
+    const templateStatuses = ROUTINE_TEMPLATE_STATUSES[routineFilter];
+    const subscriptionStatuses = ROUTINE_SUBSCRIPTION_STATUSES[routineFilter];
+    return routineItems.filter((item) =>
+      item.type === 'template'
+        ? templateStatuses.includes(item.data.status as RoutineTripStatus)
+        : subscriptionStatuses.includes((item.data as RoutineSubscriptionResponse).status),
+    );
+  }, [routineItems, routineFilter]);
 
   const routineTabs = useMemo(
     () => ROUTINE_FILTERS.map((f) => {
-      const statuses = ROUTINE_FILTER_STATUSES[f.key];
-      const count = routineTrips.filter((t) => statuses.includes(t.status as RoutineTripStatus)).length;
+      const templateStatuses = ROUTINE_TEMPLATE_STATUSES[f.key];
+      const subscriptionStatuses = ROUTINE_SUBSCRIPTION_STATUSES[f.key];
+      const count = routineItems.filter((item) =>
+        item.type === 'template'
+          ? templateStatuses.includes(item.data.status as RoutineTripStatus)
+          : subscriptionStatuses.includes((item.data as RoutineSubscriptionResponse).status),
+      ).length;
       return { key: f.key, label: f.label, count };
     }),
-    [routineTrips],
+    [routineItems],
   );
 
   return {
@@ -177,5 +215,6 @@ export function useMyTripsScreen() {
     handleViewTrips,
     handlePause,
     handleResume,
+    handleSubscriptionPress,
   };
 }
