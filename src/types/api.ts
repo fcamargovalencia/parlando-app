@@ -726,13 +726,15 @@ export type MessageType = 'TEXT';
 export interface SendMessageRequest {
   content: string;
   recipientId: string;
-  tripId: string;
+  tripId?: string;
+  routineTripId?: string;
   messageType: MessageType;
 }
 
 export interface ChatMessageResponse {
   id: string;
-  tripId: string;
+  tripId: string | null;
+  routineTripId?: string | null;
   senderId: string;
   recipientId: string;
   content: string;
@@ -742,7 +744,8 @@ export interface ChatMessageResponse {
 }
 
 export interface ConversationResponse {
-  tripId: string;
+  tripId: string | null;
+  routineTripId?: string | null;
   counterpartId: string;
   counterpartFirstName: string;
   counterpartLastName: string;
@@ -767,6 +770,7 @@ export interface WsInboundFrame {
   // MESSAGE
   id?: string;
   tripId?: string;
+  routineTripId?: string;
   senderId?: string;
   content?: string;
   messageType?: MessageType;
@@ -781,6 +785,7 @@ export interface WsOutboundFrame {
   userId?: string;
   // SEND
   tripId?: string;
+  routineTripId?: string;
   recipientId?: string;
   content?: string;
   messageType?: MessageType;

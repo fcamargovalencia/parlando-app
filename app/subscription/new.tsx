@@ -17,6 +17,7 @@ import {
   ChevronLeft,
   Clock,
   Info,
+  MessageCircle,
   ShieldAlert,
   Users,
 } from 'lucide-react-native';
@@ -67,6 +68,18 @@ export default function NewSubscriptionScreen() {
     handleSpecialRequirementsChange,
     handleSubmit,
   } = useSubscriptionNewScreen();
+
+  const handleContactDriver = () => {
+    if (!routineTrip) return;
+    router.push({
+      pathname: '/chat/routine/[routineTripId]' as any,
+      params: {
+        routineTripId: routineTrip.id,
+        otherUserId: routineTrip.driverId,
+        otherUserName: 'Conductor',
+      },
+    });
+  };
 
   if (isLoading) {
     return (
@@ -332,7 +345,7 @@ export default function NewSubscriptionScreen() {
         )}
 
         {/* Submit */}
-        <View className="mx-4 mt-6">
+        <View className="mx-4 mt-6 gap-3">
           <Button
             onPress={handleSubmit}
             disabled={isSubmitting}
@@ -343,6 +356,16 @@ export default function NewSubscriptionScreen() {
           {isSubmitting && (
             <ActivityIndicator size="small" color={Colors.primary[500]} style={{ marginTop: 8 }} />
           )}
+          <TouchableOpacity
+            onPress={handleContactDriver}
+            activeOpacity={0.7}
+            className="flex-row items-center justify-center gap-1.5 py-2"
+          >
+            <MessageCircle size={15} color={Colors.primary[600]} />
+            <Text className="text-sm font-semibold text-primary-600">
+              Escribirle al conductor antes
+            </Text>
+          </TouchableOpacity>
         </View>
 
         <View className="mx-4 mt-4 flex-row items-start gap-2">

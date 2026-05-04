@@ -40,22 +40,34 @@ export default function MessagesScreen() {
       ) : (
         <FlashList
           data={conversations}
-          keyExtractor={(item) => `${item.tripId}-${item.counterpartId}`}
+          keyExtractor={(item) => `${item.routineTripId ?? item.tripId}-${item.counterpartId}`}
           renderItem={({ item }) => (
             <ConversationItem
               conversation={item}
-              onPress={() =>
-                router.push({
-                  pathname: '/chat/[tripId]' as const,
-                  params: {
-                    tripId: item.tripId,
-                    otherUserId: item.counterpartId,
-                    otherUserName: `${item.counterpartFirstName} ${item.counterpartLastName}`,
-                    otherUserPhoto: item.counterpartPhotoUrl ?? '',
-                    tripStatus: item.tripStatus ?? '',
-                  },
-                })
-              }
+              onPress={() => {
+                if (item.routineTripId) {
+                  router.push({
+                    pathname: '/chat/routine/[routineTripId]' as any,
+                    params: {
+                      routineTripId: item.routineTripId,
+                      otherUserId: item.counterpartId,
+                      otherUserName: `${item.counterpartFirstName} ${item.counterpartLastName}`,
+                      otherUserPhoto: item.counterpartPhotoUrl ?? '',
+                    },
+                  });
+                } else {
+                  router.push({
+                    pathname: '/chat/[tripId]' as const,
+                    params: {
+                      tripId: item.tripId!,
+                      otherUserId: item.counterpartId,
+                      otherUserName: `${item.counterpartFirstName} ${item.counterpartLastName}`,
+                      otherUserPhoto: item.counterpartPhotoUrl ?? '',
+                      tripStatus: item.tripStatus ?? '',
+                    },
+                  });
+                }
+              }}
             />
           )}
           ItemSeparatorComponent={() => (

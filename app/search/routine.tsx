@@ -194,6 +194,17 @@ export default function RoutineSearchScreen() {
     });
   };
 
+  const handleContactPress = (result: RoutineTripSearchResult) => {
+    router.push({
+      pathname: '/chat/routine/[routineTripId]' as any,
+      params: {
+        routineTripId: result.id,
+        otherUserId: result.driverId,
+        otherUserName: result.driverName,
+      },
+    });
+  };
+
   return (
     <View className="flex-1 bg-neutral-50" style={{ paddingTop: insets.top }}>
       {/* Header */}
@@ -354,6 +365,7 @@ export default function RoutineSearchScreen() {
                     result={result}
                     onPress={() => handleCardPress(result)}
                     onRoutePress={() => setSelectedRouteTrip(result)}
+                    onContactPress={() => handleContactPress(result)}
                   />
                 ))}
               </>

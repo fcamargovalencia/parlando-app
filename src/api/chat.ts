@@ -26,6 +26,16 @@ export const chatApi = {
   getUnreadCount: () =>
     api.get<ApiResponse<number>>('/v1/chat/unread-count'),
 
+  getRoutineTripMessages: (routineTripId: string, otherUserId: string) =>
+    api.get<ApiResponse<ChatMessageResponse[]>>(
+      `/v1/chat/routine-trips/${encodeURIComponent(routineTripId)}/users/${encodeURIComponent(otherUserId)}/messages`,
+    ),
+
+  markRoutineTripAsRead: (routineTripId: string, otherUserId: string) =>
+    api.patch<ApiResponse<number>>(
+      `/v1/chat/routine-trips/${encodeURIComponent(routineTripId)}/users/${encodeURIComponent(otherUserId)}/read`,
+    ),
+
   getWsTicket: () =>
     api.post<ApiResponse<string>>('/v1/chat/ws-ticket'),
 };

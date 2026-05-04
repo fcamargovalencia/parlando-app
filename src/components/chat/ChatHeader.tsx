@@ -4,13 +4,24 @@ import { ArrowLeft, Star } from 'lucide-react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Avatar } from '@/components/ui';
 import { Colors, Shadows } from '@/constants/colors';
-import type { TripResponse } from '@/types/api';
+import type { TripResponse, RoutineTripResponse, RecurrenceDay } from '@/types/api';
+
+const DAY_LABELS: Record<RecurrenceDay, string> = {
+  MON: 'Lun',
+  TUE: 'Mar',
+  WED: 'Mié',
+  THU: 'Jue',
+  FRI: 'Vie',
+  SAT: 'Sáb',
+  SUN: 'Dom',
+};
 
 interface ChatHeaderProps {
   firstName: string;
   lastName: string;
   photoUrl?: string | null;
-  trip: TripResponse | null;
+  trip?: TripResponse | null;
+  routineTrip?: RoutineTripResponse | null;
   onBack: () => void;
 }
 
@@ -19,10 +30,26 @@ export function ChatHeader({
   lastName,
   photoUrl,
   trip,
+  routineTrip,
   onBack,
 }: ChatHeaderProps) {
   const insets = useSafeAreaInsets();
   const trustScore = trip?.driver?.trustScore;
+
+  const subtitle = (() => {
+    if (routineTrip) {
+      const origin = (routineTrip.originSubtitle || routineTrip.originName).split(',')[0].trim();
+      const dest = (routineTrip.destinationSubtitle || routineTrip.destinationName).split(',')[0].trim();
+      const days = routineTrip.recurrenceDays.map((d) => DAY_LABELS[d]).join(' · ');
+      return { origin, dest, days, time: routineTrip.departureTime };
+    }
+    if (trip) {
+      const origin = (trip.originSubtitle || trip.originName).split(',')[0].trim();
+      const dest = (trip.destinationSubtitle || trip.destinationName).split(',')[0].trim();
+      return { origin, dest, days: null, time: null };
+    }
+    return null;
+  })();
 
   return (
     <View
@@ -56,22 +83,30 @@ export function ChatHeader({
                 <Text className="text-xs font-medium text-neutral-500">
                   {trustScore.toFixed(1)}
                 </Text>
-                {trip && <Text className="text-xs text-neutral-300 mx-0.5">·</Text>}
+                {subtitle && <Text className="text-xs text-neutral-300 mx-0.5">·</Text>}
               </>
             )}
-            {trip && (() => {
-              const origin = (trip.originSubtitle || trip.originName).split(',')[0].trim();
-              const dest = (trip.destinationSubtitle || trip.destinationName).split(',')[0].trim();
-              return (
-                <>
-                  <Text className="text-xs font-bold" style={{ color: Colors.primary[500] }}>●</Text>
-                  <Text className="text-xs text-neutral-500">{origin}</Text>
-                  <Text className="text-xs text-neutral-400 mx-0.5">→</Text>
-                  <Text className="text-xs font-bold" style={{ color: Colors.accent[500] }}>●</Text>
-                  <Text className="text-xs text-neutral-500">{dest}</Text>
-                </>
-              );
-            })()}
+            {subtitle && (
+              <>
+                <Text className="text-xs font-bold" style={{ color: Colors.primary[500] }}>●</Text>
+                <Text className="text-xs text-neutral-500">{subtitle.origin}</Text>
+                <Text className="text-xs text-neutral-400 mx-0.5">→</Text>
+                <Text className="text-xs font-bold" style={{ color: Colors.accent[500] }}>●</Text>
+                <Text className="text-xs text-neutral-500">{subtitle.dest}</Text>
+                {subtitle.time && (
+                  <>
+                    <Text className="text-xs text-neutral-300 mx-0.5">·</Text>
+                    <Text className="text-xs text-neutral-500">{subtitle.time}</Text>
+                  </>
+                )}
+                {subtitle.days && (
+                  <>
+                    <Text className="text-xs text-neutral-300 mx-0.5">·</Text>
+                    <Text className="text-xs text-neutral-500">{subtitle.days}</Text>
+                  </>
+                )}
+              </>
+            )}
           </View>
         </View>
       </View>
