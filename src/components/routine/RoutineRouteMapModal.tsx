@@ -120,6 +120,8 @@ const DAY_LABELS: Record<RecurrenceDay, string> = {
   MON: 'Lun', TUE: 'Mar', WED: 'Mié', THU: 'Jue', FRI: 'Vie', SAT: 'Sáb', SUN: 'Dom',
 };
 
+const EMPTY_WAYPOINTS: WaypointMapStop[] = [];
+
 // ── Component ──
 
 export function RoutineRouteMapModal({
@@ -136,7 +138,7 @@ export function RoutineRouteMapModal({
   destinationLatitude,
   destinationLongitude,
   routeLine,
-  waypoints = [],
+  waypoints = EMPTY_WAYPOINTS,
   suggestedStop,
   subscribedDays,
 }: RoutineRouteMapModalProps) {
