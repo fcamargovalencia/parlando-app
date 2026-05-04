@@ -20,10 +20,9 @@ interface RoutineTripCardProps {
   result: RoutineTripSearchResult;
   onPress: () => void;
   onRoutePress?: () => void;
-  onContactPress?: () => void;
 }
 
-export const RoutineTripCard = React.memo(function RoutineTripCard({ result, onPress, onRoutePress, onContactPress }: RoutineTripCardProps) {
+export const RoutineTripCard = React.memo(function RoutineTripCard({ result, onPress, onRoutePress }: RoutineTripCardProps) {
   const {
     driverName, originName, destinationName, departureTime, requiredArrivalTime,
     recurrenceDays, pricePerSeat, currency, availableSeats,
@@ -118,16 +117,6 @@ export const RoutineTripCard = React.memo(function RoutineTripCard({ result, onP
               >
                 <Map size={12} color={Colors.primary[600]} />
                 <Text className="text-xs font-semibold text-primary-700">Ver ruta</Text>
-              </TouchableOpacity>
-            )}
-            {onContactPress && (
-              <TouchableOpacity
-                onPress={(e) => { e.stopPropagation(); onContactPress(); }}
-                activeOpacity={0.7}
-                className="flex-row items-center gap-1 bg-neutral-100 px-2.5 py-1.5 rounded-full"
-              >
-                <MessageCircle size={12} color={Colors.neutral[600]} />
-                <Text className="text-xs font-semibold text-neutral-700">Contactar</Text>
               </TouchableOpacity>
             )}
           </View>

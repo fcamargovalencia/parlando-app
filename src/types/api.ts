@@ -668,8 +668,10 @@ export interface RoutineSubscriptionResponse {
   routineTrip?: RoutineTripResponse;
   passenger?: {
     id: string;
-    name: string;
-    rating: number;
+    firstName: string;
+    lastName: string;
+    profilePhotoUrl?: string | null;
+    trustScore: number;
     verified: boolean;
   };
 }

@@ -28,6 +28,8 @@ interface ChatSubscriptionBarProps {
   mySubscription: RoutineSubscriptionResponse | null;
   /** Suscripción de la contraparte (como conductor) */
   counterpartSubscription: RoutineSubscriptionResponse | null;
+  /** Si el usuario viene de /subscription/new, "Suscribirme" hace router.back() */
+  fromSubscriptionNew?: boolean;
 }
 
 export function ChatSubscriptionBar({
@@ -35,16 +37,21 @@ export function ChatSubscriptionBar({
   routineTrip,
   mySubscription,
   counterpartSubscription,
+  fromSubscriptionNew = false,
 }: ChatSubscriptionBarProps) {
   const router = useRouter();
 
   const subscription = isDriver ? counterpartSubscription : mySubscription;
 
   const handleSubscribe = () => {
-    router.push({
-      pathname: '/subscription/new',
-      params: { routineTripId: routineTrip.id },
-    });
+    if (fromSubscriptionNew) {
+      router.back();
+    } else {
+      router.push({
+        pathname: '/subscription/new',
+        params: { routineTripId: routineTrip.id },
+      });
+    }
   };
 
   const handleViewSubscription = () => {

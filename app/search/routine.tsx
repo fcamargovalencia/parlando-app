@@ -365,7 +365,6 @@ export default function RoutineSearchScreen() {
                     result={result}
                     onPress={() => handleCardPress(result)}
                     onRoutePress={() => setSelectedRouteTrip(result)}
-                    onContactPress={() => handleContactPress(result)}
                   />
                 ))}
               </>

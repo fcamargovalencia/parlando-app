@@ -21,12 +21,13 @@ import { useKeyboardHeight } from '@/hooks/useKeyboardHeight';
 import { Colors } from '@/constants/colors';
 
 export default function RoutineChatScreen() {
-  const { routineTripId, otherUserId, otherUserName, otherUserPhoto } =
+  const { routineTripId, otherUserId, otherUserName, otherUserPhoto, fromSubscriptionNew } =
     useLocalSearchParams<{
       routineTripId: string;
       otherUserId: string;
       otherUserName: string;
       otherUserPhoto?: string;
+      fromSubscriptionNew?: string;
     }>();
 
   const router = useRouter();
@@ -90,6 +91,7 @@ export default function RoutineChatScreen() {
           routineTrip={routineTrip}
           mySubscription={mySubscription}
           counterpartSubscription={counterpartSubscription}
+          fromSubscriptionNew={fromSubscriptionNew === 'true'}
         />
       )}
 

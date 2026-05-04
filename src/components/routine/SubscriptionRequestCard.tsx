@@ -13,7 +13,7 @@ import {
 import { Avatar, Badge, Card } from '@/components/ui';
 import { Colors } from '@/constants/colors';
 import { metersLabel } from '@/utils/routine-trip.utils';
-import type { RecurrenceDay, RoutineSubscriptionResponse } from '@/types/api';
+import type { RecurrenceDay, RoutineSubscriptionResponse, RoutineTripResponse } from '@/types/api';
 
 const DAY_LABELS: Record<RecurrenceDay, string> = {
   MON: 'Lun',
@@ -40,6 +40,8 @@ function formatDate(dateStr: string): string {
 
 export interface SubscriptionRequestCardProps {
   subscription: RoutineSubscriptionResponse;
+  /** The routine trip (used to display origin name for ORIGIN pickup type) */
+  routineTrip?: RoutineTripResponse | null;
   /** Show accept/reject actions (only for PENDING tab) */
   showActions?: boolean;
   onAccept?: (id: string) => void;
@@ -49,6 +51,7 @@ export interface SubscriptionRequestCardProps {
 
 export const SubscriptionRequestCard = React.memo(function SubscriptionRequestCard({
   subscription,
+  routineTrip,
   showActions = false,
   onAccept,
   onReject,
@@ -58,7 +61,9 @@ export const SubscriptionRequestCard = React.memo(function SubscriptionRequestCa
     specialRequirements, pickupType, pickupWaypointId, customPickupName,
     routeDeviationMeters, timeOverheadSeconds, consecutiveNoShows } = subscription;
 
-  const passengerName = passenger?.name ?? 'Pasajero';
+  const passengerName = passenger
+    ? `${passenger.firstName} ${passenger.lastName}`.trim()
+    : 'Pasajero';
   const nameParts = passengerName.split(' ');
 
   return (
@@ -79,10 +84,10 @@ export const SubscriptionRequestCard = React.memo(function SubscriptionRequestCa
                 <CheckCircle2 size={14} color={Colors.primary[500]} />
               )}
             </View>
-            {passenger?.rating != null && (
+            {passenger?.trustScore != null && (
               <View className="flex-row items-center gap-1 mt-0.5">
                 <Star size={11} color="#F59E0B" fill="#F59E0B" />
-                <Text className="text-xs text-neutral-500">{passenger.rating.toFixed(1)}</Text>
+                <Text className="text-xs text-neutral-500">{passenger.trustScore.toFixed(1)}</Text>
               </View>
             )}
           </View>
@@ -113,6 +118,14 @@ export const SubscriptionRequestCard = React.memo(function SubscriptionRequestCa
                 Parada:{' '}
                 <Text className="font-medium text-neutral-900">
                   {customPickupName ?? (pickupWaypointId ? 'Waypoint seleccionado' : '—')}
+                </Text>
+              </Text>
+            )}
+            {pickupType === 'ORIGIN' && (
+              <Text className="text-sm text-neutral-700">
+                Origen de la ruta:{' '}
+                <Text className="font-medium text-neutral-900">
+                  {routineTrip?.originName ?? 'Punto de salida'}
                 </Text>
               </Text>
             )}

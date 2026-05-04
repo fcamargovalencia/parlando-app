@@ -189,6 +189,7 @@ export default function SubscriptionsScreen() {
               <SubscriptionRequestCard
                 key={sub.id}
                 subscription={sub}
+                routineTrip={routineTrip}
                 showActions={activeTab === 'pending'}
                 onAccept={handlePressAccept}
                 onReject={handlePressReject}

@@ -77,6 +77,7 @@ export default function NewSubscriptionScreen() {
         routineTripId: routineTrip.id,
         otherUserId: routineTrip.driverId,
         otherUserName: 'Conductor',
+        fromSubscriptionNew: 'true',
       },
     });
   };

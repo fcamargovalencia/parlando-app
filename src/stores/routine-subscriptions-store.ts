@@ -1,7 +1,8 @@
 import { create } from 'zustand';
 import { routineSubscriptionsApi } from '@/api/routine-subscriptions';
 import { routineTripsApi } from '@/api/routine-trips';
-import type { RoutineSubscriptionResponse, RoutineTripResponse, SubscriptionStatus } from '@/types/api';
+import { usersApi } from '@/api/users';
+import type { RoutineSubscriptionResponse, RoutineTripResponse, SubscriptionStatus, UserResponse } from '@/types/api';
 
 interface RoutineSubscriptionsState {
   // As passenger
@@ -70,10 +71,41 @@ export const useRoutineSubscriptionsStore = create<RoutineSubscriptionsState>((s
     set({ isLoading: true, error: null });
     try {
       const response = await routineTripsApi.getSubscriptions(routineTripId);
+      const subscriptions: RoutineSubscriptionResponse[] = response.data.data ?? [];
+
+      // Enrich with passenger data
+      const uniquePassengerIds = [...new Set(subscriptions.map((s) => s.passengerId))];
+      const passengerMap: Record<string, UserResponse> = {};
+      await Promise.allSettled(
+        uniquePassengerIds.map(async (userId) => {
+          try {
+            const userRes = await usersApi.getById(userId);
+            if (userRes.data.data) passengerMap[userId] = userRes.data.data;
+          } catch {
+            // ignore individual fetch errors
+          }
+        }),
+      );
+
+      const enriched = subscriptions.map((s) => {
+        const u = passengerMap[s.passengerId];
+        return u
+          ? {
+            ...s,
+            passenger: {
+              id: u.id,
+              name: `${u.firstName} ${u.lastName}`.trim(),
+              rating: u.trustScore,
+              verified: u.verificationLevel !== 'NONE',
+            },
+          }
+          : s;
+      });
+
       set((state) => ({
         subscriptionsByTrip: {
           ...state.subscriptionsByTrip,
-          [routineTripId]: response.data.data ?? [],
+          [routineTripId]: enriched,
         },
       }));
     } catch (err: unknown) {
