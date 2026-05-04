@@ -19,7 +19,7 @@ function dateToISO(d: Date): string {
 }
 
 function parseISO(s: string): Date {
-  const [y, m, day] = s.split('-').map(Number);
+  const [y, m, day] = s.slice(0, 10).split('-').map(Number);
   return new Date(y, m - 1, day);
 }
 
@@ -46,20 +46,23 @@ export function useSubscriptionDetailScreen(id: string | undefined) {
 
   useEffect(() => {
     if (!id) return;
-    // Already in store (navigated from my-trips screen) — nothing to fetch.
-    if (useRoutineSubscriptionsStore.getState().mySubscriptions.some((s) => s.id === id)) {
-      setIsLoading(false);
-      return;
-    }
     let cancelled = false;
     (async () => {
       setIsLoading(true);
       setLoadError(null);
       try {
-        await fetchMine();
+        const inStore = useRoutineSubscriptionsStore.getState().mySubscriptions.some((s) => s.id === id);
+        const [, bookingsRes] = await Promise.all([
+          inStore ? Promise.resolve() : fetchMine(),
+          routineSubscriptionsApi.getBookings(id),
+        ]);
         if (!cancelled) {
           const found = useRoutineSubscriptionsStore.getState().mySubscriptions.some((s) => s.id === id);
           if (!found) setLoadError('Suscripción no encontrada');
+          const sorted = (bookingsRes.data.data ?? []).sort((a, b) =>
+            a.occurrenceDate.localeCompare(b.occurrenceDate),
+          );
+          setBookings(sorted);
           setIsLoading(false);
         }
       } catch (err: unknown) {

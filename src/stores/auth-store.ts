@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { persist, createJSONStorage } from 'zustand/middleware';
 import * as SecureStore from 'expo-secure-store';
 import { APP } from '@/constants/config';
+import { isTokenExpired } from '@/lib/jwt';
 import type { Role, UserResponse } from '@/types/api';
 
 // ── SecureStore-backed storage adapter for Zustand ──
@@ -60,7 +61,7 @@ export const useAuthStore = create<AuthState>()(
 
       completeOnboarding: () => set({ hasOnboarded: true }),
 
-      isAuthenticated: () => !!get().accessToken,
+      isAuthenticated: () => !!get().accessToken && !isTokenExpired(get().accessToken),
 
       hasRole: (...roles) => {
         const user = get().user;

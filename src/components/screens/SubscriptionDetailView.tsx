@@ -48,7 +48,7 @@ function dateToISO(d: Date): string {
 }
 
 function parseISO(s: string): Date {
-  const [y, m, day] = s.split('-').map(Number);
+  const [y, m, day] = s.slice(0, 10).split('-').map(Number);
   return new Date(y, m - 1, day);
 }
 
@@ -88,6 +88,24 @@ export function SubscriptionDetailView({ uiState, dispatch, subscription, bookin
   const canPause = status === 'ACCEPTED';
   const canResume = status === 'PAUSED';
   const canCancel = status === 'PENDING' || status === 'ACCEPTED' || status === 'PAUSED';
+
+  /**
+   * Choose the best start date for the calendar window so that bookings are
+   * always visible, regardless of when the subscription started or will start.
+   *
+   * Priority:
+   * 1. Earliest future/today booking (show what's coming up)
+   * 2. Today (no upcoming bookings, subscription may be all-past or pending)
+   */
+  const calendarFromDate = useMemo(() => {
+    const todayISO = now.toISOString().split('T')[0];
+    const upcoming = bookings
+      .filter((b) => b.occurrenceDate.slice(0, 10) >= todayISO)
+      .sort((a, b) => a.occurrenceDate.slice(0, 10).localeCompare(b.occurrenceDate.slice(0, 10)));
+
+    const fromDate = upcoming.length > 0 ? upcoming[0].occurrenceDate.slice(0, 10) : todayISO;
+    return fromDate;
+  }, [bookings, now]);
 
   return (
     <View className="flex-1 bg-neutral-50" style={{ paddingTop: insets.top }}>
@@ -189,6 +207,7 @@ export function SubscriptionDetailView({ uiState, dispatch, subscription, bookin
             ) : (
               <RoutineCalendarView
                 bookings={bookings}
+                fromDate={calendarFromDate}
                 daysAhead={14}
                 onPressBooking={handlers.openBookingDetail}
               />
@@ -263,14 +282,9 @@ export function SubscriptionDetailView({ uiState, dispatch, subscription, bookin
       <BookingDetailModal
         visible={activeModal === 'bookingDetail' && selectedBooking !== null}
         selectedBooking={selectedBooking}
-        isSubmitting={isSubmitting}
-        overrideName={overrideName}
-        overrideLat={overrideLat}
-        overrideLng={overrideLng}
+        departureTime={trip?.departureTime}
         bottomInset={insets.bottom}
-        dispatch={dispatch}
         onClose={handlers.closeModal}
-        onOverride={handlers.handleOverridePickup}
       />
 
       {/* Date pickers */}
