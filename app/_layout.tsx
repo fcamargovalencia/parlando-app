@@ -43,8 +43,8 @@ Notifications.setNotificationHandler({
     const data = notification.request.content.data as { type?: string; tripId?: string; } | undefined;
     const type = data?.type ?? '';
 
-    const SUPPRESS = { shouldShowAlert: false, shouldPlaySound: false, shouldSetBadge: false, shouldShowBanner: false, shouldShowList: false };
-    const SHOW = { shouldShowAlert: true, shouldPlaySound: true, shouldSetBadge: true, shouldShowBanner: true, shouldShowList: true };
+    const SUPPRESS = { shouldPlaySound: false, shouldSetBadge: false, shouldShowBanner: false, shouldShowList: false };
+    const SHOW = { shouldPlaySound: true, shouldSetBadge: true, shouldShowBanner: true, shouldShowList: true };
 
     // Suppress foreground chat alert if the user is already in that chat screen
     if (type === 'chat.new_message') {
@@ -84,7 +84,6 @@ export default function RootLayout() {
       try {
         await loadFonts();
         if (Platform.OS === 'android') {
-          await NavigationBar.setBackgroundColorAsync('#FFFFFF');
           await NavigationBar.setButtonStyleAsync('dark');
         }
       } catch (e) {
