@@ -20,12 +20,12 @@ const ICON_VERIF = <ShieldCheck size={20} color={Colors.primary[600]} />;
 
 type PrefKey = keyof Omit<NotificationPreferences, 'push_enabled' | 'marketing'>;
 
-const CATEGORY_ROWS: { key: PrefKey; label: string; icon: React.ReactNode }[] = [
-  { key: 'bookings',      label: 'Reservas',        icon: ICON_BOOKINGS },
-  { key: 'trips',         label: 'Viajes',          icon: ICON_TRIPS },
-  { key: 'chat',          label: 'Mensajes',        icon: ICON_CHAT },
-  { key: 'subscriptions', label: 'Suscripciones',   icon: ICON_SUBS },
-  { key: 'verifications', label: 'Verificaciones',  icon: ICON_VERIF },
+const CATEGORY_ROWS: { key: PrefKey; label: string; icon: React.ReactNode; }[] = [
+  { key: 'bookings', label: 'Reservas', icon: ICON_BOOKINGS },
+  { key: 'trips', label: 'Viajes', icon: ICON_TRIPS },
+  { key: 'chat', label: 'Mensajes', icon: ICON_CHAT },
+  { key: 'subscriptions', label: 'Suscripciones', icon: ICON_SUBS },
+  { key: 'verifications', label: 'Verificaciones', icon: ICON_VERIF },
 ];
 
 export const NotificationsSection = React.memo(function NotificationsSection() {

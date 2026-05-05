@@ -1,9 +1,29 @@
 import { api } from './client';
+import { useAuthStore } from '@/stores/auth-store';
+import { Config } from '@/constants/config';
 import type { ApiResponse, NotificationPreferences } from '@/types/api';
 
 export const notificationsApi = {
-  registerDevice: (token: string, platform: 'android' | 'ios') =>
-    api.post<ApiResponse<null>>('/v1/devices', { token, platform }),
+  /**
+   * Registers a device push token with the backend.
+   * Uses native fetch instead of axios to avoid a Hermes/axios body-serialization
+   * issue that strips the request body before it reaches the network layer.
+   */
+  registerDevice: async (token: string, platform: 'android' | 'ios'): Promise<void> => {
+    const accessToken = useAuthStore.getState().accessToken;
+    const res = await fetch(`${Config.API_URL}/v1/devices`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+      },
+      body: JSON.stringify({ token, platform: platform.toUpperCase() }),
+    });
+    if (!res.ok) {
+      const text = await res.text().catch(() => '');
+      throw new Error(`registerDevice failed ${res.status}: ${text}`);
+    }
+  },
 
   unregisterDevice: (token: string) =>
     api.delete<ApiResponse<null>>(`/v1/devices/${encodeURIComponent(token)}`),
@@ -12,5 +32,9 @@ export const notificationsApi = {
     api.get<ApiResponse<NotificationPreferences>>('/v1/notifications/preferences'),
 
   updatePreferences: (preferences: Partial<NotificationPreferences>) =>
-    api.patch<ApiResponse<NotificationPreferences>>('/v1/notifications/preferences', preferences),
+    api.post<ApiResponse<NotificationPreferences>>(
+      '/v1/notifications/preferences',
+      JSON.stringify(preferences),
+      { headers: { 'Content-Type': 'application/json' } },
+    ),
 };

@@ -21,7 +21,8 @@
         "NSLocationWhenInUseUsageDescription": "ParlAndo necesita tu ubicación para buscar viajes cercanos.",
         "NSLocationAlwaysAndWhenInUseUsageDescription": "ParlAndo necesita tu ubicación en segundo plano para compartir tu viaje en tiempo real.",
         "NSCameraUsageDescription": "ParlAndo necesita acceso a la cámara para verificar tu identidad.",
-        "NSFaceIDUsageDescription": "ParlAndo usa Face ID para autenticación rápida."
+        "NSFaceIDUsageDescription": "ParlAndo usa Face ID para autenticación rápida.",
+        "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {
@@ -37,7 +38,13 @@
         "ACCESS_FINE_LOCATION",
         "ACCESS_COARSE_LOCATION",
         "ACCESS_BACKGROUND_LOCATION",
-        "CAMERA"
+        "CAMERA",
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.CAMERA",
+        "android.permission.RECORD_AUDIO",
+        "android.permission.USE_BIOMETRIC",
+        "android.permission.USE_FINGERPRINT"
       ]
     },
     "plugins": [
@@ -72,6 +79,12 @@
     ],
     "experiments": {
       "typedRoutes": true
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "d4baece9-3dfb-462f-9bed-78c3fbb76c5f"
+      }
     }
   }
 }

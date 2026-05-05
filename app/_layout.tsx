@@ -44,7 +44,7 @@ Notifications.setNotificationHandler({
     const type = data?.type ?? '';
 
     const SUPPRESS = { shouldShowAlert: false, shouldPlaySound: false, shouldSetBadge: false, shouldShowBanner: false, shouldShowList: false };
-    const SHOW    = { shouldShowAlert: true,  shouldPlaySound: true,  shouldSetBadge: true,  shouldShowBanner: true,  shouldShowList: true  };
+    const SHOW = { shouldShowAlert: true, shouldPlaySound: true, shouldSetBadge: true, shouldShowBanner: true, shouldShowList: true };
 
     // Suppress foreground chat alert if the user is already in that chat screen
     if (type === 'chat.new_message') {
