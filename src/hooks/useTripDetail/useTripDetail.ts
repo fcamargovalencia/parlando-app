@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useReducer } from 'react';
+import { useCallback, useReducer } from 'react';
 import { Alert } from 'react-native';
+import { useFocusEffect } from 'expo-router';
 import { tripsApi } from '@/api/trips';
 import { bookingsApi } from '@/api/bookings';
 import { ratingsApi } from '@/api/ratings';
@@ -128,9 +129,13 @@ export function useTripDetail(id: string, options?: UseTripDetailOptions) {
     }
   }, [id, loadSecondary]);
 
-  useEffect(() => {
-    load();
-  }, [load]);
+  // useFocusEffect ensures trip data is always fresh when the screen gains focus,
+  // including when navigated here from a push notification while already in the stack.
+  useFocusEffect(
+    useCallback(() => {
+      void load();
+    }, [load]),
+  );
 
   // ── Derived ──
 

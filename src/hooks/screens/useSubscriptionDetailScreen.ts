@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useReducer, useState } from 'react';
+import { useCallback, useReducer, useState } from 'react';
 import { Alert } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import { routineSubscriptionsApi } from '@/api/routine-subscriptions';
 import { useMySubscriptions } from '@/hooks/useMySubscriptions';
 import { useRoutineSubscriptionsStore } from '@/stores/routine-subscriptions-store';
@@ -44,41 +44,45 @@ export function useSubscriptionDetailScreen(id: string | undefined) {
   // call updateInMine so no explicit reload is needed.
   const reloadSubscription = useCallback(async () => { }, []);
 
-  useEffect(() => {
-    if (!id) return;
-    let cancelled = false;
-    (async () => {
-      setIsLoading(true);
-      setLoadError(null);
-      try {
-        const inStore = useRoutineSubscriptionsStore.getState().mySubscriptions.some((s) => s.id === id);
-        const [, bookingsRes] = await Promise.all([
-          inStore ? Promise.resolve() : fetchMine(),
-          routineSubscriptionsApi.getBookings(id),
-        ]);
-        if (!cancelled) {
-          const found = useRoutineSubscriptionsStore.getState().mySubscriptions.some((s) => s.id === id);
-          if (!found) setLoadError('Suscripción no encontrada');
-          const sorted = (bookingsRes.data.data ?? []).sort((a, b) =>
-            a.occurrenceDate.localeCompare(b.occurrenceDate),
-          );
-          setBookings(sorted);
-          setIsLoading(false);
+  // useFocusEffect ensures subscription data is always fresh when the screen gains
+  // focus — including when navigated here from a push notification.
+  useFocusEffect(
+    useCallback(() => {
+      if (!id) return;
+      let cancelled = false;
+      (async () => {
+        setIsLoading(true);
+        setLoadError(null);
+        try {
+          const inStore = useRoutineSubscriptionsStore.getState().mySubscriptions.some((s) => s.id === id);
+          const [, bookingsRes] = await Promise.all([
+            inStore ? Promise.resolve() : fetchMine(),
+            routineSubscriptionsApi.getBookings(id),
+          ]);
+          if (!cancelled) {
+            const found = useRoutineSubscriptionsStore.getState().mySubscriptions.some((s) => s.id === id);
+            if (!found) setLoadError('Suscripción no encontrada');
+            const sorted = (bookingsRes.data.data ?? []).sort((a, b) =>
+              a.occurrenceDate.localeCompare(b.occurrenceDate),
+            );
+            setBookings(sorted);
+            setIsLoading(false);
+          }
+        } catch (err: unknown) {
+          const anyErr = err as { response?: { data?: { message?: string; }; }; message?: string; };
+          const msg =
+            anyErr?.response?.data?.message ?? anyErr?.message ?? 'Error al cargar la suscripción';
+          if (!cancelled) {
+            setLoadError(msg);
+            setIsLoading(false);
+          }
         }
-      } catch (err: unknown) {
-        const anyErr = err as { response?: { data?: { message?: string; }; }; message?: string; };
-        const msg =
-          anyErr?.response?.data?.message ?? anyErr?.message ?? 'Error al cargar la suscripción';
-        if (!cancelled) {
-          setLoadError(msg);
-          setIsLoading(false);
-        }
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [id, fetchMine]);
+      })();
+      return () => {
+        cancelled = true;
+      };
+    }, [id, fetchMine]),
+  );
 
   const handlePause = useCallback(async () => {
     if (!id || !uiState.pauseFrom) return;
