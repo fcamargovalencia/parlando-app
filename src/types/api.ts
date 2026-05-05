@@ -793,6 +793,27 @@ export interface WsOutboundFrame {
   messageType?: MessageType;
 }
 
+// ── Notifications ──
+
+export interface NotificationPreferences {
+  push_enabled: boolean;
+  bookings: boolean;
+  chat: boolean;
+  trips: boolean;
+  subscriptions: boolean;
+  verifications: boolean;
+  marketing: boolean;
+}
+
+export interface DeviceToken {
+  id: string;
+  token: string;
+  platform: 'android' | 'ios';
+  active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+
 // ── Ratings ──
 
 export interface CreateRatingRequest {

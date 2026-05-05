@@ -2,6 +2,7 @@ import { useReducer, useCallback } from 'react';
 import { authApi } from '@/api/auth';
 import { usersApi } from '@/api/users';
 import { useAuthStore } from '@/stores/auth-store';
+import { registerForPushNotifications, unregisterPushToken } from '@/lib/notifications';
 import { extractApiError } from '@/lib/utils';
 import type { LoginRequest, RegisterRequest, UserResponse } from '@/types/api';
 
@@ -55,6 +56,7 @@ export function useAuth() {
       }
 
       storeLogin(accessToken, refreshToken, user);
+      registerForPushNotifications().catch(console.error);
       dispatch({ type: 'RESET' });
       return true;
     } catch (err) {
@@ -71,6 +73,7 @@ export function useAuth() {
 
       const { accessToken, refreshToken, user } = res.data;
       storeLogin(accessToken, refreshToken, user);
+      registerForPushNotifications().catch(console.error);
       dispatch({ type: 'RESET' });
       return true;
     } catch (err) {
@@ -83,7 +86,10 @@ export function useAuth() {
     try {
       const { accessToken, refreshToken } = useAuthStore.getState();
       if (accessToken && refreshToken) {
-        await authApi.logout({ accessToken, refreshToken });
+        await Promise.all([
+          authApi.logout({ accessToken, refreshToken }),
+          unregisterPushToken(),
+        ]);
       }
     } catch {
       // Best-effort logout

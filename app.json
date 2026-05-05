@@ -16,6 +16,7 @@
     "ios": {
       "supportsTablet": false,
       "bundleIdentifier": "com.parlando.app",
+      "googleServicesFile": "./GoogleService-Info.plist",
       "infoPlist": {
         "NSLocationWhenInUseUsageDescription": "ParlAndo necesita tu ubicación para buscar viajes cercanos.",
         "NSLocationAlwaysAndWhenInUseUsageDescription": "ParlAndo necesita tu ubicación en segundo plano para compartir tu viaje en tiempo real.",
@@ -28,6 +29,7 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#007380"
       },
+      "googleServicesFile": "./google-services.json",
       "package": "com.parlando.app",
       "navigationBarColor": "#FFFFFF",
       "navigationBarStyle": "dark-content",
