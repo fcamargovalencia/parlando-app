@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -6,7 +6,7 @@ import {
   TouchableOpacity,
   RefreshControl,
 } from 'react-native';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter, useFocusEffect } from 'expo-router';
 import { useSafeAreaInsets, SafeAreaView } from 'react-native-safe-area-context';
 import {
   MapPin,
@@ -60,12 +60,15 @@ export default function RoutineTripDetailScreen() {
   const fetchForTrip = useRoutineSubscriptionsStore((s) => s.fetchForTrip);
   const subscriptionsByTrip = useRoutineSubscriptionsStore((s) => s.subscriptionsByTrip);
 
-  // Lazily load subscriptions when Días tab is first opened
-  useEffect(() => {
-    if (activeTab === 'days' && id && !subscriptionsByTrip[id]) {
-      fetchForTrip(id);
-    }
-  }, [activeTab, id, subscriptionsByTrip, fetchForTrip]);
+  // Reload subscriptions whenever the screen gains focus and the Días tab is active.
+  // This ensures the conductor sees fresh data after a push notification (e.g. new subscription request).
+  useFocusEffect(
+    React.useCallback(() => {
+      if (activeTab === 'days' && id) {
+        fetchForTrip(id);
+      }
+    }, [activeTab, id, fetchForTrip]),
+  );
 
   if (storeLoading && !selectedTrip) {
     return (

@@ -1,4 +1,5 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
+import { useFocusEffect, useLocalSearchParams } from 'expo-router';
 import {
   View,
   Text,
@@ -9,7 +10,7 @@ import {
   RefreshControl,
   Alert,
 } from 'react-native';
-import { useLocalSearchParams } from 'expo-router';
+
 import { Screen, Button, Spinner, EmptyState, FilterTabs } from '@/components/ui';
 import { SubscriptionRequestCard } from '@/components/routine/SubscriptionRequestCard';
 import { RoutineRouteMapModal } from '@/components/routine/RoutineRouteMapModal';
@@ -57,15 +58,19 @@ export default function SubscriptionsScreen() {
   const routeWaypoints = useRoutineTripsStore((s) => s.waypoints);
   const fetchWaypoints = useRoutineTripsStore((s) => s.fetchWaypoints);
 
-  useEffect(() => {
-    if (routineTripId) {
-      fetchForTrip(routineTripId);
-      fetchWaypoints(routineTripId);
-    }
-    return () => {
-      if (routineTripId) clearTripSubscriptions(routineTripId);
-    };
-  }, [routineTripId, fetchForTrip, fetchWaypoints, clearTripSubscriptions]);
+  // useFocusEffect refreshes subscription list on every focus — including
+  // when the conductor navigates here from a push notification (new_request, etc.).
+  useFocusEffect(
+    React.useCallback(() => {
+      if (routineTripId) {
+        fetchForTrip(routineTripId);
+        fetchWaypoints(routineTripId);
+      }
+      return () => {
+        if (routineTripId) clearTripSubscriptions(routineTripId);
+      };
+    }, [routineTripId, fetchForTrip, fetchWaypoints, clearTripSubscriptions]),
+  );
 
   const onRefresh = async () => {
     setRefreshing(true);

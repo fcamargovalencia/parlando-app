@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useState } from 'react';
 import { Alert } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import { useRoutineTrips } from '@/hooks/useRoutineTrips';
 import { useRoutineWaypoints } from '@/hooks/useRoutineWaypoints';
 import { useRoutineTripsStore } from '@/stores/routine-trips-store';
@@ -25,9 +25,13 @@ export function useRoutineDetailScreen(id: string | undefined) {
     await Promise.all([fetchById(id), fetchWaypoints(id)]);
   }, [id, fetchById, fetchWaypoints]);
 
-  useEffect(() => {
-    loadData();
-  }, [loadData]);
+  // useFocusEffect ensures routine trip data is always fresh when the screen gains
+  // focus — including when navigated here from a push notification.
+  useFocusEffect(
+    useCallback(() => {
+      void loadData();
+    }, [loadData]),
+  );
 
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
