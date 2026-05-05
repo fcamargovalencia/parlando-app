@@ -1,6 +1,6 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useCallback } from 'react';
 import { Alert } from 'react-native';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useLocalSearchParams, useRouter, useFocusEffect } from 'expo-router';
 import { useVehicles } from '@/hooks/useVehicles';
 import Toast from 'react-native-toast-message';
 
@@ -10,9 +10,14 @@ export function useVehicleDetail() {
   const { selected: vehicle, loading, error, fetchVehicle, deleteVehicle } = useVehicles();
   const [deleting, setDeleting] = useState(false);
 
-  useEffect(() => {
-    if (id) fetchVehicle(id);
-  }, [id]);
+  // useFocusEffect ensures vehicle status is always fresh when the screen gains
+  // focus — including when navigated here from a push notification (e.g.,
+  // vehicle.verification_approved/rejected or vehicle.document_expiring).
+  useFocusEffect(
+    useCallback(() => {
+      if (id) void fetchVehicle(id);
+    }, [id, fetchVehicle]),
+  );
 
   const handleDelete = useCallback(() => {
     Alert.alert(
