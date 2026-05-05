@@ -13,6 +13,7 @@ import { VerificationBanner } from '@/components/home/VerificationBanner';
 import { useHomeSearch } from '@/hooks/useHomeSearch';
 import { useHomeScreen } from '@/hooks/screens/useHomeScreen';
 import { Colors } from '@/constants/colors';
+import { useNotificationsStore } from '@/stores/notifications-store';
 
 const GRADIENT_COLORS = ['#003040', '#005660', '#007380'] as const;
 const GRADIENT_START = { x: 0, y: 0 };
@@ -28,6 +29,7 @@ export default function HomeScreen() {
   );
 
   const { user, isDriver, refreshing, onRefresh, todayTrips, showVerificationBanner } = useHomeScreen();
+  const unreadCount = useNotificationsStore((s) => s.unreadCount);
 
   const {
     origin,
@@ -107,8 +109,18 @@ export default function HomeScreen() {
                 </Text>
               </View>
             </View>
-            <TouchableOpacity className="w-10 h-10 rounded-full bg-white/20 items-center justify-center">
+            <TouchableOpacity
+              onPress={() => router.push('/notifications' as never)}
+              className="w-10 h-10 rounded-full bg-white/20 items-center justify-center"
+            >
               <Bell size={20} color="#FFFFFF" />
+              {unreadCount > 0 && (
+                <View className="absolute -top-1 -right-1 w-5 h-5 rounded-full bg-red-500 items-center justify-center">
+                  <Text className="text-white text-xs font-bold">
+                    {unreadCount > 9 ? '9+' : String(unreadCount)}
+                  </Text>
+                </View>
+              )}
             </TouchableOpacity>
           </View>
 

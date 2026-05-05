@@ -73,9 +73,12 @@ SplashScreen.preventAutoHideAsync();
 export default function RootLayout() {
   const [fontsLoaded, setFontsLoaded] = useState(false);
   const { navigate } = useNotificationNavigation();
-  const incrementUnread = useNotificationsStore((s) => s.incrementUnread);
+  const addNotification = useNotificationsStore((s) => s.addNotification);
   const notificationListener = useRef<Notifications.EventSubscription | null>(null);
   const responseListener = useRef<Notifications.EventSubscription | null>(null);
+  // Prevents double-navigation when both the listener and getLastNotificationResponseAsync
+  // deliver the same cold-start response.
+  const handledResponseIdRef = useRef<string | null>(null);
 
   useChatWebSocket();
 
@@ -98,20 +101,58 @@ export default function RootLayout() {
   // ── Notification listeners ──
   useEffect(() => {
     // Fired when a notification arrives while the app is in the foreground
-    notificationListener.current = Notifications.addNotificationReceivedListener(() => {
-      incrementUnread();
+    notificationListener.current = Notifications.addNotificationReceivedListener((notification) => {
+      const content = notification.request.content;
+      const data = (content.data ?? {}) as Record<string, unknown>;
+      const type = (data.type as string | undefined) ?? 'unknown';
+      addNotification({
+        id: notification.request.identifier,
+        type,
+        title: content.title ?? null,
+        body: content.body ?? null,
+        data,
+        receivedAt: Date.now(),
+      });
+      // shouldSetBadge:true only applies the server payload badge value;
+      // manually increment the OS badge so it always reflects the unread count.
+      void (async () => {
+        try {
+          const current = await Notifications.getBadgeCountAsync();
+          await Notifications.setBadgeCountAsync(current + 1);
+        } catch (e) {
+          console.warn('[Notifications] Failed to update badge count:', e);
+        }
+      })();
     });
 
-    // Fired when the user taps a notification (foreground, background or cold start via tray)
+    // Fired when the user taps a notification while the app is foreground or background.
     responseListener.current = Notifications.addNotificationResponseReceivedListener((response) => {
+      const id = response.notification.request.identifier;
+      const type = (response.notification.request.content.data as { type?: string; })?.type ?? 'unknown';
+      if (handledResponseIdRef.current === id) {
+        return;
+      }
+      handledResponseIdRef.current = id;
       navigate(response);
     });
+
+    // Cold start: app was killed and launched by tapping a notification.
+    // addNotificationResponseReceivedListener does NOT fire for this case.
+    const coldStartResponse = Notifications.getLastNotificationResponse();
+    if (coldStartResponse) {
+      const id = coldStartResponse.notification.request.identifier;
+      const type = (coldStartResponse.notification.request.content.data as { type?: string; })?.type ?? 'unknown';
+      if (handledResponseIdRef.current !== id) {
+        handledResponseIdRef.current = id;
+        navigate(coldStartResponse);
+      }
+    }
 
     return () => {
       notificationListener.current?.remove();
       responseListener.current?.remove();
     };
-  }, [navigate, incrementUnread]);
+  }, [navigate, addNotification]);
 
   if (!fontsLoaded) return null;
 
@@ -129,6 +170,14 @@ export default function RootLayout() {
           <Stack.Screen
             name="verification"
             options={{ animation: 'slide_from_bottom' }}
+          />
+          <Stack.Screen
+            name="student-verification"
+            options={{ animation: 'slide_from_bottom' }}
+          />
+          <Stack.Screen
+            name="notifications"
+            options={{ animation: 'slide_from_right' }}
           />
           <Stack.Screen
             name="profile"
