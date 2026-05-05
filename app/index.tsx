@@ -1,13 +1,16 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'expo-router';
+import * as Notifications from 'expo-notifications';
 import { useAuthStore } from '@/stores/auth-store';
 import { authApi } from '@/api/auth';
 import { isTokenExpired } from '@/lib/jwt';
+import { useNotificationNavigation } from '@/hooks/useNotificationNavigation';
 import { Spinner } from '@/components/ui';
 
 export default function IndexScreen() {
   const router = useRouter();
   const [ready, setReady] = useState(false);
+  const { navigate } = useNotificationNavigation();
 
   useEffect(() => {
     // Wait for Zustand persist to finish hydrating from SecureStore before
@@ -40,6 +43,12 @@ export default function IndexScreen() {
       // Access token is present — check expiration before trusting it.
       if (!isTokenExpired(accessToken)) {
         router.replace('/(tabs)/home');
+
+        // Cold start: check if the app was opened by tapping a notification
+        const lastResponse = await Notifications.getLastNotificationResponseAsync();
+        if (lastResponse) {
+          navigate(lastResponse);
+        }
         return;
       }
 
@@ -54,6 +63,12 @@ export default function IndexScreen() {
           if (data?.accessToken && data?.refreshToken) {
             setTokens(data.accessToken, data.refreshToken);
             router.replace('/(tabs)/home');
+
+            // Cold start after silent refresh
+            const lastResponse = await Notifications.getLastNotificationResponseAsync();
+            if (lastResponse) {
+              navigate(lastResponse);
+            }
             return;
           }
         } catch {
@@ -65,7 +80,7 @@ export default function IndexScreen() {
       logout();
       router.replace(hasOnboarded ? '/(auth)/login' : '/(auth)/welcome');
     })();
-  }, [ready, router]);
+  }, [ready, router, navigate]);
 
   return <Spinner fullScreen message="Cargando..." />;
 }

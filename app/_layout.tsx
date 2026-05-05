@@ -1,21 +1,40 @@
 import '../global.css';
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Platform } from 'react-native';
 import { loadFonts } from '../src/fonts';
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import * as SplashScreen from 'expo-splash-screen';
 import * as NavigationBar from 'expo-navigation-bar';
+import * as Notifications from 'expo-notifications';
 import Toast from 'react-native-toast-message';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { useChatWebSocket } from '@/hooks/useChatWebSocket';
+import { useNotificationNavigation } from '@/hooks/useNotificationNavigation';
+import { useNotificationsStore } from '@/stores/notifications-store';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
+
+// Show notifications as alerts when the app is in the foreground
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldShowAlert: true,
+    shouldPlaySound: true,
+    shouldSetBadge: true,
+    shouldShowBanner: true,
+    shouldShowList: true,
+  }),
+});
 
 SplashScreen.preventAutoHideAsync();
 
 
 export default function RootLayout() {
   const [fontsLoaded, setFontsLoaded] = useState(false);
+  const { navigate } = useNotificationNavigation();
+  const incrementUnread = useNotificationsStore((s) => s.incrementUnread);
+  const notificationListener = useRef<Notifications.EventSubscription | null>(null);
+  const responseListener = useRef<Notifications.EventSubscription | null>(null);
+
   useChatWebSocket();
 
   useEffect(() => {
@@ -34,6 +53,24 @@ export default function RootLayout() {
       }
     })();
   }, []);
+
+  // ── Notification listeners ──
+  useEffect(() => {
+    // Fired when a notification arrives while the app is in the foreground
+    notificationListener.current = Notifications.addNotificationReceivedListener(() => {
+      incrementUnread();
+    });
+
+    // Fired when the user taps a notification (foreground, background or cold start via tray)
+    responseListener.current = Notifications.addNotificationResponseReceivedListener((response) => {
+      navigate(response);
+    });
+
+    return () => {
+      notificationListener.current?.remove();
+      responseListener.current?.remove();
+    };
+  }, [navigate, incrementUnread]);
 
   if (!fontsLoaded) return null;
 
