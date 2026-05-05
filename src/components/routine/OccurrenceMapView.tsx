@@ -42,8 +42,8 @@ function stopTitle(stop: AnyStop): string {
   if (stop.kind === 'origin') return stop.name;
   if (stop.kind === 'destination') return stop.name;
   if (stop.kind === 'waypoint') return stop.data.name;
-  if (stop.kind === 'passenger') return `Pasajero: ${stop.sub.passenger?.name ?? 'Pasajero'}`;
-  if (stop.kind === 'subscriber') return `Pasajero: ${stop.sub.passenger?.name ?? 'Pasajero'}`;
+  if (stop.kind === 'passenger') return `Pasajero: ${stop.sub.passenger ? `${stop.sub.passenger.firstName} ${stop.sub.passenger.lastName}`.trim() : 'Pasajero'}`;
+  if (stop.kind === 'subscriber') return `Pasajero: ${stop.sub.passenger ? `${stop.sub.passenger.firstName} ${stop.sub.passenger.lastName}`.trim() : 'Pasajero'}`;
   return '';
 }
 

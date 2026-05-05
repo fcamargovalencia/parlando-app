@@ -5,7 +5,7 @@ import { useVehicles } from '@/hooks/useVehicles';
 import Toast from 'react-native-toast-message';
 
 export function useVehicleDetail() {
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const { id } = useLocalSearchParams<{ id: string; }>();
   const router = useRouter();
   const { selected: vehicle, loading, error, fetchVehicle, deleteVehicle } = useVehicles();
   const [deleting, setDeleting] = useState(false);

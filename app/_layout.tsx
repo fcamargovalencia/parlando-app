@@ -18,7 +18,7 @@ import { ErrorBoundary } from '@/components/ErrorBoundary';
 // chat messages when the user is already viewing that specific conversation.
 Notifications.setNotificationHandler({
   handleNotification: async (notification) => {
-    const data = notification.request.content.data as { type?: string; tripId?: string } | undefined;
+    const data = notification.request.content.data as { type?: string; tripId?: string; } | undefined;
 
     // Suppress foreground chat alert if the user is already in that chat screen
     if (data?.type === 'chat.new_message') {
@@ -96,45 +96,45 @@ export default function RootLayout() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <ErrorBoundary>
-      <Stack screenOptions={{ headerShown: false, animation: 'slide_from_right' }}>
-        <Stack.Screen name="index" />
-        <Stack.Screen name="(auth)" />
-        <Stack.Screen name="(tabs)" />
-        <Stack.Screen
-          name="vehicle"
-          options={{ animation: 'slide_from_bottom' }}
-        />
-        <Stack.Screen
-          name="verification"
-          options={{ animation: 'slide_from_bottom' }}
-        />
-        <Stack.Screen
-          name="profile"
-          options={{ animation: 'slide_from_right' }}
-        />
-        <Stack.Screen
-          name="trip"
-          options={{ animation: 'slide_from_right' }}
-        />
-        <Stack.Screen
-          name="chat"
-          options={{ animation: 'slide_from_right' }}
-        />
-        <Stack.Screen
-          name="subscription"
-          options={{ animation: 'slide_from_right' }}
-        />
-        <Stack.Screen
-          name="routine"
-          options={{ animation: 'slide_from_right' }}
-        />
-        <Stack.Screen
-          name="search"
-          options={{ animation: 'slide_from_right' }}
-        />
-      </Stack>
-      <StatusBar style="auto" />
-      <Toast />
+        <Stack screenOptions={{ headerShown: false, animation: 'slide_from_right' }}>
+          <Stack.Screen name="index" />
+          <Stack.Screen name="(auth)" />
+          <Stack.Screen name="(tabs)" />
+          <Stack.Screen
+            name="vehicle"
+            options={{ animation: 'slide_from_bottom' }}
+          />
+          <Stack.Screen
+            name="verification"
+            options={{ animation: 'slide_from_bottom' }}
+          />
+          <Stack.Screen
+            name="profile"
+            options={{ animation: 'slide_from_right' }}
+          />
+          <Stack.Screen
+            name="trip"
+            options={{ animation: 'slide_from_right' }}
+          />
+          <Stack.Screen
+            name="chat"
+            options={{ animation: 'slide_from_right' }}
+          />
+          <Stack.Screen
+            name="subscription"
+            options={{ animation: 'slide_from_right' }}
+          />
+          <Stack.Screen
+            name="routine"
+            options={{ animation: 'slide_from_right' }}
+          />
+          <Stack.Screen
+            name="search"
+            options={{ animation: 'slide_from_right' }}
+          />
+        </Stack>
+        <StatusBar style="auto" />
+        <Toast />
       </ErrorBoundary>
     </GestureHandlerRootView>
   );

@@ -37,7 +37,10 @@ export function OccurrencePassengerCard({
   onMarkNoShow,
   onOverridePickup,
 }: OccurrencePassengerCardProps) {
-  const passengerName = booking.passenger?.name ?? subscription.passenger?.name ?? 'Pasajero';
+  const passengerName = booking.passenger?.name
+    ?? (subscription.passenger
+      ? `${subscription.passenger.firstName} ${subscription.passenger.lastName}`.trim()
+      : 'Pasajero');
   const nameParts = passengerName.split(' ');
   const statusConfig = STATUS_BADGE[booking.status] ?? { label: booking.status, variant: 'neutral' as const };
 

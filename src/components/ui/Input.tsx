@@ -6,9 +6,10 @@ import {
   TouchableOpacity,
   StyleSheet,
   type TextInputProps,
-  type NativeSyntheticEvent,
-  type TextInputFocusEventData,
 } from 'react-native';
+
+type FocusEventType = Parameters<NonNullable<TextInputProps['onFocus']>>[0];
+type BlurEventType = Parameters<NonNullable<TextInputProps['onBlur']>>[0];
 import { Eye, EyeOff } from 'lucide-react-native';
 import { Colors } from '@/constants/colors';
 
@@ -38,7 +39,7 @@ export const Input = forwardRef<TextInput, InputProps>(function Input({
   const isPassword = secureTextEntry !== undefined;
 
   const handleFocus = useCallback(
-    (e: NativeSyntheticEvent<TextInputFocusEventData>) => {
+    (e: FocusEventType) => {
       requestAnimationFrame(() => {
         rowRef.current?.setNativeProps({
           style: error ? styles.borderError : styles.borderFocused,
@@ -50,7 +51,7 @@ export const Input = forwardRef<TextInput, InputProps>(function Input({
   );
 
   const handleBlur = useCallback(
-    (e: NativeSyntheticEvent<TextInputFocusEventData>) => {
+    (e: BlurEventType) => {
       requestAnimationFrame(() => {
         rowRef.current?.setNativeProps({
           style: error ? styles.borderError : styles.borderDefault,

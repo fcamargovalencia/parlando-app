@@ -21,7 +21,9 @@ const DAY_FULL: Record<RecurrenceDay, string> = {
 // ── Subscriber row ──
 
 function SubscriberRow({ sub }: { sub: RoutineSubscriptionResponse; }) {
-  const name = sub.passenger?.name ?? 'Pasajero';
+  const name = sub.passenger
+    ? `${sub.passenger.firstName} ${sub.passenger.lastName}`.trim()
+    : 'Pasajero';
   const pickupLabel = sub.customPickupName
     ?? (sub.pickupType === 'ORIGIN' ? 'Origen del viaje' : 'Waypoint');
 
@@ -64,8 +66,8 @@ export function DayVariantView({ routineTripId, recurrenceDays }: DayVariantView
             key={day}
             onPress={() => setSelectedDay(day)}
             className={`px-3.5 py-1.5 rounded-full border ${selectedDay === day
-                ? 'bg-primary-500 border-primary-500'
-                : 'border-neutral-200 bg-neutral-50'
+              ? 'bg-primary-500 border-primary-500'
+              : 'border-neutral-200 bg-neutral-50'
               }`}
             activeOpacity={0.7}
           >

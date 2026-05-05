@@ -94,8 +94,10 @@ export const useRoutineSubscriptionsStore = create<RoutineSubscriptionsState>((s
             ...s,
             passenger: {
               id: u.id,
-              name: `${u.firstName} ${u.lastName}`.trim(),
-              rating: u.trustScore,
+              firstName: u.firstName,
+              lastName: u.lastName,
+              profilePhotoUrl: u.profilePhotoUrl ?? null,
+              trustScore: u.trustScore,
               verified: u.verificationLevel !== 'NONE',
             },
           }

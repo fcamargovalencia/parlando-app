@@ -217,7 +217,7 @@ function CustomPickupMapModal({
                 ]}
                 strokeWidth={5}
                 strokeColor={Colors.primary[500]}
-                strokeDashArray={[8, 6]}
+                lineDashPattern={[8, 6]}
                 lineCap="round"
               />
             )}
