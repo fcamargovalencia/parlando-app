@@ -5,6 +5,7 @@ import { bookingsApi } from '@/api/bookings';
 import { tripsApi } from '@/api/trips';
 import { chatWs } from '@/lib/chat-ws';
 import { useAuthStore } from '@/stores/auth-store';
+import { useNotificationsStore } from '@/stores/notifications-store';
 import { extractApiError } from '@/lib/utils';
 import type { BookingResponse, ChatMessageResponse, TripResponse, WsInboundFrame } from '@/types/api';
 
@@ -97,6 +98,7 @@ export function useChat(tripId: string, otherUserId: string) {
   const [state, dispatch] = useReducer(reducer, initial);
   const currentUserId = useAuthStore((s) => s.user?.id);
   const processedWsIds = useRef(new Set<string>());
+  const setActiveChatTripId = useNotificationsStore((s) => s.setActiveChatTripId);
 
   const load = useCallback(async () => {
     dispatch({ type: 'FETCH_START' });
@@ -189,6 +191,11 @@ export function useChat(tripId: string, otherUserId: string) {
       processedWsIds.current.clear();
       load();
 
+      // Signal to the global notification handler that this chat is active.
+      // While active, foreground push alerts for this tripId are suppressed
+      // because the user is already reading the conversation.
+      setActiveChatTripId(tripId);
+
       const onWsMessage = (frame: WsInboundFrame) => {
         if (frame.type !== 'MESSAGE') return;
         if (String(frame.tripId) !== String(tripId)) return;
@@ -213,8 +220,11 @@ export function useChat(tripId: string, otherUserId: string) {
       };
 
       chatWs.on('message', onWsMessage);
-      return () => { chatWs.off('message', onWsMessage); };
-    }, [load, tripId, otherUserId, currentUserId]),
+      return () => {
+        chatWs.off('message', onWsMessage);
+        setActiveChatTripId(null);
+      };
+    }, [load, tripId, otherUserId, currentUserId, setActiveChatTripId]),
   );
 
   return {

@@ -14,15 +14,34 @@ import { useNotificationNavigation } from '@/hooks/useNotificationNavigation';
 import { useNotificationsStore } from '@/stores/notifications-store';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 
-// Show notifications as alerts when the app is in the foreground
+// Show notifications as alerts when the app is in the foreground, except for
+// chat messages when the user is already viewing that specific conversation.
 Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowAlert: true,
-    shouldPlaySound: true,
-    shouldSetBadge: true,
-    shouldShowBanner: true,
-    shouldShowList: true,
-  }),
+  handleNotification: async (notification) => {
+    const data = notification.request.content.data as { type?: string; tripId?: string } | undefined;
+
+    // Suppress foreground chat alert if the user is already in that chat screen
+    if (data?.type === 'chat.new_message') {
+      const { activeChatTripId } = useNotificationsStore.getState();
+      if (activeChatTripId && activeChatTripId === data.tripId) {
+        return {
+          shouldShowAlert: false,
+          shouldPlaySound: false,
+          shouldSetBadge: false,
+          shouldShowBanner: false,
+          shouldShowList: false,
+        };
+      }
+    }
+
+    return {
+      shouldShowAlert: true,
+      shouldPlaySound: true,
+      shouldSetBadge: true,
+      shouldShowBanner: true,
+      shouldShowList: true,
+    };
+  },
 });
 
 SplashScreen.preventAutoHideAsync();
