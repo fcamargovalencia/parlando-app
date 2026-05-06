@@ -8,6 +8,7 @@ import {
   Platform,
   StyleSheet,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import MapView, { Marker, Polyline, type Region } from 'react-native-maps';
 import { ArrowLeft } from 'lucide-react-native';
 import { Colors } from '@/constants/colors';
@@ -50,6 +51,7 @@ export function LocationMapView({
   onMapReady,
   onConfirm,
 }: Props) {
+  const insets = useSafeAreaInsets();
   const hintText = mapHintText
     ? mapHintText
     : routeCoordinates && routeCoordinates.length >= 2
@@ -131,7 +133,7 @@ export function LocationMapView({
       </View>
 
       {/* Bottom panel */}
-      <View style={styles.bottomPanel}>
+      <View style={[styles.bottomPanel, { paddingBottom: Math.max(insets.bottom, 16) + 4 }]}>
         {isDragging ? (
           <Text style={[styles.hintText, { textAlign: 'center', color: Colors.neutral[500] }]}>
             Suelta para confirmar posición
@@ -244,7 +246,7 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.white,
     paddingHorizontal: 16,
     paddingTop: 16,
-    paddingBottom: Platform.OS === 'ios' ? 32 : 16,
+    paddingBottom: 16,
     gap: 12,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: -2 },

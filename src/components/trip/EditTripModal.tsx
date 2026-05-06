@@ -10,6 +10,7 @@ import {
   TextInput,
 } from 'react-native';
 import DateTimePicker from '@react-native-community/datetimepicker';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Luggage, GraduationCap } from 'lucide-react-native';
 import { Card, Toggle } from '@/components/ui';
 import { Colors } from '@/constants/colors';
@@ -26,6 +27,7 @@ interface EditTripModalProps {
 
 export function EditTripModal({ trip, visible, onClose, onConfirm }: EditTripModalProps) {
   const now = useMemo(() => new Date(), []);
+  const insets = useSafeAreaInsets();
   const {
     form, setForm,
     showDate, setShowDate,
@@ -43,7 +45,7 @@ export function EditTripModal({ trip, visible, onClose, onConfirm }: EditTripMod
     >
       <View className="flex-1 bg-neutral-50">
         {/* Nav bar */}
-        <View className="flex-row items-center justify-between px-5 pt-5 pb-3 bg-white border-b border-neutral-100">
+        <View className="flex-row items-center justify-between px-5 pb-3 bg-white border-b border-neutral-100" style={{ paddingTop: Math.max(insets.top, 20) }}>
           <TouchableOpacity onPress={onClose}>
             <Text className="text-base text-neutral-500">Cancelar</Text>
           </TouchableOpacity>

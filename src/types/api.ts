@@ -796,7 +796,7 @@ export interface WsOutboundFrame {
 // ── Notifications ──
 
 export interface NotificationPreferences {
-  push_enabled: boolean;
+  pushEnabled: boolean;
   bookings: boolean;
   chat: boolean;
   trips: boolean;

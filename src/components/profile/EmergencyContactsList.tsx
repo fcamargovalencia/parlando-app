@@ -46,10 +46,10 @@ const ContactCard = React.memo(function ContactCard({
         </View>
         <View className="flex-row gap-2">
           <TouchableOpacity onPress={() => onEdit(contact)}>
-            <Pencil size={16} color={Colors.neutral[600]} />
+            <Pencil size={22} color={Colors.neutral[600]} />
           </TouchableOpacity>
           <TouchableOpacity onPress={() => onDelete(contact)} disabled={isDeleting}>
-            <Trash2 size={16} color={Colors.semantic.error} />
+            <Trash2 size={22} color={Colors.semantic.error} />
           </TouchableOpacity>
         </View>
       </View>

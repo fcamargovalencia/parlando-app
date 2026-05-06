@@ -32,6 +32,11 @@
       },
       "googleServicesFile": "./google-services.json",
       "package": "com.parlando.app",
+      "config": {
+        "googleMaps": {
+          "apiKey": "AIzaSyCoH_l5VxTOfr_pJ2yYitH6tUZl2nxinFQ"
+        }
+      },
       "navigationBarColor": "#FFFFFF",
       "navigationBarStyle": "dark-content",
       "permissions": [

@@ -31,10 +31,24 @@ export const notificationsApi = {
   getPreferences: () =>
     api.get<ApiResponse<NotificationPreferences>>('/v1/notifications/preferences'),
 
-  updatePreferences: (preferences: Partial<NotificationPreferences>) =>
-    api.post<ApiResponse<NotificationPreferences>>(
-      '/v1/notifications/preferences',
-      JSON.stringify(preferences),
-      { headers: { 'Content-Type': 'application/json' } },
-    ),
+  /**
+   * Uses native fetch instead of axios to avoid the same Hermes body-serialization
+   * issue that affects registerDevice (axios strips the body before it hits the network).
+   * The backend expects PATCH on this endpoint.
+   */
+  updatePreferences: async (preferences: Partial<NotificationPreferences>): Promise<void> => {
+    const accessToken = useAuthStore.getState().accessToken;
+    const res = await fetch(`${Config.API_URL}/v1/notifications/preferences`, {
+      method: 'PATCH',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {}),
+      },
+      body: JSON.stringify(preferences),
+    });
+    if (!res.ok) {
+      const text = await res.text().catch(() => '');
+      throw new Error(`updatePreferences failed ${res.status}: ${text}`);
+    }
+  },
 };
