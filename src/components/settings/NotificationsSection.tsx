@@ -29,10 +29,8 @@ const CATEGORY_ROWS: { key: PrefKey; label: string; icon: React.ReactNode; }[] =
 ];
 
 export const NotificationsSection = React.memo(function NotificationsSection() {
-  const { preferences, setPreferences } = useNotificationsStore((s) => ({
-    preferences: s.preferences,
-    setPreferences: s.setPreferences,
-  }));
+  const preferences = useNotificationsStore((s) => s.preferences);
+  const setPreferences = useNotificationsStore((s) => s.setPreferences);
   const [loading, setLoading] = useState(preferences === null);
   const [osPermissionDenied, setOsPermissionDenied] = useState(false);
 
