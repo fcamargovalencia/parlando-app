@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, startTransition } from 'react';
 import {
   View,
   Text,
@@ -50,7 +50,7 @@ export function EditTripModal({ trip, visible, onClose, onConfirm }: EditTripMod
             <Text className="text-base text-neutral-500">Cancelar</Text>
           </TouchableOpacity>
           <Text className="text-base font-semibold text-neutral-900">Editar viaje</Text>
-          <TouchableOpacity onPress={save} disabled={isSaving}>
+          <TouchableOpacity onPress={() => startTransition(() => save())} disabled={isSaving}>
             {isSaving ? (
               <ActivityIndicator size="small" color={Colors.primary[500]} />
             ) : (

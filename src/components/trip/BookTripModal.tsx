@@ -1,4 +1,4 @@
-import React, { useState, useActionState, useEffect } from 'react';
+import React, { useState, useActionState, useEffect, startTransition } from 'react';
 import {
   View,
   Text,
@@ -61,7 +61,7 @@ export function BookTripModal({
         onClose();
         return null;
       } catch (err: unknown) {
-        const apiMessage = (err as { response?: { data?: { message?: string } } })?.response?.data?.message;
+        const apiMessage = (err as { response?: { data?: { message?: string; }; }; })?.response?.data?.message;
         return apiMessage ?? 'No se pudo crear la reserva';
       }
     },
@@ -175,7 +175,7 @@ export function BookTripModal({
           <Text className="text-red-500 text-xs text-center mb-3">{bookingError}</Text>
         )}
         <Button
-          onPress={submitBooking}
+          onPress={() => startTransition(() => submitBooking())}
           loading={isPending}
           disabled={!canSubmit}
           size="lg"
