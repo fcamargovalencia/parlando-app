@@ -10,6 +10,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Camera, Car, ChevronDown, CreditCard, FileText, Plus, X } from 'lucide-react-native';
 import { Screen, Button, Input, DatePickerModal } from '@/components/ui';
 import { DocumentUploadCard } from '@/components/vehicle/DocumentUploadCard';
@@ -25,6 +26,7 @@ import {
 } from '@/hooks/screens/useVehicleAddScreen';
 
 export default function AddVehicleScreen() {
+  const insets = useSafeAreaInsets();
   const {
     form,
     setField,
@@ -56,7 +58,7 @@ export default function AddVehicleScreen() {
       >
         <ScrollView
           className="flex-1"
-          contentContainerClassName="px-6 pt-4 pb-8"
+          contentContainerStyle={{ paddingHorizontal: 24, paddingTop: 16, paddingBottom: Math.max(insets.bottom, 8) + 24 }}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
@@ -306,7 +308,7 @@ export default function AddVehicleScreen() {
             activeOpacity={1}
             onPress={() => setShowLicenseDropdown(false)}
           >
-            <View className="bg-white rounded-t-3xl px-5 pt-4 pb-8">
+            <View style={{ paddingBottom: Math.max(insets.bottom, 8) + 16 }} className="bg-white rounded-t-3xl px-5 pt-4">
               <Text className="text-base font-semibold text-neutral-900 mb-4">
                 Seleccionar licencia
               </Text>

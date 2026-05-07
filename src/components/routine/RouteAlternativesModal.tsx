@@ -7,6 +7,7 @@ import {
   Platform,
   StyleSheet,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import MapView, { Polyline, Marker } from 'react-native-maps';
 import { ArrowLeft, ChevronRight, Check } from 'lucide-react-native';
 import { formatDuration } from '@/lib/utils';
@@ -19,8 +20,8 @@ interface RouteAlternativesModalProps {
   alternatives: RouteAlternative[];
   selectedId: string;
   onSelect: (id: string) => void;
-  origin: { latitude: number; longitude: number; name: string };
-  destination: { latitude: number; longitude: number; name: string };
+  origin: { latitude: number; longitude: number; name: string; };
+  destination: { latitude: number; longitude: number; name: string; };
 }
 
 const ALT_COLORS = [Colors.primary[600], '#f59e0b', '#10b981'];
@@ -36,6 +37,7 @@ export function RouteAlternativesModal({
   destination,
 }: RouteAlternativesModalProps) {
   const mapRef = useRef<MapView>(null);
+  const insets = useSafeAreaInsets();
   const selected = alternatives.find(r => r.id === selectedId) ?? alternatives[0] ?? null;
   const selectedIndex = alternatives.findIndex(r => r.id === selectedId);
 
@@ -134,7 +136,7 @@ export function RouteAlternativesModal({
         </MapView>
 
         {/* Header overlay */}
-        <View style={styles.header}>
+        <View style={[styles.header, { paddingTop: insets.top + 12 }]}>
           <TouchableOpacity onPress={onClose} style={styles.headerBtn}>
             <ArrowLeft size={20} color="#fff" />
           </TouchableOpacity>
@@ -144,7 +146,7 @@ export function RouteAlternativesModal({
 
         {/* Route count badge */}
         {alternatives.length > 1 && (
-          <View style={styles.badge}>
+          <View style={[styles.badge, { top: insets.top + 76 }]}>
             <Text style={styles.badgeText}>
               {selectedIndex + 1} / {alternatives.length}
             </Text>
@@ -153,7 +155,7 @@ export function RouteAlternativesModal({
 
         {/* Bottom selector */}
         {selected && (
-          <View style={styles.bottomPanel}>
+          <View style={[styles.bottomPanel, { paddingBottom: Math.max(insets.bottom, 16) + 4 }]}>
             <View style={styles.selectorRow}>
               <TouchableOpacity
                 onPress={() => handleOffset(-1)}
@@ -211,7 +213,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 16,
-    paddingTop: Platform.OS === 'ios' ? 56 : 16,
     paddingBottom: 12,
     backgroundColor: 'rgba(15,23,42,0.65)',
   },
@@ -230,7 +231,6 @@ const styles = StyleSheet.create({
   },
   badge: {
     position: 'absolute',
-    top: Platform.OS === 'ios' ? 110 : 76,
     alignSelf: 'center',
     backgroundColor: 'rgba(15,23,42,0.6)',
     borderRadius: 12,
@@ -252,7 +252,6 @@ const styles = StyleSheet.create({
     borderTopRightRadius: 20,
     paddingHorizontal: 20,
     paddingTop: 16,
-    paddingBottom: Platform.OS === 'ios' ? 36 : 20,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: -3 },
     shadowOpacity: 0.1,

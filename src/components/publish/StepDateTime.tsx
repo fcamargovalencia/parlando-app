@@ -44,7 +44,6 @@ export function StepDateTime({ departureAt, dispatch }: Props) {
         <TouchableOpacity
           onPress={() => setShowTimePicker(true)}
           activeOpacity={0.7}
-          className="flex-1"
         >
           <View className="flex-row items-center px-4 py-3.5 rounded-xl border-2 border-neutral-200 bg-white">
             <Clock size={18} color={Colors.neutral[500]} />
