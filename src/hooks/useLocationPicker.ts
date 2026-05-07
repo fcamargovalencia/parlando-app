@@ -71,6 +71,8 @@ export function useLocationPicker({
   const [searching, setSearching] = useState(false);
   const [locating, setLocating] = useState(false);
   const [userCoords, setUserCoords] = useState<{ latitude: number; longitude: number; } | null>(null);
+  const userCoordsRef = useRef<{ latitude: number; longitude: number; } | null>(null);
+  userCoordsRef.current = userCoords;
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const abortRef = useRef<AbortController | null>(null);
 
@@ -142,6 +144,7 @@ export function useLocationPicker({
       isProgrammaticRef.current = false;
       lastGeocodedCoordRef.current = null;
       if (reverseDebounceRef.current) clearTimeout(reverseDebounceRef.current);
+      setMapVisible(false);
       return;
     }
     mapReadyRef.current = false;
@@ -322,6 +325,11 @@ export function useLocationPicker({
       return;
     }
 
+    // Immediately zoom to previously-known coords without waiting for GPS
+    if (userCoordsRef.current) {
+      animateWhenReady({ ...userCoordsRef.current, latitudeDelta: 0.003, longitudeDelta: 0.003 });
+    }
+
     let cancelled = false;
 
     (async () => {
@@ -334,7 +342,7 @@ export function useLocationPicker({
           return;
         }
 
-        const last = await Location.getLastKnownPositionAsync({ maxAge: 60_000 });
+        const last = await Location.getLastKnownPositionAsync();
         if (cancelled) return;
         if (last) {
           const coords = { latitude: last.coords.latitude, longitude: last.coords.longitude };

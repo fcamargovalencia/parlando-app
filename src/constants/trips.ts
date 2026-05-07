@@ -31,7 +31,7 @@ export const BOOKING_STATUS_BADGE: Record<
 // ── Trip type options (for selectors) ──
 
 export const TRIP_TYPE_OPTIONS: { type: TripType; label: string; subtitle: string; }[] = [
-  { type: 'INTERCITY', label: 'Otra ciudad', subtitle: 'Ciudad a ciudad' },
-  { type: 'URBAN', label: 'Urbano', subtitle: 'Dentro de tu ciudad' },
-  { type: 'ROUTINE', label: 'Universidad/Oficina', subtitle: 'Rutas recurrentes' },
+  { type: 'INTERCITY', label: 'Nacional', subtitle: 'Comparte la experiencia de conocer los hermosos rincones del país' },
+  { type: 'URBAN', label: 'Ciudad', subtitle: 'Ahorra mientras te mueves dentro de la ciudad' },
+  { type: 'ROUTINE', label: 'Rutinario', subtitle: 'Crea tu ruta a la universidad u oficina, comparte con compañeros, colegas y disminuye tus gastos diarios' },
 ];
