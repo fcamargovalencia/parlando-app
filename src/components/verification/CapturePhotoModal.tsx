@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useRef } from 'react';
 import {
   ActivityIndicator,
   Modal,
@@ -79,8 +79,10 @@ export function CapturePhotoModal({
     ...customConfig,
   };
 
+  const captureFrameRef = useRef<View>(null);
+
   const { permission, cameraRef, capturing, handleRequestPermission, handleTakePicture } =
-    usePhotoCapture(config, onCapture);
+    usePhotoCapture(config, onCapture, captureFrameRef);
 
   if (!visible || !target) return null;
 
@@ -108,6 +110,7 @@ export function CapturePhotoModal({
 
               <View style={styles.frameWrapper}>
                 <View
+                  ref={captureFrameRef}
                   style={[
                     styles.captureFrame,
                     target === 'selfie'

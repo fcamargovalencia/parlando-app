@@ -9,6 +9,7 @@ import {
   Alert,
   Image,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useRouter } from 'expo-router';
 import {
   FileText,
@@ -113,6 +114,7 @@ const captureCardContent: Record<
 
 export default function SubmitVerificationScreen() {
   const router = useRouter();
+  const insets = useSafeAreaInsets();
   const { submitVerification, submitting, error, clearError, verifications } = useVerifications();
   const [form, dispatch] = useReducer(formReducer, initialState);
   const [photos, setPhotos] = useState<VerificationPhotosState>(initialPhotosState);
@@ -311,15 +313,11 @@ export default function SubmitVerificationScreen() {
       >
         <ScrollView
           className="flex-1"
-          contentContainerClassName="px-6 pt-4 pb-8"
+          contentContainerClassName="px-6 pt-4"
+          contentContainerStyle={{ paddingBottom: insets.bottom + 32 }}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          <View className="bg-blue-50 border border-blue-200 rounded-2xl px-4 py-3 mb-6">
-            <Text className="text-sm text-blue-800 leading-5">
-              Esta verificación se revisará manualmente en el admin panel. Captura fotos nítidas del documento y una selfie obligatoria para agilizar la aprobación.
-            </Text>
-          </View>
 
           <Text className="text-sm font-medium text-neutral-700 mb-2">
             Tipo de documento
@@ -443,22 +441,6 @@ export default function SubmitVerificationScreen() {
             fullWidth
             className="mb-6"
           />
-
-          <Card className="mb-6 bg-primary-50 border-primary-100">
-            <View className="flex-row items-start">
-              <View className="w-9 h-9 rounded-full bg-white items-center justify-center mr-3">
-                <CheckCircle2 size={18} color={Colors.primary[600]} />
-              </View>
-              <View className="flex-1">
-                <Text className="text-sm font-semibold text-primary-800 mb-1">
-                  Checklist antes de enviar
-                </Text>
-                <Text className="text-sm text-primary-700 leading-5">
-                  Frente legible y selfie visible con buena iluminación. Si el documento tiene reverso, también debe verse nítido. Las fotos se subirán a Cloudinary solo cuando pulses enviar verificación.
-                </Text>
-              </View>
-            </View>
-          </Card>
 
           {combinedError && (
             <View className="bg-red-50 border border-red-200 rounded-2xl px-4 py-3 mb-4">
