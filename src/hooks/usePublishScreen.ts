@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { Alert } from 'react-native';
 import { useSharedValue, withTiming, type SharedValue } from 'react-native-reanimated';
 import { useLocationSearch } from '@/hooks/useLocationSearch';
@@ -9,6 +9,7 @@ import {
   type PublishForm,
   type PublishAction,
 } from '@/hooks/usePublishForm';
+import { mapsService } from '@/lib/maps';
 import { distanceKm, normalizePlace } from '@/lib/utils';
 import { TRIP_TYPE_OPTIONS } from '@/constants/trips';
 import type { SelectedLocation } from '@/components/LocationPickerModal';
@@ -120,39 +121,61 @@ export function usePublishScreen({
     [form.destination, dispatch, originSearch, destinationSearch],
   );
 
+  const detailsAbortRef = useRef<AbortController | null>(null);
+
   const handleSuggestionSelect = useCallback(
-    (target: 'origin' | 'destination', item: LocationSearchResult) => {
-      if (item.locationType === 'municipality') {
-        if (target === 'origin') originSearch.clear();
-        else destinationSearch.clear();
+    async (target: 'origin' | 'destination', item: LocationSearchResult) => {
+      const searchHook = target === 'origin' ? originSearch : destinationSearch;
+
+      let resolved = item;
+
+      // Google Places results have latitude/longitude = 0 — real coordinates
+      // must be fetched via Place Details before we can use them.
+      if (item.placeId) {
+        detailsAbortRef.current?.abort();
+        detailsAbortRef.current = new AbortController();
+        searchHook.setSearching(true);
+        searchHook.clear();
+        try {
+          const details = await mapsService.fetchPlaceDetails(item.placeId);
+          resolved = { ...item, ...details };
+        } catch {
+          searchHook.setSearching(false);
+          Alert.alert('Error', 'No se pudo obtener la ubicación. Intenta de nuevo.');
+          return;
+        }
+        searchHook.setSearching(false);
+      } else {
+        searchHook.clear();
+      }
+
+      if (resolved.locationType === 'municipality') {
         setLocationPicker({
           visible: true,
           target,
           municipalityFocus: {
-            latitude: item.latitude,
-            longitude: item.longitude,
-            name: item.name,
+            latitude: resolved.latitude,
+            longitude: resolved.longitude,
+            name: resolved.name,
           },
         });
       } else {
-        if (target === 'origin') originSearch.clear();
-        else destinationSearch.clear();
         setLocationPicker({
           visible: true,
           target,
           municipalityFocus: {
-            latitude: item.latitude,
-            longitude: item.longitude,
-            name: item.name,
+            latitude: resolved.latitude,
+            longitude: resolved.longitude,
+            name: resolved.name,
             delta: 0.00625,
           },
           initialLocation: {
-            latitude: item.latitude,
-            longitude: item.longitude,
-            name: item.name,
-            city: item.city,
-            state: item.state,
-            country: item.country,
+            latitude: resolved.latitude,
+            longitude: resolved.longitude,
+            name: resolved.name,
+            city: resolved.city,
+            state: resolved.state,
+            country: resolved.country,
           },
         });
       }

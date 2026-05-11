@@ -44,14 +44,18 @@ function decodePolyline(encoded: string): RoutePoint[] {
 
 // ── Internal response types ──
 
-interface GoogleDirectionsResponse {
-  routes: Array<{
-    overview_polyline: { points: string; };
-    legs: Array<{
-      duration: { value: number; };
-      distance: { value: number; };
-    }>;
+interface GoogleDirectionsRoute {
+  overview_polyline: { points: string; };
+  warnings: string[];
+  legs: Array<{
+    duration: { value: number; };
+    distance: { value: number; };
+    steps: Array<{ html_instructions: string; }>;
   }>;
+}
+
+interface GoogleDirectionsResponse {
+  routes: GoogleDirectionsRoute[];
 }
 
 // ── Helpers ──
@@ -91,7 +95,48 @@ export async function googleCalculateRoute(stops: Stop[]): Promise<RouteResult> 
   const travelTimeInSeconds = route.legs.reduce((acc, leg) => acc + leg.duration.value, 0);
   const distanceKm = route.legs.reduce((acc, leg) => acc + leg.distance.value, 0) / 1000;
 
-  return { points, travelTimeInSeconds, distanceKm, hasTolls: false };
+  return { points, travelTimeInSeconds, distanceKm, hasTolls: detectTolls(route) };
+}
+
+async function fetchDirectionsRoutes(
+  origin: Stop,
+  destination: Stop,
+  waypoints: Stop[],
+  extraParams?: Record<string, string>,
+): Promise<GoogleDirectionsRoute[]> {
+  const params = buildParams(origin, destination, waypoints);
+  if (extraParams) {
+    for (const [k, v] of Object.entries(extraParams)) params.append(k, v);
+  }
+  const response = await fetch(`${DIRECTIONS_BASE}?${params}`);
+  if (!response.ok) {
+    const body = await response.text().catch(() => '');
+    throw new Error(`Google Directions API error: ${response.status} — ${body}`);
+  }
+  const data: GoogleDirectionsResponse = await response.json();
+  return data.routes ?? [];
+}
+
+function routeDistanceM(route: GoogleDirectionsRoute): number {
+  return route.legs.reduce((acc, leg) => acc + leg.distance.value, 0);
+}
+
+function detectTolls(route: GoogleDirectionsRoute): boolean {
+  // Google sometimes surfaces toll warnings in the route-level warnings array
+  const warningMatch = route.warnings?.some((w) => /toll/i.test(w));
+  if (warningMatch) return true;
+  // Fallback: scan step instructions for toll plaza mentions
+  return route.legs.some((leg) =>
+    leg.steps?.some((step) => /peaje|toll/i.test(step.html_instructions)),
+  );
+}
+
+function isDuplicateRoute(candidate: GoogleDirectionsRoute, existing: GoogleDirectionsRoute[]): boolean {
+  const candidateDist = routeDistanceM(candidate);
+  return existing.some((r) => {
+    const d = routeDistanceM(r);
+    return Math.abs(d - candidateDist) / Math.max(d, candidateDist) < 0.05;
+  });
 }
 
 export async function googleCalculateRouteAlternatives(
@@ -100,21 +145,43 @@ export async function googleCalculateRouteAlternatives(
 ): Promise<RouteAlternative[]> {
   const origin = stops[0];
   const destination = stops[stops.length - 1];
-  const params = buildParams(origin, destination, stops.slice(1, -1));
-  params.append('alternatives', 'true');
+  const waypoints = stops.slice(1, -1);
 
-  const response = await fetch(`${DIRECTIONS_BASE}?${params}`);
-  if (!response.ok) {
-    const body = await response.text().catch(() => '');
-    throw new Error(`Google Directions API error: ${response.status} — ${body}`);
+  // Primary call: ask Google for alternatives in a single request
+  const primaryRoutes = await fetchDirectionsRoutes(origin, destination, waypoints, {
+    alternatives: 'true',
+  });
+
+  if (!primaryRoutes.length) return [];
+
+  const collected: GoogleDirectionsRoute[] = primaryRoutes.slice(0, maxAlternatives + 1);
+
+  // Fallback: if Google returned only one route and there are no intermediate waypoints,
+  // request an extra route avoiding tolls to offer a meaningful second option.
+  let avoidTollsIndexStart = collected.length; // tracks which indices came from the avoid=tolls call
+  if (collected.length < 2 && waypoints.length === 0) {
+    try {
+      const avoidTollsRoutes = await fetchDirectionsRoutes(origin, destination, [], {
+        avoid: 'tolls',
+      });
+      for (const r of avoidTollsRoutes) {
+        if (collected.length >= maxAlternatives + 1) break;
+        if (!isDuplicateRoute(r, collected)) collected.push(r);
+      }
+    } catch {
+      // Keep whatever we already have
+    }
   }
 
-  const data: GoogleDirectionsResponse = await response.json();
-  if (!data.routes?.length) return [];
-
-  return data.routes.slice(0, maxAlternatives + 1).map((route, idx) => {
+  return collected.map((route, idx) => {
     const travelTimeInSeconds = route.legs.reduce((acc, leg) => acc + leg.duration.value, 0);
     const distanceKm = route.legs.reduce((acc, leg) => acc + leg.distance.value, 0) / 1000;
+    // Routes fetched with avoid=tolls are guaranteed toll-free;
+    // for others, detect tolls from the warnings array or step instructions.
+    const hasTolls =
+      idx < avoidTollsIndexStart
+        ? detectTolls(route)
+        : false;
     return {
       id: ROUTE_ALT_IDS[idx] ?? `ALT_${idx}`,
       title: ROUTE_ALT_TITLES[idx] ?? `Alternativa ${idx}`,
@@ -122,7 +189,7 @@ export async function googleCalculateRouteAlternatives(
       travelTimeInSeconds,
       distanceKm,
       durationMin: Math.round(travelTimeInSeconds / 60),
-      hasTolls: false,
+      hasTolls,
     };
   });
 }

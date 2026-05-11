@@ -66,5 +66,5 @@ export function useLocationSearch(options: UseLocationSearchOptions = {}) {
     setSearching(false);
   }, []);
 
-  return { query, setQuery, results, searching, clear, setQueryAndClear };
+  return { query, setQuery, results, searching, setSearching, clear, setQueryAndClear };
 }
