@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import MapView from 'react-native-maps';
-import { tomtomService } from '@/lib/tomtom';
+import { mapsService } from '@/lib/maps';
 import { routeTotalKm } from '@/lib/utils';
 import type { SelectedLocation } from '@/components/LocationPickerModal';
 
@@ -70,13 +70,13 @@ export function useRouteAlternatives(
     setAlternatives(fallback);
     setSelectedId(fallback[0]?.id ?? 'DIRECT');
 
-    if (tomtomService.isConfigured()) {
+    if (mapsService.isConfigured()) {
       const stops = [
         { latitude: origin.latitude, longitude: origin.longitude },
         ...waypoints.map((w) => ({ latitude: w.latitude, longitude: w.longitude })),
         { latitude: destination.latitude, longitude: destination.longitude },
       ];
-      tomtomService
+      mapsService
         .calculateRouteAlternatives(stops, { maxAlternatives: 2 })
         .then((alts) => {
           if (alts.length > 0) {

@@ -12,7 +12,7 @@ import {
 } from 'react-native';
 import { Navigation, X, Search, MapPin, ChevronRight } from 'lucide-react-native';
 import { Colors } from '@/constants/colors';
-import type { LocationSearchResult } from '@/lib/tomtom';
+import type { LocationSearchResult } from '@/lib/maps';
 
 interface Props {
   title: string;
@@ -115,7 +115,7 @@ export function LocationSearchView({
 
             {results.length > 0 && (
               <Text style={styles.sectionLabel}>
-                {results[0].source === 'tomtom' ? 'TomTom' : 'OpenStreetMap'}
+                {results[0].source === 'nominatim' ? 'OpenStreetMap' : 'Google Maps'}
               </Text>
             )}
           </View>

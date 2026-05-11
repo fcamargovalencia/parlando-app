@@ -130,6 +130,94 @@ Verificar que la API key `AIzaSyCoH_l5VxTOfr_pJ2yYitH6tUZl2nxinFQ` tenga habilit
 
 ---
 
+## Sprint 5 — Limpieza de Naming (Deuda Técnica)
+
+**Objetivo**: eliminar toda referencia a `tomtom` en nombres de archivos, exports, tipos e imports. No cambia ningún comportamiento.
+
+### 5.1 — Renombrar archivos `src/lib/`
+
+| Actual | Nuevo |
+|---|---|
+| `src/lib/tomtom-types.ts` | `src/lib/maps-types.ts` |
+| `src/lib/tomtom-search.ts` | `src/lib/maps-search.ts` |
+| `src/lib/tomtom-geocode.ts` | `src/lib/maps-geocode.ts` |
+| `src/lib/tomtom-routing.ts` | `src/lib/maps-routing.ts` |
+| `src/lib/tomtom.ts` | `src/lib/maps.ts` |
+
+- [x] **5.1** — Renombrar los 5 archivos (mv) y actualizar imports internos entre ellos
+
+### 5.2 — Renombrar tipos públicos en `maps-types.ts`
+
+| Actual | Nuevo |
+|---|---|
+| `TomTomRoutePoint` | `RoutePoint` |
+| `TomTomRouteResult` | `RouteResult` |
+| `TomTomRouteAlternative` | `RouteAlternative` |
+| `TomTomSearchResult` | `PlaceSearchResult` |
+| `TomTomSearchResponse` | `PlaceSearchResponse` |
+| `TomTomReverseGeocodeResult` | `ReverseGeocodeResult` |
+| `TomTomReverseGeocodeResponse` | `ReverseGeocodeResponse` |
+
+- [x] **5.2** — Renombrar tipos y actualizar todos los usos internos en `maps-routing.ts`, `maps-geocode.ts`, `maps-search.ts`, `maps.ts`
+
+### 5.3 — Renombrar funciones internas
+
+| Actual | Nuevo | Archivo |
+|---|---|---|
+| `tomtomCalculateRoute` | `googleCalculateRoute` | `maps-routing.ts` |
+| `tomtomCalculateRouteAlternatives` | `googleCalculateRouteAlternatives` | `maps-routing.ts` |
+| `tomtomReverseGeocode` | `googleReverseGeocode` | `maps-geocode.ts` |
+| `googleSearch` | sin cambio | `maps-search.ts` |
+| `googleFetchPlaceDetails` | sin cambio | `maps-search.ts` |
+
+- [x] **5.3** — Renombrar funciones y actualizar imports en `maps.ts` y los 3 consumidores directos
+
+### 5.4 — Renombrar `tomtomService` → `mapsService`
+
+Afecta **7 archivos**:
+- [x] `src/lib/maps.ts` — definición del objeto
+- [x] `src/hooks/useLocationPicker.ts`
+- [x] `src/hooks/useLocationSearch.ts`
+- [x] `src/hooks/useRouteAlternatives.ts`
+- [x] `src/hooks/usePublishSubmit.ts`
+- [x] `src/hooks/useRoutineEditRouteModal.ts`
+- [x] `src/hooks/useTripDetail/useTripDetail.ts`
+
+### 5.5 — Actualizar path de imports `@/lib/tomtom` → `@/lib/maps`
+
+Afecta **12 archivos**:
+- [x] `src/hooks/useLocationPicker.ts`
+- [x] `src/hooks/useLocationSearch.ts`
+- [x] `src/hooks/useRouteAlternatives.ts`
+- [x] `src/hooks/usePublishSubmit.ts`
+- [x] `src/hooks/useRoutineEditRouteModal.ts`
+- [x] `src/hooks/useTripDetail/useTripDetail.ts`
+- [x] `src/hooks/usePublishScreen.ts`
+- [x] `src/components/location-picker/LocationSearchView.tsx`
+- [x] `src/components/publish/StepLocation.tsx`
+- [x] `src/components/routine/OccurrenceMapView.tsx`
+- [x] `src/components/routine/RoutineRouteMapModal.tsx`
+- [x] `src/components/routine/PickupTypeSelector.tsx`
+
+### 5.6 — Actualizar re-exports en `maps.ts`
+
+- [x] Eliminar re-exports de tipos con nombres `TomTom*` que ya no existen
+- [x] Actualizar la lista de re-exports con los nuevos nombres de tipos
+
+### 5.7 — Eliminar código muerto
+
+- [x] Verificar que no quede ningún import de `@/lib/tomtom*` en el proyecto
+- [x] Eliminar `TOMTOM_API_KEY` de `config.ts`
+- [x] Eliminar los 5 archivos `src/lib/tomtom-*.ts`
+
+### Verificación Sprint 5 ✅
+
+- [x] `grep -r "tomtom" src/` → cero resultados
+- [x] Sin errores de TypeScript en todos los archivos afectados
+- [x] Comportamiento idéntico al Sprint 4 en runtime
+
+---
+
 ## Archivos modificados por sprint
 
 | Sprint | Archivo |

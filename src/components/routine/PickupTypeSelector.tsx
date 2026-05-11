@@ -13,7 +13,7 @@ import { ArrowLeft, CheckCircle, MapPin, Navigation } from 'lucide-react-native'
 import * as Location from 'expo-location';
 import { Button } from '@/components/ui';
 import { Colors } from '@/constants/colors';
-import { tomtomReverseGeocode } from '@/lib/tomtom-geocode';
+import { googleReverseGeocode } from '@/lib/maps-geocode';
 import type { DeviationPreview } from '@/hooks/useRoutineSubscription';
 import type { PickupType, RoutineTripResponse, RoutineWaypointResponse } from '@/types/api';
 import { haversineMeters } from '@/lib/geo';
@@ -148,7 +148,7 @@ function CustomPickupMapModal({
   const handleConfirm = useCallback(async () => {
     setIsConfirming(true);
     try {
-      const result = await tomtomReverseGeocode(centerCoord.latitude, centerCoord.longitude);
+      const result = await googleReverseGeocode(centerCoord.latitude, centerCoord.longitude);
       onConfirm(centerCoord.latitude, centerCoord.longitude, result.name);
     } catch {
       const fallback = `${centerCoord.latitude.toFixed(5)}, ${centerCoord.longitude.toFixed(5)}`;

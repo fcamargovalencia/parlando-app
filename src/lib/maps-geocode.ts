@@ -28,7 +28,7 @@ function getComponent(components: GoogleGeocodeComponent[], ...types: string[]):
 
 // ── Google Geocoding ──
 
-export async function tomtomReverseGeocode(latitude: number, longitude: number): Promise<GeoResult> {
+export async function googleReverseGeocode(latitude: number, longitude: number): Promise<GeoResult> {
   const params = new URLSearchParams({
     key: Config.GOOGLE_MAPS_API_KEY,
     latlng: `${latitude},${longitude}`,

@@ -4,7 +4,7 @@ import MapView from 'react-native-maps';
 import type { Region } from 'react-native-maps';
 import * as Location from 'expo-location';
 import * as Crypto from 'expo-crypto';
-import { tomtomService, type LocationSearchResult } from '@/lib/tomtom';
+import { mapsService, type LocationSearchResult } from '@/lib/maps';
 
 function generateSessionToken(): string {
   try {
@@ -192,7 +192,7 @@ export function useLocationPicker({
     abortRef.current = new AbortController();
     setSearching(true);
     try {
-      const searchResults = await tomtomService.searchLocations(q, {
+      const searchResults = await mapsService.searchLocations(q, {
         latitude: userCoords?.latitude,
         longitude: userCoords?.longitude,
         sessionToken: sessionTokenRef.current,
@@ -228,7 +228,7 @@ export function useLocationPicker({
     if (result.placeId) {
       setSearching(true);
       try {
-        const details = await tomtomService.fetchPlaceDetails(result.placeId, sessionTokenRef.current);
+        const details = await mapsService.fetchPlaceDetails(result.placeId, sessionTokenRef.current);
         resolved = { ...result, ...details };
       } catch {
         setSearching(false);
@@ -272,7 +272,7 @@ export function useLocationPicker({
         coords = { latitude: loc.coords.latitude, longitude: loc.coords.longitude };
         setUserCoords(coords);
       }
-      const result = await tomtomService.reverseGeocode(coords.latitude, coords.longitude);
+      const result = await mapsService.reverseGeocode(coords.latitude, coords.longitude);
       onConfirm({ ...coords, name: result.name, city: result.city, state: result.state, country: result.country });
     } catch {
       Alert.alert('Error', 'No se pudo obtener tu ubicación');
@@ -309,7 +309,7 @@ export function useLocationPicker({
     reverseDebounceRef.current = setTimeout(async () => {
       setReverseGeocoding(true);
       try {
-        const result = await tomtomService.reverseGeocode(coord.latitude, coord.longitude);
+        const result = await mapsService.reverseGeocode(coord.latitude, coord.longitude);
         if (reverseSeqRef.current === seq) {
           setMapName(result.name);
           setMapCity(result.city);

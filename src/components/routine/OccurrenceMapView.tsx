@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { StyleSheet, ViewStyle } from 'react-native';
 import MapView, { Marker, Polyline, PROVIDER_GOOGLE } from 'react-native-maps';
 import { Colors } from '@/constants/colors';
-import { tomtomCalculateRoute } from '@/lib/tomtom-routing';
+import { googleCalculateRoute } from '@/lib/maps-routing';
 import type { OrderedStop } from '@/hooks/useOccurrenceDetail';
 import type { DayStop } from '@/types/api';
 
@@ -69,7 +69,7 @@ export function OccurrenceMapView({
     ? routeLine.map((p) => ({ latitude: p[0], longitude: p[1] }))
     : [{ latitude: origin.latitude, longitude: origin.longitude }, { latitude: destination.latitude, longitude: destination.longitude }];
 
-  // Compute TomTom route through all ordered stops so the line passes through every pickup
+  // Compute route through all ordered stops so the line passes through every pickup
   useEffect(() => {
     let cancelled = false;
 
@@ -79,13 +79,13 @@ export function OccurrenceMapView({
       return c ? [c] : [];
     });
 
-    const tomtomStops = [
+    const routeStops = [
       { latitude: origin.latitude, longitude: origin.longitude },
       ...intermediates,
       { latitude: destination.latitude, longitude: destination.longitude },
     ];
 
-    tomtomCalculateRoute(tomtomStops)
+    googleCalculateRoute(routeStops)
       .then((result) => { if (!cancelled) setComputedLine(result.points); })
       .catch(() => { if (!cancelled) setComputedLine(baseLine); });
 

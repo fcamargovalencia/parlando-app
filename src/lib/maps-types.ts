@@ -1,26 +1,6 @@
-// ── TomTom Types ──
+// ── Maps Types ──
 
-export interface TomTomPoiResult {
-  id: string;
-  type: string;
-  poi?: {
-    name?: string;
-    categories?: string[];
-  };
-  address?: {
-    freeformAddress?: string;
-    municipality?: string;
-    countrySubdivision?: string;
-    country?: string;
-  };
-  position: { lat: number; lon: number; };
-}
-
-export interface TomTomPoiSearchResponse {
-  results: TomTomPoiResult[];
-}
-
-export interface TomTomSearchResult {
+export interface PlaceSearchResult {
   id: string;
   type: string;
   entityType?: string;
@@ -46,7 +26,7 @@ export interface TomTomSearchResult {
   boundingBox?: { topLeftPoint: { lat: number; lon: number; }; btmRightPoint: { lat: number; lon: number; }; };
 }
 
-export interface TomTomSearchResponse {
+export interface PlaceSearchResponse {
   summary: {
     query: string;
     queryType: string;
@@ -57,10 +37,10 @@ export interface TomTomSearchResponse {
     fuzzyLevel: number;
     geoBias?: { lat: number; lon: number; };
   };
-  results: TomTomSearchResult[];
+  results: PlaceSearchResult[];
 }
 
-export interface TomTomReverseGeocodeResult {
+export interface ReverseGeocodeResult {
   address: {
     buildingNumber?: string;
     street?: string;
@@ -86,9 +66,9 @@ export interface TomTomReverseGeocodeResult {
   dataSources?: { geometry: { id: string; }; pointOfInterest: { id: string; }; };
 }
 
-export interface TomTomReverseGeocodeResponse {
+export interface ReverseGeocodeResponse {
   summary: { queryTime: number; copyright: string; };
-  addresses: TomTomReverseGeocodeResult[];
+  addresses: ReverseGeocodeResult[];
 }
 
 // ── Nominatim Types (Fallback) ──
@@ -119,7 +99,7 @@ export interface LocationSearchResult {
   address: string;
   latitude: number;
   longitude: number;
-  source: 'tomtom' | 'nominatim' | 'google';
+  source: 'nominatim' | 'google';
   /**
    * 'municipality' → broad area; user should pick exact point on map.
    * 'specific'     → street address or POI; can be confirmed directly.
@@ -135,22 +115,22 @@ export interface LocationSearchResult {
   country?: string;
 }
 
-export interface TomTomRoutePoint {
+export interface RoutePoint {
   latitude: number;
   longitude: number;
 }
 
-export interface TomTomRouteResult {
-  points: TomTomRoutePoint[];
+export interface RouteResult {
+  points: RoutePoint[];
   travelTimeInSeconds: number;
   distanceKm: number;
   hasTolls: boolean;
 }
 
-export interface TomTomRouteAlternative {
+export interface RouteAlternative {
   id: string;
   title: string;
-  points: TomTomRoutePoint[];
+  points: RoutePoint[];
   travelTimeInSeconds: number;
   distanceKm: number;
   durationMin: number;

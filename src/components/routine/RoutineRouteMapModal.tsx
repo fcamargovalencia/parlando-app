@@ -13,7 +13,7 @@ import { ArrowLeft, ChevronDown, ChevronUp, Save } from 'lucide-react-native';
 import MapView, { Polyline, Marker, PROVIDER_GOOGLE } from 'react-native-maps';
 import { Colors, Shadows } from '@/constants/colors';
 import { haversineMeters } from '@/lib/geo';
-import { tomtomCalculateRoute } from '@/lib/tomtom-routing';
+import { googleCalculateRoute } from '@/lib/maps-routing';
 import { routineTripsApi } from '@/api/routine-trips';
 import type { RecurrenceDay } from '@/types/api';
 
@@ -194,14 +194,14 @@ export function RoutineRouteMapModal({
       return;
     }
 
-    const tomtomStops = [
+    const routeStops = [
       { latitude: originLatitude, longitude: originLongitude },
       ...orderedStops.map((s) => ({ latitude: s.data.latitude, longitude: s.data.longitude })),
       { latitude: destinationLatitude, longitude: destinationLongitude },
     ];
 
     setLoading(true);
-    tomtomCalculateRoute(tomtomStops)
+    googleCalculateRoute(routeStops)
       .then((result) => { if (!cancelled) setRouteLineCoords(result.points); })
       .catch(() => { if (!cancelled) setRouteLineCoords(baseCoords); })
       .finally(() => { if (!cancelled) setLoading(false); });

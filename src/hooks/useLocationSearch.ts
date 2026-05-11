@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { tomtomService, type LocationSearchResult } from '@/lib/tomtom';
+import { mapsService, type LocationSearchResult } from '@/lib/maps';
 
 interface UseLocationSearchOptions {
   debounceMs?: number;
@@ -28,7 +28,7 @@ export function useLocationSearch(options: UseLocationSearchOptions = {}) {
       seqRef.current = seq;
       setSearching(true);
       try {
-        const res = await tomtomService.searchLocations(trimmed);
+        const res = await mapsService.searchLocations(trimmed);
         if (seqRef.current === seq) setResults(res);
       } catch {
         if (seqRef.current === seq) setResults([]);

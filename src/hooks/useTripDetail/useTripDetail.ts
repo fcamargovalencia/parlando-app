@@ -5,7 +5,7 @@ import { tripsApi } from '@/api/trips';
 import { bookingsApi } from '@/api/bookings';
 import { ratingsApi } from '@/api/ratings';
 import { vehiclesApi } from '@/api/vehicles';
-import { tomtomService } from '@/lib/tomtom';
+import { mapsService } from '@/lib/maps';
 import { extractApiError } from '@/lib/utils';
 import { useAuthStore } from '@/stores/auth-store';
 import type { TripResponse, VehicleResponse, BookingResponse } from '@/types/api';
@@ -282,8 +282,8 @@ export function useTripDetail(id: string, options?: UseTripDetailOptions) {
           ];
 
           try {
-            if (tomtomService.isConfigured()) {
-              const { points } = await tomtomService.calculateRoute(stopPoints);
+            if (mapsService.isConfigured()) {
+              const { points } = await mapsService.calculateRoute(stopPoints);
               dispatch({ type: 'SET_ROUTE_POLYLINE', polyline: points.length >= 2 ? points : stopPoints });
             } else {
               dispatch({ type: 'SET_ROUTE_POLYLINE', polyline: stopPoints });

@@ -1,5 +1,5 @@
 import { Config } from '@/constants/config';
-import type { TomTomRoutePoint, TomTomRouteResult, TomTomRouteAlternative } from './tomtom-types';
+import type { RoutePoint, RouteResult, RouteAlternative } from './maps-types';
 
 const DIRECTIONS_BASE = 'https://maps.googleapis.com/maps/api/directions/json';
 
@@ -10,8 +10,8 @@ type Stop = { latitude: number; longitude: number; };
 
 // ── Google encoded polyline decoder ──
 
-function decodePolyline(encoded: string): TomTomRoutePoint[] {
-  const points: TomTomRoutePoint[] = [];
+function decodePolyline(encoded: string): RoutePoint[] {
+  const points: RoutePoint[] = [];
   let index = 0;
   let lat = 0;
   let lng = 0;
@@ -72,7 +72,7 @@ function buildParams(origin: Stop, destination: Stop, waypoints: Stop[]): URLSea
 
 // ── Public functions ──
 
-export async function tomtomCalculateRoute(stops: Stop[]): Promise<TomTomRouteResult> {
+export async function googleCalculateRoute(stops: Stop[]): Promise<RouteResult> {
   const origin = stops[0];
   const destination = stops[stops.length - 1];
   const params = buildParams(origin, destination, stops.slice(1, -1));
@@ -94,10 +94,10 @@ export async function tomtomCalculateRoute(stops: Stop[]): Promise<TomTomRouteRe
   return { points, travelTimeInSeconds, distanceKm, hasTolls: false };
 }
 
-export async function tomtomCalculateRouteAlternatives(
+export async function googleCalculateRouteAlternatives(
   stops: Stop[],
   maxAlternatives: number,
-): Promise<TomTomRouteAlternative[]> {
+): Promise<RouteAlternative[]> {
   const origin = stops[0];
   const destination = stops[stops.length - 1];
   const params = buildParams(origin, destination, stops.slice(1, -1));

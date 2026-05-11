@@ -3,7 +3,6 @@ export const Config = {
   AES_KEY: process.env.EXPO_PUBLIC_AES_KEY ?? '',
   CLOUDINARY_CLOUD_NAME: process.env.EXPO_PUBLIC_CLOUDINARY_CLOUD_NAME ?? '',
   CLOUDINARY_UPLOAD_PRESET: process.env.EXPO_PUBLIC_CLOUDINARY_UPLOAD_PRESET ?? '',
-  TOMTOM_API_KEY: process.env.EXPO_PUBLIC_TOMTOM_API_KEY ?? '',
   GOOGLE_MAPS_API_KEY: process.env.EXPO_PUBLIC_GOOGLE_MAPS_API_KEY ?? '',
 } as const;
 

@@ -3,7 +3,7 @@ import { Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 import Toast from 'react-native-toast-message';
 import { tripsApi } from '@/api/trips';
-import { tomtomService } from '@/lib/tomtom';
+import { mapsService } from '@/lib/maps';
 import { compactPolyline, extractApiError } from '@/lib/utils';
 import { locationSubtitle } from '@/hooks/usePublishForm';
 import type { TripType, WaypointRequest } from '@/types/api';
@@ -69,10 +69,10 @@ export function usePublishSubmit({
             ...waypoints.map((w) => ({ latitude: w.latitude, longitude: w.longitude })),
             { latitude: form.destination.latitude, longitude: form.destination.longitude },
           ];
-          const { travelTimeInSeconds: routeDuration } = await tomtomService.calculateRoute(stops);
+          const { travelTimeInSeconds: routeDuration } = await mapsService.calculateRoute(stops);
           if (travelTimeInSeconds === null) travelTimeInSeconds = routeDuration;
         } catch (routeErr) {
-          console.warn('[TomTom] Route calculation failed, using estimated duration:', routeErr);
+          console.warn('[Maps] Route calculation failed, using estimated duration:', routeErr);
         }
 
         const arrivedAt =

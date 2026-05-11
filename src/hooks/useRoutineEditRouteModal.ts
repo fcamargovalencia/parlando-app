@@ -2,7 +2,7 @@ import { useState, useCallback, useRef, useEffect } from 'react';
 import MapView from 'react-native-maps';
 import { Alert } from 'react-native';
 import { useRouter } from 'expo-router';
-import { tomtomService } from '@/lib/tomtom';
+import { mapsService } from '@/lib/maps';
 import { routineTripsApi } from '@/api/routine-trips';
 import { extractApiError } from '@/lib/utils';
 import type { RoutineTripResponse, RoutineWaypointResponse } from '@/types/api';
@@ -75,8 +75,8 @@ export function useRoutineEditRouteModal(
       const stops: Coord[] = [origin, ...wps, destination];
       setIsCalculating(true);
       try {
-        if (tomtomService.isConfigured()) {
-          const result = await tomtomService.calculateRoute(stops);
+        if (mapsService.isConfigured()) {
+          const result = await mapsService.calculateRoute(stops);
           if (result.points.length >= 2) {
             setRoutePolyline(result.points);
             fitMap(result.points);

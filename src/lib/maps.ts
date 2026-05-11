@@ -1,27 +1,27 @@
 import { Config } from '@/constants/config';
-import { googleSearch, googleFetchPlaceDetails, nominatimSearch } from './tomtom-search';
-import { tomtomReverseGeocode, nominatimReverseGeocode } from './tomtom-geocode';
-import { tomtomCalculateRoute, tomtomCalculateRouteAlternatives } from './tomtom-routing';
+import { googleSearch, googleFetchPlaceDetails, nominatimSearch } from './maps-search';
+import { googleReverseGeocode, nominatimReverseGeocode } from './maps-geocode';
+import { googleCalculateRoute, googleCalculateRouteAlternatives } from './maps-routing';
 
-// Re-export all public types so existing imports from '@/lib/tomtom' keep working.
+// Re-export all public types so consumers import from '@/lib/maps'.
 export type {
   LocationSearchResult,
-  TomTomRoutePoint,
-  TomTomRouteResult,
-  TomTomRouteAlternative,
-  TomTomSearchResult,
-  TomTomSearchResponse,
-  TomTomReverseGeocodeResult,
-  TomTomReverseGeocodeResponse,
+  RoutePoint,
+  RouteResult,
+  RouteAlternative,
+  PlaceSearchResult,
+  PlaceSearchResponse,
+  ReverseGeocodeResult,
+  ReverseGeocodeResponse,
   NominatimResult,
-} from './tomtom-types';
+} from './maps-types';
 
 // ── Public API ──
 
-export const tomtomService = {
+export const mapsService = {
   /**
    * Search for locations by query string.
-   * Priority: TomTom (if key available) → Nominatim fallback.
+   * Priority: Google Places (if key available) → Nominatim fallback.
    */
   async searchLocations(
     query: string,
@@ -50,12 +50,12 @@ export const tomtomService = {
 
   /**
    * Get human-readable address from coordinates.
-   * Priority: TomTom (if key available) → Nominatim fallback.
+   * Priority: Google Geocoding (if key available) → Nominatim fallback.
    */
   async reverseGeocode(latitude: number, longitude: number) {
     if (Config.GOOGLE_MAPS_API_KEY) {
       try {
-        return await tomtomReverseGeocode(latitude, longitude);
+        return await googleReverseGeocode(latitude, longitude);
       } catch (err) {
         console.warn('[Google] Reverse geocode failed, falling back to Nominatim:', err);
       }
@@ -65,11 +65,11 @@ export const tomtomService = {
 
   /**
    * Calculate a route between ordered stops.
-   * Throws if TomTom is not configured or the request fails.
+   * Throws if Google Maps API key is not configured or the request fails.
    */
   async calculateRoute(stops: Array<{ latitude: number; longitude: number; }>) {
     if (!Config.GOOGLE_MAPS_API_KEY) throw new Error('Google Maps API key not configured');
-    return tomtomCalculateRoute(stops);
+    return googleCalculateRoute(stops);
   },
 
   /**
@@ -80,7 +80,7 @@ export const tomtomService = {
     options?: { maxAlternatives?: number; },
   ) {
     if (!Config.GOOGLE_MAPS_API_KEY) throw new Error('Google Maps API key not configured');
-    return tomtomCalculateRouteAlternatives(stops, options?.maxAlternatives ?? 2);
+    return googleCalculateRouteAlternatives(stops, options?.maxAlternatives ?? 2);
   },
 
   isConfigured(): boolean {

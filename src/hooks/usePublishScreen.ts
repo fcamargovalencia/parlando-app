@@ -12,7 +12,7 @@ import {
 import { distanceKm, normalizePlace } from '@/lib/utils';
 import { TRIP_TYPE_OPTIONS } from '@/constants/trips';
 import type { SelectedLocation } from '@/components/LocationPickerModal';
-import type { LocationSearchResult } from '@/lib/tomtom';
+import type { LocationSearchResult } from '@/lib/maps';
 import type { TripType } from '@/types/api';
 
 export const TOTAL_STEPS = 9;

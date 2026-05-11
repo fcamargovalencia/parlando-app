@@ -6,7 +6,7 @@ import { Colors } from '@/constants/colors';
 import { locationSubtitle } from '@/hooks/usePublishForm';
 import { distanceKm, normalizePlace } from '@/lib/utils';
 import type { SelectedLocation } from '@/components/LocationPickerModal';
-import type { LocationSearchResult } from '@/lib/tomtom';
+import type { LocationSearchResult } from '@/lib/maps';
 
 interface LocationSearch {
   query: string;
@@ -18,7 +18,7 @@ interface LocationSearch {
 interface Props {
   target: 'origin' | 'destination';
   search: LocationSearch;
-  form: { origin: SelectedLocation | null; destination: SelectedLocation | null };
+  form: { origin: SelectedLocation | null; destination: SelectedLocation | null; };
   onMapPress: () => void;
   onSuggestionSelect: (item: LocationSearchResult) => void;
 }
@@ -85,15 +85,13 @@ export function StepLocation({ target, search, form, onMapPress, onSuggestionSel
 
       {location && (
         <View
-          className={`px-3 py-3 rounded-xl border mt-2 ${
-            invalidDestination ? 'border-red-300 bg-red-50' : borderClass
-          }`}
+          className={`px-3 py-3 rounded-xl border mt-2 ${invalidDestination ? 'border-red-300 bg-red-50' : borderClass
+            }`}
         >
           <View className="flex-row items-center">
             <View
-              className={`w-2.5 h-2.5 rounded-full mr-2 ${
-                invalidDestination ? 'bg-red-500' : dotClass
-              }`}
+              className={`w-2.5 h-2.5 rounded-full mr-2 ${invalidDestination ? 'bg-red-500' : dotClass
+                }`}
             />
             <Text className="text-sm font-medium text-neutral-900 flex-1" numberOfLines={1}>
               {location.name}
