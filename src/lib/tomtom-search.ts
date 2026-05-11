@@ -288,7 +288,7 @@ function formatTomTomPoiResult(result: TomTomPoiResult): LocationSearchResult {
 
 export async function tomtomSearch(
   query: string,
-  options?: { latitude?: number; longitude?: number },
+  options?: { latitude?: number; longitude?: number; },
 ): Promise<LocationSearchResult[]> {
   const generalParams = new URLSearchParams({
     key: Config.TOMTOM_API_KEY,
@@ -344,7 +344,7 @@ export async function tomtomSearch(
 
 export async function nominatimSearch(
   query: string,
-  options?: { latitude?: number; longitude?: number },
+  options?: { latitude?: number; longitude?: number; },
 ): Promise<LocationSearchResult[]> {
   let url =
     `${NOMINATIM_BASE}/search?q=${encodeURIComponent(query)}` +

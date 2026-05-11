@@ -10,7 +10,7 @@ import {
   Alert,
 } from 'react-native';
 import { ArrowLeft, ChevronDown, ChevronUp, Save } from 'lucide-react-native';
-import MapView, { Polyline, Marker } from 'react-native-maps';
+import MapView, { Polyline, Marker, PROVIDER_GOOGLE } from 'react-native-maps';
 import { Colors, Shadows } from '@/constants/colors';
 import { haversineMeters } from '@/lib/geo';
 import { tomtomCalculateRoute } from '@/lib/tomtom-routing';
@@ -390,6 +390,7 @@ export function RoutineRouteMapModal({
           <View style={{ flex: 1 }}>
             <MapView
               ref={mapRef}
+              provider={PROVIDER_GOOGLE}
               style={{ flex: 1 }}
               initialRegion={{
                 latitude: (originLatitude + destinationLatitude) / 2,

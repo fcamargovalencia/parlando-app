@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { StyleSheet, ViewStyle } from 'react-native';
-import MapView, { Marker, Polyline } from 'react-native-maps';
+import MapView, { Marker, Polyline, PROVIDER_GOOGLE } from 'react-native-maps';
 import { Colors } from '@/constants/colors';
 import { tomtomCalculateRoute } from '@/lib/tomtom-routing';
 import type { OrderedStop } from '@/hooks/useOccurrenceDetail';
@@ -117,6 +117,7 @@ export function OccurrenceMapView({
   return (
     <MapView
       ref={mapRef}
+      provider={PROVIDER_GOOGLE}
       style={[StyleSheet.absoluteFillObject, style]}
       initialRegion={{
         latitude: (origin.latitude + destination.latitude) / 2,

@@ -13,7 +13,7 @@ export interface TomTomPoiResult {
     countrySubdivision?: string;
     country?: string;
   };
-  position: { lat: number; lon: number };
+  position: { lat: number; lon: number; };
 }
 
 export interface TomTomPoiSearchResponse {
@@ -39,11 +39,11 @@ export interface TomTomSearchResult {
     freeformAddress: string;
     localName?: string;
   };
-  position: { lat: number; lon: number };
-  viewport?: { topLeftPoint: { lat: number; lon: number }; btmRightPoint: { lat: number; lon: number } };
-  entryPoints?: Array<{ type: string; position: { lat: number; lon: number } }>;
-  dataSources?: { geometry: { id: string } };
-  boundingBox?: { topLeftPoint: { lat: number; lon: number }; btmRightPoint: { lat: number; lon: number } };
+  position: { lat: number; lon: number; };
+  viewport?: { topLeftPoint: { lat: number; lon: number; }; btmRightPoint: { lat: number; lon: number; }; };
+  entryPoints?: Array<{ type: string; position: { lat: number; lon: number; }; }>;
+  dataSources?: { geometry: { id: string; }; };
+  boundingBox?: { topLeftPoint: { lat: number; lon: number; }; btmRightPoint: { lat: number; lon: number; }; };
 }
 
 export interface TomTomSearchResponse {
@@ -55,7 +55,7 @@ export interface TomTomSearchResponse {
     offset: number;
     totalResults: number;
     fuzzyLevel: number;
-    geoBias?: { lat: number; lon: number };
+    geoBias?: { lat: number; lon: number; };
   };
   results: TomTomSearchResult[];
 }
@@ -79,15 +79,15 @@ export interface TomTomReverseGeocodeResult {
     postalCode?: string;
     postCode?: string;
     freeformAddress: string;
-    boundingBox?: { topLeftPoint: { lat: number; lon: number }; btmRightPoint: { lat: number; lon: number } };
+    boundingBox?: { topLeftPoint: { lat: number; lon: number; }; btmRightPoint: { lat: number; lon: number; }; };
   };
-  position: { lat: number; lon: number };
+  position: { lat: number; lon: number; };
   addressRanges?: any[];
-  dataSources?: { geometry: { id: string }; pointOfInterest: { id: string } };
+  dataSources?: { geometry: { id: string; }; pointOfInterest: { id: string; }; };
 }
 
 export interface TomTomReverseGeocodeResponse {
-  summary: { queryTime: number; copyright: string };
+  summary: { queryTime: number; copyright: string; };
   addresses: TomTomReverseGeocodeResult[];
 }
 

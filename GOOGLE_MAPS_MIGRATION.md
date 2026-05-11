@@ -105,18 +105,11 @@ Verificar que la API key `AIzaSyCoH_l5VxTOfr_pJ2yYitH6tUZl2nxinFQ` tenga habilit
 
 ### Tareas
 
-- [ ] **4.1** — `app.json`: agregar config de Google Maps para iOS
-  ```json
-  "ios": {
-    "config": {
-      "googleMapsApiKey": "<same-key>"
-    }
-  }
-  ```
-- [ ] **4.2** — `src/components/location-picker/LocationMapView.tsx`: agregar `provider={PROVIDER_GOOGLE}`
-- [ ] **4.3** — `src/components/routine/RoutineRouteMapModal.tsx`: agregar `provider={PROVIDER_GOOGLE}`
-- [ ] **4.4** — `src/components/trip/RouteMapModal.tsx`: agregar `provider={PROVIDER_GOOGLE}`
-- [ ] **4.5** — `src/components/routine/OccurrenceMapView.tsx`: agregar `provider={PROVIDER_GOOGLE}`
+- [x] **4.1** — `app.json`: agregado `config.googleMapsApiKey` en sección `ios`
+- [x] **4.2** — `src/components/location-picker/LocationMapView.tsx`: `PROVIDER_GOOGLE` importado y aplicado
+- [x] **4.3** — `src/components/routine/RoutineRouteMapModal.tsx`: `PROVIDER_GOOGLE` importado y aplicado
+- [x] **4.4** — `src/components/trip/RouteMapModal.tsx`: `PROVIDER_GOOGLE` importado y aplicado
+- [x] **4.5** — `src/components/routine/OccurrenceMapView.tsx`: `PROVIDER_GOOGLE` importado y aplicado
 
 ### Verificación
 

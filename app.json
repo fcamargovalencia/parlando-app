@@ -17,6 +17,9 @@
       "supportsTablet": false,
       "bundleIdentifier": "com.parlando.app",
       "googleServicesFile": "./GoogleService-Info.plist",
+      "config": {
+        "googleMapsApiKey": "AIzaSyCoH_l5VxTOfr_pJ2yYitH6tUZl2nxinFQ"
+      },
       "infoPlist": {
         "NSLocationWhenInUseUsageDescription": "ParlAndo necesita tu ubicación para buscar viajes cercanos.",
         "NSLocationAlwaysAndWhenInUseUsageDescription": "ParlAndo necesita tu ubicación en segundo plano para compartir tu viaje en tiempo real.",

@@ -9,7 +9,7 @@ import {
   StyleSheet,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import MapView, { Marker, Polyline, type Region } from 'react-native-maps';
+import MapView, { Marker, Polyline, PROVIDER_GOOGLE, type Region } from 'react-native-maps';
 import { ArrowLeft } from 'lucide-react-native';
 import { Colors } from '@/constants/colors';
 import { Button } from '@/components/ui';
@@ -84,6 +84,7 @@ export function LocationMapView({
       <View style={styles.map}>
         <MapView
           ref={mapRef}
+          provider={PROVIDER_GOOGLE}
           style={StyleSheet.absoluteFillObject}
           initialRegion={mapInitialRegion}
           onRegionChange={onRegionChange}

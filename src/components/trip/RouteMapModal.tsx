@@ -8,7 +8,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { ArrowLeft } from 'lucide-react-native';
-import MapView, { Polyline, Marker } from 'react-native-maps';
+import MapView, { Polyline, Marker, PROVIDER_GOOGLE } from 'react-native-maps';
 import { Colors, Shadows } from '@/constants/colors';
 import type { TripResponse, RouteWaypointResponse } from '@/types/api';
 
@@ -114,6 +114,7 @@ export function RouteMapModal({
           <View style={{ flex: 1 }}>
             <MapView
               ref={mapRef}
+              provider={PROVIDER_GOOGLE}
               style={{ flex: 1 }}
               initialRegion={{
                 latitude:
