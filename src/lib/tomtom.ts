@@ -25,7 +25,7 @@ export const tomtomService = {
    */
   async searchLocations(
     query: string,
-    options?: { latitude?: number; longitude?: number },
+    options?: { latitude?: number; longitude?: number; },
   ) {
     if (Config.TOMTOM_API_KEY) {
       try {
@@ -60,8 +60,8 @@ export const tomtomService = {
    * Calculate a route between ordered stops.
    * Throws if TomTom is not configured or the request fails.
    */
-  async calculateRoute(stops: Array<{ latitude: number; longitude: number }>) {
-    if (!Config.TOMTOM_API_KEY) throw new Error('TomTom API key not configured');
+  async calculateRoute(stops: Array<{ latitude: number; longitude: number; }>) {
+    if (!Config.GOOGLE_MAPS_API_KEY) throw new Error('Google Maps API key not configured');
     return tomtomCalculateRoute(stops);
   },
 
@@ -69,14 +69,14 @@ export const tomtomService = {
    * Calculate a route with up to `maxAlternatives` real road-based alternatives.
    */
   async calculateRouteAlternatives(
-    stops: Array<{ latitude: number; longitude: number }>,
-    options?: { maxAlternatives?: number },
+    stops: Array<{ latitude: number; longitude: number; }>,
+    options?: { maxAlternatives?: number; },
   ) {
-    if (!Config.TOMTOM_API_KEY) throw new Error('TomTom API key not configured');
+    if (!Config.GOOGLE_MAPS_API_KEY) throw new Error('Google Maps API key not configured');
     return tomtomCalculateRouteAlternatives(stops, options?.maxAlternatives ?? 2);
   },
 
   isConfigured(): boolean {
-    return !!Config.TOMTOM_API_KEY;
+    return !!Config.GOOGLE_MAPS_API_KEY;
   },
 };

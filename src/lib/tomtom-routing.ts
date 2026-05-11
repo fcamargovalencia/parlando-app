@@ -1,101 +1,128 @@
 import { Config } from '@/constants/config';
 import type { TomTomRoutePoint, TomTomRouteResult, TomTomRouteAlternative } from './tomtom-types';
 
-const TOMTOM_ROUTING_BASE = 'https://api.tomtom.com/routing/1';
+const DIRECTIONS_BASE = 'https://maps.googleapis.com/maps/api/directions/json';
 
 const ROUTE_ALT_TITLES = ['Ruta recomendada', 'Alternativa A', 'Alternativa B'];
 const ROUTE_ALT_IDS = ['DIRECT', 'ALT_A', 'ALT_B'];
 
 type Stop = { latitude: number; longitude: number; };
 
-function buildRouteParams(extra: Record<string, string> = {}): URLSearchParams {
-  return new URLSearchParams({
-    key: Config.TOMTOM_API_KEY,
-    routeRepresentation: 'polyline',
-    routeType: 'fastest',
-    traffic: 'false',
-    ...extra,
-  });
-}
+// ── Google encoded polyline decoder ──
 
-function hasTollSections(sections: Array<{ sectionType: string; }> = []): boolean {
-  return sections.some((s) => s.sectionType === 'TOLL_ROAD' || s.sectionType === 'tollRoad');
-}
+function decodePolyline(encoded: string): TomTomRoutePoint[] {
+  const points: TomTomRoutePoint[] = [];
+  let index = 0;
+  let lat = 0;
+  let lng = 0;
 
-export async function tomtomCalculateRoute(stops: Stop[]): Promise<TomTomRouteResult> {
-  const locations = stops.map((p) => `${p.latitude},${p.longitude}`).join(':');
-  const params = buildRouteParams();
+  while (index < encoded.length) {
+    let shift = 0;
+    let result = 0;
+    let byte: number;
+    do {
+      byte = encoded.charCodeAt(index++) - 63;
+      result |= (byte & 0x1f) << shift;
+      shift += 5;
+    } while (byte >= 0x20);
+    lat += (result & 1) ? ~(result >> 1) : result >> 1;
 
-  const response = await fetch(
-    `${TOMTOM_ROUTING_BASE}/calculateRoute/${locations}/json?${params}`,
-  );
+    shift = 0;
+    result = 0;
+    do {
+      byte = encoded.charCodeAt(index++) - 63;
+      result |= (byte & 0x1f) << shift;
+      shift += 5;
+    } while (byte >= 0x20);
+    lng += (result & 1) ? ~(result >> 1) : result >> 1;
 
-  if (!response.ok) {
-    const body = await response.text().catch(() => '');
-    throw new Error(`TomTom Routing API error: ${response.status} — ${body}`);
+    points.push({ latitude: lat / 1e5, longitude: lng / 1e5 });
   }
 
-  const data: {
-    routes: Array<{
-      summary: { travelTimeInSeconds: number; lengthInMeters: number; };
-      sections?: Array<{ sectionType: string; }>;
-      legs: Array<{ points: TomTomRoutePoint[]; }>;
-    }>;
-  } = await response.json();
+  return points;
+}
 
+// ── Internal response types ──
+
+interface GoogleDirectionsResponse {
+  routes: Array<{
+    overview_polyline: { points: string; };
+    legs: Array<{
+      duration: { value: number; };
+      distance: { value: number; };
+    }>;
+  }>;
+}
+
+// ── Helpers ──
+
+function buildParams(origin: Stop, destination: Stop, waypoints: Stop[]): URLSearchParams {
+  const params = new URLSearchParams({
+    key: Config.GOOGLE_MAPS_API_KEY,
+    origin: `${origin.latitude},${origin.longitude}`,
+    destination: `${destination.latitude},${destination.longitude}`,
+    language: 'es',
+    region: 'co',
+  });
+  if (waypoints.length) {
+    params.append('waypoints', waypoints.map((p) => `${p.latitude},${p.longitude}`).join('|'));
+  }
+  return params;
+}
+
+// ── Public functions ──
+
+export async function tomtomCalculateRoute(stops: Stop[]): Promise<TomTomRouteResult> {
+  const origin = stops[0];
+  const destination = stops[stops.length - 1];
+  const params = buildParams(origin, destination, stops.slice(1, -1));
+
+  const response = await fetch(`${DIRECTIONS_BASE}?${params}`);
+  if (!response.ok) {
+    const body = await response.text().catch(() => '');
+    throw new Error(`Google Directions API error: ${response.status} — ${body}`);
+  }
+
+  const data: GoogleDirectionsResponse = await response.json();
   if (!data.routes?.length) return { points: [], travelTimeInSeconds: 0, distanceKm: 0, hasTolls: false };
 
   const route = data.routes[0];
-  const all: TomTomRoutePoint[] = route.legs.flatMap((leg) => leg.points);
-  const { travelTimeInSeconds, lengthInMeters } = route.summary;
+  const points = decodePolyline(route.overview_polyline.points);
+  const travelTimeInSeconds = route.legs.reduce((acc, leg) => acc + leg.duration.value, 0);
+  const distanceKm = route.legs.reduce((acc, leg) => acc + leg.distance.value, 0) / 1000;
 
-  return {
-    points: all,
-    travelTimeInSeconds,
-    distanceKm: lengthInMeters / 1000,
-    hasTolls: hasTollSections(route.sections),
-  };
+  return { points, travelTimeInSeconds, distanceKm, hasTolls: false };
 }
 
 export async function tomtomCalculateRouteAlternatives(
   stops: Stop[],
   maxAlternatives: number,
 ): Promise<TomTomRouteAlternative[]> {
-  const locations = stops.map((p) => `${p.latitude},${p.longitude}`).join(':');
-  const params = buildRouteParams({
-    maxAlternatives: String(maxAlternatives),
-    alternativeType: 'anyRoute',
-  });
+  const origin = stops[0];
+  const destination = stops[stops.length - 1];
+  const params = buildParams(origin, destination, stops.slice(1, -1));
+  params.append('alternatives', 'true');
 
-  const response = await fetch(
-    `${TOMTOM_ROUTING_BASE}/calculateRoute/${locations}/json?${params}`,
-  );
-
+  const response = await fetch(`${DIRECTIONS_BASE}?${params}`);
   if (!response.ok) {
     const body = await response.text().catch(() => '');
-    throw new Error(`TomTom Routing API error: ${response.status} — ${body}`);
+    throw new Error(`Google Directions API error: ${response.status} — ${body}`);
   }
 
-  const data: {
-    routes: Array<{
-      summary: { travelTimeInSeconds: number; lengthInMeters: number; };
-      sections?: Array<{ sectionType: string; }>;
-      legs: Array<{ points: TomTomRoutePoint[]; }>;
-    }>;
-  } = await response.json();
-
+  const data: GoogleDirectionsResponse = await response.json();
   if (!data.routes?.length) return [];
 
-  return data.routes.map((route, idx) => {
-    const { travelTimeInSeconds, lengthInMeters } = route.summary;
+  return data.routes.slice(0, maxAlternatives + 1).map((route, idx) => {
+    const travelTimeInSeconds = route.legs.reduce((acc, leg) => acc + leg.duration.value, 0);
+    const distanceKm = route.legs.reduce((acc, leg) => acc + leg.distance.value, 0) / 1000;
     return {
       id: ROUTE_ALT_IDS[idx] ?? `ALT_${idx}`,
       title: ROUTE_ALT_TITLES[idx] ?? `Alternativa ${idx}`,
-      points: route.legs.flatMap((leg) => leg.points),
+      points: decodePolyline(route.overview_polyline.points),
       travelTimeInSeconds,
-      distanceKm: lengthInMeters / 1000,
+      distanceKm,
       durationMin: Math.round(travelTimeInSeconds / 60),
-      hasTolls: hasTollSections(route.sections),
+      hasTolls: false,
     };
   });
 }
