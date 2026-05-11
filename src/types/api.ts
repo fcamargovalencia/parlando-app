@@ -117,6 +117,11 @@ export interface UpdateProfileRequest {
   profilePhotoUrl?: string;
 }
 
+export interface ChangePasswordRequest {
+  currentPassword: string;
+  newPassword: string;
+}
+
 export interface EmergencyContactResponse {
   id: string;
   name: string;

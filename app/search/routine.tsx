@@ -216,7 +216,7 @@ export default function RoutineSearchScreen() {
         >
           <ChevronLeft size={24} color={Colors.neutral[700]} />
         </TouchableOpacity>
-        <Text className="text-lg font-bold text-neutral-900 flex-1">Viajes universitarios</Text>
+        <Text className="text-lg font-bold text-neutral-900 flex-1">Viajes rutinarios</Text>
         <SlidersHorizontal size={20} color={Colors.primary[600]} />
       </View>
 
@@ -245,7 +245,7 @@ export default function RoutineSearchScreen() {
             value={params.universityId}
             selectedLabel={selectedUniversityLabel}
             onChange={handleUniversityChange}
-            placeholder="Seleccionar universidad..."
+            placeholder="Vas a una universidad? selecciónala aquí"
           />
 
           <View className="h-4" />

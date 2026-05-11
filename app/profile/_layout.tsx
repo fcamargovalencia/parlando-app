@@ -14,6 +14,7 @@ export default function ProfileLayout() {
     >
       <Stack.Screen name="edit" options={{ title: 'Editar perfil' }} />
       <Stack.Screen name="settings" options={{ title: 'Configuración' }} />
+      <Stack.Screen name="change-password" options={{ title: 'Cambiar contraseña' }} />
       <Stack.Screen name="emergency-contacts" options={{ title: 'Contactos de emergencia' }} />
     </Stack>
   );

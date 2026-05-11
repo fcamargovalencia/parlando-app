@@ -10,13 +10,15 @@ import { SettingRow } from '@/components/settings/SettingRow';
 const ICON_LOCK = <Lock size={20} color={Colors.accent[600]} />;
 const ICON_PHONE = <Phone size={20} color={Colors.accent[600]} />;
 const ICON_SHIELD = <Shield size={20} color={Colors.accent[600]} />;
-const handleChangePassword = () =>
-  Alert.alert('Próximamente', 'El cambio de contraseña estará disponible pronto.');
 const handleTwoFactor = () =>
   Alert.alert('Próximamente', 'La verificación en dos pasos estará disponible pronto.');
 
 export const SecuritySection = React.memo(function SecuritySection() {
   const router = useRouter();
+  const handleChangePassword = useCallback(
+    () => router.push('/profile/change-password' as any),
+    [router],
+  );
   const handleEmergencyContacts = useCallback(
     () => router.push('/profile/emergency-contacts' as any),
     [router],

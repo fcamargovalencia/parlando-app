@@ -4,6 +4,7 @@ import type {
   ApiResponse,
   UserResponse,
   UpdateProfileRequest,
+  ChangePasswordRequest,
   EmergencyContactResponse,
   CreateEmergencyContactRequest,
   UpdateEmergencyContactRequest,
@@ -92,6 +93,11 @@ export const usersApi = {
 
   deleteEmergencyContact: (id: string) =>
     api.delete<ApiResponse<null>>(`/v1/users/me/emergency-contacts/${encodeURIComponent(id)}`),
+
+  changePassword: async (data: ChangePasswordRequest) => {
+    const encrypted = await encryptFields(data, ['currentPassword', 'newPassword'] as (keyof ChangePasswordRequest)[]);
+    return api.put<ApiResponse<null>>('/v1/users/me/password', encrypted);
+  },
 
   deactivate: () => api.delete<ApiResponse<null>>('/v1/users/me'),
 };

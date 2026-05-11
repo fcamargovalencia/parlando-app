@@ -4,11 +4,10 @@ import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
-import { Bell, ChevronRight, GraduationCap, Repeat2 } from 'lucide-react-native';
+import { Bell, ChevronRight, History, Repeat2 } from 'lucide-react-native';
 import { Screen, Avatar, DatePickerModal } from '@/components/ui';
 import { LocationPickerModal } from '@/components/LocationPickerModal';
 import { SearchCard } from '@/components/home/SearchCard';
-import { TripTypeQuickActions } from '@/components/home/TripTypeQuickActions';
 import { VerificationBanner } from '@/components/home/VerificationBanner';
 import { useHomeSearch } from '@/hooks/useHomeSearch';
 import { useHomeScreen } from '@/hooks/screens/useHomeScreen';
@@ -151,13 +150,8 @@ export default function HomeScreen() {
           />
         </LinearGradient>
 
-        <TripTypeQuickActions
-          tripType={tripType}
-          onSelect={selectTripTypeAndSearch}
-        />
-
         {isDriver && todayTrips.length > 0 && (
-          <View className="px-5 pb-2">
+          <View className="px-5 pt-6 pb-2">
             <Text className="text-base font-bold text-neutral-900 mb-3">Tus rutas de hoy</Text>
             {todayTrips.map((trip) => (
               <TouchableOpacity
@@ -187,8 +181,8 @@ export default function HomeScreen() {
           </View>
         )}
 
-        <View className="px-5 pb-2">
-          <Text className="text-base font-bold text-neutral-900 mb-3">Viajes universitarios</Text>
+        <View className="px-5 pt-6 pb-2">
+          <Text className="text-base font-bold text-neutral-900 mb-3">Viajes rutinarios</Text>
           <TouchableOpacity
             onPress={onPressRoutineSearch}
             activeOpacity={0.8}
@@ -203,12 +197,12 @@ export default function HomeScreen() {
               className="w-10 h-10 rounded-xl items-center justify-center"
               style={{ backgroundColor: Colors.primary[100] }}
             >
-              <GraduationCap size={22} color={Colors.primary[600]} />
+              <History size={22} color={Colors.primary[600]} />
             </View>
             <View className="flex-1">
-              <Text className="text-sm font-semibold text-neutral-900">Rutas rutinarias</Text>
+              <Text className="text-sm font-semibold text-neutral-900">Rutas</Text>
               <Text className="text-xs text-neutral-500 mt-0.5">
-                Suscríbete a rutas universitarias recurrentes
+                Suscríbete a rutas recurrentes
               </Text>
             </View>
             <ChevronRight size={18} color={Colors.primary[400]} />
