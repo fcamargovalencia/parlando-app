@@ -1,5 +1,5 @@
 import { Config } from '@/constants/config';
-import { tomtomSearch, nominatimSearch } from './tomtom-search';
+import { googleSearch, googleFetchPlaceDetails, nominatimSearch } from './tomtom-search';
 import { tomtomReverseGeocode, nominatimReverseGeocode } from './tomtom-geocode';
 import { tomtomCalculateRoute, tomtomCalculateRouteAlternatives } from './tomtom-routing';
 
@@ -25,16 +25,27 @@ export const tomtomService = {
    */
   async searchLocations(
     query: string,
-    options?: { latitude?: number; longitude?: number; },
+    options?: { latitude?: number; longitude?: number; sessionToken?: string; },
   ) {
-    if (Config.TOMTOM_API_KEY) {
+    if (Config.GOOGLE_MAPS_API_KEY) {
       try {
-        return await tomtomSearch(query, options);
+        return await googleSearch(query, options);
       } catch (err) {
-        console.warn('[TomTom] Search failed, falling back to Nominatim:', err);
+        console.warn('[Google] Places search failed, falling back to Nominatim:', err);
       }
     }
     return nominatimSearch(query, options);
+  },
+
+  /**
+   * Resolve coordinates for a Google Places result by fetching Place Details.
+   * Pass the same sessionToken used during autocomplete to benefit from session billing.
+   */
+  async fetchPlaceDetails(
+    placeId: string,
+    sessionToken?: string,
+  ) {
+    return googleFetchPlaceDetails(placeId, sessionToken);
   },
 
   /**

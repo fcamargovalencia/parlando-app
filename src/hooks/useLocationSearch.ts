@@ -7,7 +7,7 @@ interface UseLocationSearchOptions {
 }
 
 export function useLocationSearch(options: UseLocationSearchOptions = {}) {
-  const { debounceMs = 400, minChars = 2 } = options;
+  const { debounceMs = 400, minChars = 3 } = options;
 
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<LocationSearchResult[]>([]);

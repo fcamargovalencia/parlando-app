@@ -119,12 +119,17 @@ export interface LocationSearchResult {
   address: string;
   latitude: number;
   longitude: number;
-  source: 'tomtom' | 'nominatim';
+  source: 'tomtom' | 'nominatim' | 'google';
   /**
    * 'municipality' → broad area; user should pick exact point on map.
    * 'specific'     → street address or POI; can be confirmed directly.
    */
   locationType: 'municipality' | 'specific';
+  /**
+   * Google Places place_id. Present only for 'google' source results.
+   * When set, coordinates are resolved via Place Details on selection.
+   */
+  placeId?: string;
   city?: string;
   state?: string;
   country?: string;

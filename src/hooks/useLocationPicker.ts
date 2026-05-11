@@ -3,7 +3,16 @@ import { Alert } from 'react-native';
 import MapView from 'react-native-maps';
 import type { Region } from 'react-native-maps';
 import * as Location from 'expo-location';
+import * as Crypto from 'expo-crypto';
 import { tomtomService, type LocationSearchResult } from '@/lib/tomtom';
+
+function generateSessionToken(): string {
+  try {
+    return Crypto.randomUUID();
+  } catch {
+    return Math.random().toString(36).slice(2) + Date.now().toString(36);
+  }
+}
 
 // ── Shared type (re-exported from LocationPickerModal for backward compat) ──
 
@@ -75,6 +84,7 @@ export function useLocationPicker({
   userCoordsRef.current = userCoords;
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const abortRef = useRef<AbortController | null>(null);
+  const sessionTokenRef = useRef<string>(generateSessionToken());
 
   // ── Map state ──
   const [mapVisible, setMapVisible] = useState(false);
@@ -153,6 +163,7 @@ export function useLocationPicker({
     lastGeocodedCoordRef.current = null;
     setQuery(initial?.name ?? '');
     setResults([]);
+    sessionTokenRef.current = generateSessionToken();
     setMapVisible(mode === 'map-only');
     setCenterCoord(initial ? { latitude: initial.latitude, longitude: initial.longitude } : null);
     setIsDragging(false);
@@ -181,7 +192,11 @@ export function useLocationPicker({
     abortRef.current = new AbortController();
     setSearching(true);
     try {
-      const searchResults = await tomtomService.searchLocations(q, userCoords ?? undefined);
+      const searchResults = await tomtomService.searchLocations(q, {
+        latitude: userCoords?.latitude,
+        longitude: userCoords?.longitude,
+        sessionToken: sessionTokenRef.current,
+      });
       setResults(searchResults);
     } catch (e: unknown) {
       if ((e as { name?: string; })?.name !== 'AbortError') setResults([]);
@@ -193,7 +208,7 @@ export function useLocationPicker({
   useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
     const q = query.trim();
-    if (q.length < 2) {
+    if (q.length < 3) {
       setResults([]);
       return;
     }
@@ -205,20 +220,40 @@ export function useLocationPicker({
 
   // ── Handlers ──
 
-  const handleSelectSuggestion = useCallback((result: LocationSearchResult) => {
-    if (result.locationType !== 'specific' && !allowCitySelection) {
+  const handleSelectSuggestion = useCallback(async (result: LocationSearchResult) => {
+    let resolved = result;
+
+    // Google Places results have placeholder coords — fetch real ones via Place Details.
+    // Passes the same session token used during autocomplete for grouped billing.
+    if (result.placeId) {
+      setSearching(true);
+      try {
+        const details = await tomtomService.fetchPlaceDetails(result.placeId, sessionTokenRef.current);
+        resolved = { ...result, ...details };
+      } catch {
+        setSearching(false);
+        sessionTokenRef.current = generateSessionToken();
+        Alert.alert('Error', 'No se pudo obtener la ubicación. Intenta de nuevo.');
+        return;
+      }
+      setSearching(false);
+      // Regenerate token — this session (autocomplete + details) is now complete
+      sessionTokenRef.current = generateSessionToken();
+    }
+
+    if (resolved.locationType !== 'specific' && !allowCitySelection) {
       setCenterCoord(null);
       setMapName('');
-      setMunicipalityCenter({ latitude: result.latitude, longitude: result.longitude, name: result.name });
+      setMunicipalityCenter({ latitude: resolved.latitude, longitude: resolved.longitude, name: resolved.name });
       setMapVisible(true);
     } else {
       // Pre-position the pin at the POI so the user can verify/adjust before confirming
-      setCenterCoord({ latitude: result.latitude, longitude: result.longitude });
-      setMapName(result.name);
-      setMapCity(result.city);
-      setMapState(result.state);
-      setMapCountry(result.country);
-      setMunicipalityCenter({ latitude: result.latitude, longitude: result.longitude, name: result.name, delta: 0.0125 });
+      setCenterCoord({ latitude: resolved.latitude, longitude: resolved.longitude });
+      setMapName(resolved.name);
+      setMapCity(resolved.city);
+      setMapState(resolved.state);
+      setMapCountry(resolved.country);
+      setMunicipalityCenter({ latitude: resolved.latitude, longitude: resolved.longitude, name: resolved.name, delta: 0.0125 });
       setMapVisible(true);
     }
   }, [allowCitySelection]);

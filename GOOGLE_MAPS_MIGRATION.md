@@ -71,20 +71,22 @@ Verificar que la API key `AIzaSyCoH_l5VxTOfr_pJ2yYitH6tUZl2nxinFQ` tenga habilit
 
 ### Tareas
 
-- [ ] **3.1** — `src/lib/tomtom-search.ts`: reemplazar TomTom Places con Google Places API
+- [x] **3.1** — `src/lib/tomtom-search.ts`: reemplazar TomTom Places con Google Places API
   - Autocomplete: `https://maps.googleapis.com/maps/api/place/autocomplete/json?input=...&components=country:co&language=es&sessiontoken=<uuid>`
-  - Al seleccionar: Place Details `https://maps.googleapis.com/maps/api/place/details/json?place_id=...&fields=geometry,name,formatted_address,address_components&sessiontoken=<uuid>`
+  - Al seleccionar: Place Details `https://maps.googleapis.com/maps/api/place/details/json?place_id=...&fields=geometry,address_components&sessiontoken=<uuid>`
   - Mapear `types[]` a `locationType`:
     - `'specific'` → `street_address`, `premise`, `establishment`, `point_of_interest`, `route`
     - `'municipality'` → `locality`, `administrative_area_level_*`, `country`, `postal_code`
   - Mantener Nominatim como fallback si Google falla
-- [ ] **3.2** — `src/lib/tomtom.ts`: exponer `sessionToken?: string` como parámetro opcional en `searchLocations`; actualizar `isConfigured()` para verificar `GOOGLE_MAPS_API_KEY`
-- [ ] **3.3** — `src/hooks/useLocationPicker.ts`: ciclo de vida del session token
-  - Generar token con `expo-crypto` (`Crypto.randomUUID()`) al abrir modal (`visible = true`)
-  - Pasar token en cada llamada a `tomtomService.searchLocations`
-  - Al seleccionar resultado: pasar mismo token al Place Details, luego **regenerar** token nuevo
-  - Subir mínimo de caracteres: `q.length < 2` → `q.length < 3`
-- [ ] **3.4** — `src/hooks/useLocationSearch.ts`: subir default `minChars: 2` → `minChars: 3`
+- [x] **3.2** — `src/lib/tomtom-types.ts`: agregado `placeId?: string` y `source: 'google'` a `LocationSearchResult`
+- [x] **3.3** — `src/lib/tomtom.ts`: `searchLocations` acepta `sessionToken`, guard actualizado a `GOOGLE_MAPS_API_KEY`, agregado `fetchPlaceDetails` method
+- [x] **3.4** — `src/hooks/useLocationPicker.ts`: ciclo de vida del session token
+  - Genera token con `expo-crypto` al abrir modal
+  - Pasa token en cada llamada a `searchLocations`
+  - Al seleccionar resultado con `placeId`: fetch Place Details con mismo token → regenera token
+  - `handleSelectSuggestion` ahora es async con loading state durante Place Details
+  - Mínimo de caracteres: `q.length < 2` → `q.length < 3`
+- [x] **3.5** — `src/hooks/useLocationSearch.ts`: default `minChars: 2` → `minChars: 3`
 
 ### Verificación
 
