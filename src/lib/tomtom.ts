@@ -42,15 +42,11 @@ export const tomtomService = {
    * Priority: TomTom (if key available) → Nominatim fallback.
    */
   async reverseGeocode(latitude: number, longitude: number) {
-    if (Config.TOMTOM_API_KEY) {
+    if (Config.GOOGLE_MAPS_API_KEY) {
       try {
         return await tomtomReverseGeocode(latitude, longitude);
       } catch (err) {
-        if ((err as any)?.message?.includes('429')) {
-          console.warn('[TomTom] Reverse geocode rate-limited (429), falling back to Nominatim');
-        } else {
-          console.warn('[TomTom] Reverse geocode failed, falling back to Nominatim:', err);
-        }
+        console.warn('[Google] Reverse geocode failed, falling back to Nominatim:', err);
       }
     }
     return nominatimReverseGeocode(latitude, longitude);

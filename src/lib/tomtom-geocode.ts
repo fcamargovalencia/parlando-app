@@ -1,46 +1,63 @@
 import { Config } from '@/constants/config';
-import type { TomTomReverseGeocodeResponse } from './tomtom-types';
 
-const TOMTOM_BASE = 'https://api.tomtom.com/search/2';
+const GEOCODING_BASE = 'https://maps.googleapis.com/maps/api/geocode/json';
 const NOMINATIM_BASE = 'https://nominatim.openstreetmap.org';
 
-type GeoResult = { name: string; city?: string; state?: string; country?: string };
+type GeoResult = { name: string; city?: string; state?: string; country?: string; };
+
+// ── Internal response types ──
+
+interface GoogleGeocodeComponent {
+  long_name: string;
+  short_name: string;
+  types: string[];
+}
+
+interface GoogleGeocodeResponse {
+  results: Array<{ address_components: GoogleGeocodeComponent[]; }>;
+  status: string;
+}
+
+function getComponent(components: GoogleGeocodeComponent[], ...types: string[]): string | undefined {
+  for (const type of types) {
+    const match = components.find((c) => c.types.includes(type));
+    if (match) return match.long_name;
+  }
+  return undefined;
+}
+
+// ── Google Geocoding ──
 
 export async function tomtomReverseGeocode(latitude: number, longitude: number): Promise<GeoResult> {
-  const params = new URLSearchParams({ key: Config.TOMTOM_API_KEY, language: 'es-ES' });
+  const params = new URLSearchParams({
+    key: Config.GOOGLE_MAPS_API_KEY,
+    latlng: `${latitude},${longitude}`,
+    language: 'es',
+  });
 
-  const response = await fetch(
-    `${TOMTOM_BASE}/reverseGeocode/${latitude},${longitude}.json?${params}`,
-    { method: 'GET', headers: { 'Content-Type': 'application/json' } },
-  );
+  const response = await fetch(`${GEOCODING_BASE}?${params}`);
+  if (!response.ok) throw new Error(`Google Geocoding API error: ${response.status}`);
 
-  if (!response.ok) throw new Error(`TomTom API error: ${response.status}`);
+  const data: GoogleGeocodeResponse = await response.json();
+  if (data.status !== 'OK' || !data.results?.length) return { name: 'Ubicación' };
 
-  const data: TomTomReverseGeocodeResponse = await response.json();
+  const components = data.results[0].address_components;
 
-  if (!data.addresses?.length) return { name: 'Ubicación' };
+  const streetNumber = getComponent(components, 'street_number');
+  const route = getComponent(components, 'route');
+  const street = route ? `${streetNumber ? streetNumber + ' ' : ''}${route}` : '';
 
-  const addr = data.addresses[0].address;
-  const street = addr.street
-    ? `${addr.buildingNumber ? addr.buildingNumber + ' ' : ''}${addr.street}`
-    : '';
-  const municipality = addr.municipality ?? '';
+  const neighbourhood = getComponent(components, 'sublocality_level_1', 'sublocality', 'neighborhood');
+  const city = getComponent(components, 'locality', 'administrative_area_level_2');
+  const state = getComponent(components, 'administrative_area_level_1');
+  const country = getComponent(components, 'country');
 
-  const name =
-    street ||
-    addr.neighbourhood ||
-    addr.freeformAddress.split(',')[0].trim() ||
-    municipality ||
-    addr.localName ||
-    'Ubicación';
+  const name = street || neighbourhood || city || 'Ubicación';
 
-  return {
-    name,
-    city: municipality || addr.localName || undefined,
-    state: addr.countrySubdivisionName || addr.countrySubdivision || undefined,
-    country: addr.country || undefined,
-  };
+  return { name, city, state, country };
 }
+
+// ── Nominatim fallback ──
 
 export async function nominatimReverseGeocode(latitude: number, longitude: number): Promise<GeoResult> {
   try {

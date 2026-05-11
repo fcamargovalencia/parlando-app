@@ -50,12 +50,12 @@ Verificar que la API key `AIzaSyCoH_l5VxTOfr_pJ2yYitH6tUZl2nxinFQ` tenga habilit
 
 ### Tareas
 
-- [ ] **2.1** — `src/lib/tomtom-geocode.ts`: reemplazar TomTom reverse geocode con Google Geocoding API
+- [x] **2.1** — `src/lib/tomtom-geocode.ts`: reemplazar TomTom reverse geocode con Google Geocoding API
   - Endpoint: `https://maps.googleapis.com/maps/api/geocode/json?latlng={lat},{lng}&language=es`
   - Parsear `address_components`: `route` + `street_number` → calle, `sublocality` → barrio, `locality` → ciudad
   - Mantener lógica de fallback de detalle: calle+número > barrio > ciudad
   - Mantener Nominatim como fallback si Google falla
-- [ ] **2.2** — `src/lib/tomtom.ts`: actualizar import de `tomtom-geocode`
+- [x] **2.2** — `src/lib/tomtom.ts`: guard de `reverseGeocode` actualizado a `GOOGLE_MAPS_API_KEY`
 
 ### Verificación
 
