@@ -1,5 +1,6 @@
 import React from 'react';
 import {
+  ActivityIndicator,
   View,
   Text,
   ScrollView,
@@ -9,9 +10,10 @@ import {
   useWindowDimensions,
 } from 'react-native';
 import Animated, { useAnimatedStyle } from 'react-native-reanimated';
-import { ChevronRight } from 'lucide-react-native';
+import { Car, ChevronRight } from 'lucide-react-native';
 import { useRouter } from 'expo-router';
 import { Screen, Button, Card } from '@/components/ui';
+import { Colors } from '@/constants/colors';
 import { LocationPickerModal } from '@/components/LocationPickerModal';
 import { usePublishForm } from '@/hooks/usePublishForm';
 import { usePublishSubmit } from '@/hooks/usePublishSubmit';
@@ -38,9 +40,9 @@ export default function PublishScreen() {
     waypoints,
     setWaypoints,
     loadingVehicles,
+    activeVehicles,
     vehicleOptions,
     selectedVehicle,
-    hasRegisteredVehicles,
     reset,
   } = usePublishForm();
 
@@ -133,7 +135,7 @@ export default function PublishScreen() {
         vehicleId={form.vehicleId}
         vehicleOptions={vehicleOptions}
         loadingVehicles={loadingVehicles}
-        hasRegisteredVehicles={hasRegisteredVehicles}
+        hasRegisteredVehicles={vehicleOptions.length > 0}
         dispatch={dispatch}
       />
     ),
@@ -167,54 +169,81 @@ export default function PublishScreen() {
             <Text className="text-2xl font-bold text-neutral-900">Publicar viaje</Text>
           </View>
 
-          <PublishHeader
-            step={step}
-            totalSteps={TOTAL_STEPS}
-            submitting={submitting}
-            progressValue={progressValue}
-            onBack={goBack}
-          />
+          {loadingVehicles ? (
+            <Card className="mb-6">
+              <View className="items-center py-10">
+                <ActivityIndicator size="large" color={Colors.primary[500]} />
+              </View>
+            </Card>
+          ) : activeVehicles.length === 0 ? (
+            <Card className="mb-6">
+              <View className="items-center py-8 px-4">
+                <View className="w-16 h-16 rounded-full bg-primary-50 items-center justify-center mb-4">
+                  <Car size={32} color={Colors.primary[500]} />
+                </View>
+                <Text className="text-base font-bold text-neutral-900 text-center mb-2">
+                  Necesitas un vehículo
+                </Text>
+                <Text className="text-sm text-neutral-500 text-center mb-6">
+                  Para publicar un viaje debes tener al menos un vehículo activo.
+                </Text>
+                <Button onPress={() => router.push('/vehicle/add')} size="lg" className="w-full">
+                  Registrar vehículo
+                </Button>
+              </View>
+            </Card>
+          ) : (
+            <>
+              <PublishHeader
+                step={step}
+                totalSteps={TOTAL_STEPS}
+                submitting={submitting}
+                progressValue={progressValue}
+                onBack={goBack}
+              />
 
-          <Card className={step === TOTAL_STEPS ? 'mb-2' : 'mb-6'}>
-            <Animated.View pointerEvents="box-none" style={stepAnimStyle}>
-              {renderStepContent()}
-            </Animated.View>
-          </Card>
+              <Card className={step === TOTAL_STEPS ? 'mb-2' : 'mb-6'}>
+                <Animated.View pointerEvents="box-none" style={stepAnimStyle}>
+                  {renderStepContent()}
+                </Animated.View>
+              </Card>
 
-          <View className={step < TOTAL_STEPS ? 'items-end' : 'items-center'}>
-            {step === 5 ? null : step < TOTAL_STEPS ? (
-              <TouchableOpacity
-                onPress={() => {
-                  if (step === 1 && tripType === 'ROUTINE') {
-                    router.push('/routine/create/step-1-route');
-                    return;
-                  }
-                  goNext();
-                }}
-                disabled={submitting}
-                activeOpacity={0.85}
-                className="w-14 h-14 rounded-full bg-primary-500 items-center justify-center"
-              >
-                <ChevronRight size={24} color="white" />
-              </TouchableOpacity>
-            ) : (
-              <Button
-                onPress={() =>
-                  handlePublish(routeHook.selected, () => {
-                    setStep(1);
-                    originSearch.setQuery('');
-                    destinationSearch.setQuery('');
-                  })
-                }
-                size="lg"
-                className="px-6"
-                loading={submitting}
-                disabled={submitting}
-              >
-                Publicar viaje
-              </Button>
-            )}
-          </View>
+              <View className={step < TOTAL_STEPS ? 'items-end' : 'items-center'}>
+                {step === 5 ? null : step < TOTAL_STEPS ? (
+                  <TouchableOpacity
+                    onPress={() => {
+                      if (step === 1 && tripType === 'ROUTINE') {
+                        router.push('/routine/create/step-1-route');
+                        return;
+                      }
+                      goNext();
+                    }}
+                    disabled={submitting}
+                    activeOpacity={0.85}
+                    className="w-14 h-14 rounded-full bg-primary-500 items-center justify-center"
+                  >
+                    <ChevronRight size={24} color="white" />
+                  </TouchableOpacity>
+                ) : (
+                  <Button
+                    onPress={() =>
+                      handlePublish(routeHook.selected, () => {
+                        setStep(1);
+                        originSearch.setQuery('');
+                        destinationSearch.setQuery('');
+                      })
+                    }
+                    size="lg"
+                    className="px-6"
+                    loading={submitting}
+                    disabled={submitting}
+                  >
+                    Publicar viaje
+                  </Button>
+                )}
+              </View>
+            </>
+          )}
         </ScrollView>
       </KeyboardAvoidingView>
 
