@@ -10,7 +10,7 @@ import {
   Alert,
 } from 'react-native';
 import { ArrowLeft, ChevronDown, ChevronUp, Save } from 'lucide-react-native';
-import MapView, { Polyline, Marker, PROVIDER_GOOGLE } from 'react-native-maps';
+import MapView, { Polyline, Marker } from 'react-native-maps';
 import { Colors, Shadows } from '@/constants/colors';
 import { haversineMeters } from '@/lib/geo';
 import { googleCalculateRoute } from '@/lib/maps-routing';
@@ -194,14 +194,14 @@ export function RoutineRouteMapModal({
       return;
     }
 
-    const routeStops = [
+    const googleStops = [
       { latitude: originLatitude, longitude: originLongitude },
       ...orderedStops.map((s) => ({ latitude: s.data.latitude, longitude: s.data.longitude })),
       { latitude: destinationLatitude, longitude: destinationLongitude },
     ];
 
     setLoading(true);
-    googleCalculateRoute(routeStops)
+    googleCalculateRoute(googleStops)
       .then((result) => { if (!cancelled) setRouteLineCoords(result.points); })
       .catch(() => { if (!cancelled) setRouteLineCoords(baseCoords); })
       .finally(() => { if (!cancelled) setLoading(false); });
@@ -390,7 +390,6 @@ export function RoutineRouteMapModal({
           <View style={{ flex: 1 }}>
             <MapView
               ref={mapRef}
-              provider={PROVIDER_GOOGLE}
               style={{ flex: 1 }}
               initialRegion={{
                 latitude: (originLatitude + destinationLatitude) / 2,
