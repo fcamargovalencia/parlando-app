@@ -57,7 +57,7 @@ export default function TripDetailScreen() {
     waypointsFull, loadingWaypoints, routePolyline, loadingRoutePolyline,
     // trip actions
     load, handlePublish, handleStart, handleComplete, handleCancel,
-    handleCancelBooking, handleBookingAction,
+    handleCancelBooking, handleBookingAction, handleBoardPassenger,
     // screen state
     insets, goBack,
     editVisible, setEditVisible,
@@ -166,10 +166,13 @@ export default function TripDetailScreen() {
             bookings={bookings}
             tripId={trip.id}
             tripStatus={trip.status}
+            pricePerSeat={trip.pricePerSeat}
+            currency={trip.currency}
             actionLoading={actionLoading}
             ratedUserIds={ratedUserIds}
             passengerCommentCounts={passengerCommentCounts}
             onBookingAction={handleBookingAction}
+            onBoard={handleBoardPassenger}
             onRate={handleOpenRatePassenger}
             onMessage={handleMessagePassenger}
           />

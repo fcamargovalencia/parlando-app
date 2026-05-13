@@ -4,16 +4,19 @@ import { UserCheck } from 'lucide-react-native';
 import { Card } from '@/components/ui';
 import { Colors } from '@/constants/colors';
 import { BookingRow } from './BookingRow';
-import type { BookingResponse, TripStatus } from '@/types/api';
+import type { BookingResponse, TripStatus, PaymentMethod } from '@/types/api';
 
 interface PassengerBookingsListProps {
   bookings: BookingResponse[];
   tripId: string;
   tripStatus: TripStatus;
+  pricePerSeat: number;
+  currency: string;
   actionLoading: string | null;
   ratedUserIds: Set<string>;
   passengerCommentCounts: Record<string, number>;
-  onBookingAction: (bookingId: string, action: 'accept' | 'reject' | 'board' | 'noshow') => void;
+  onBookingAction: (bookingId: string, action: 'accept' | 'reject' | 'noshow') => void;
+  onBoard: (bookingId: string, verificationCode: string, paymentMethod: PaymentMethod) => Promise<void>;
   onRate: (booking: BookingResponse) => void;
   onMessage: (booking: BookingResponse) => void;
 }
@@ -22,10 +25,13 @@ export const PassengerBookingsList = React.memo(function PassengerBookingsList({
   bookings,
   tripId,
   tripStatus,
+  pricePerSeat,
+  currency,
   actionLoading,
   ratedUserIds,
   passengerCommentCounts,
   onBookingAction,
+  onBoard,
   onRate,
   onMessage,
 }: PassengerBookingsListProps) {
@@ -62,10 +68,13 @@ export const PassengerBookingsList = React.memo(function PassengerBookingsList({
             booking={b}
             tripId={tripId}
             tripStatus={tripStatus}
+            pricePerSeat={pricePerSeat}
+            currency={currency}
             actionLoading={actionLoading}
             isRated={b.passenger ? ratedUserIds.has(b.passenger.id) : false}
             commentCount={b.passenger ? passengerCommentCounts[b.passenger.id] : undefined}
             onBookingAction={onBookingAction}
+            onBoard={onBoard}
             onRate={onRate}
             onMessage={onMessage}
           />

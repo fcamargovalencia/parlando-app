@@ -1,5 +1,5 @@
 import { api } from './client';
-import type { ApiResponse, BookingResponse, CreateBookingRequest } from '@/types/api';
+import type { ApiResponse, BookingResponse, CreateBookingRequest, BoardBookingRequest, PaymentResponse } from '@/types/api';
 
 export const bookingsApi = {
   create: (data: CreateBookingRequest) =>
@@ -26,8 +26,11 @@ export const bookingsApi = {
   reject: (id: string) =>
     api.patch<ApiResponse<BookingResponse>>(`/v1/bookings/${encodeURIComponent(id)}/reject`),
 
-  board: (id: string) =>
-    api.patch<ApiResponse<BookingResponse>>(`/v1/bookings/${encodeURIComponent(id)}/board`),
+  board: (id: string, data: BoardBookingRequest) =>
+    api.patch<ApiResponse<BookingResponse>>(`/v1/bookings/${encodeURIComponent(id)}/board`, data),
+
+  getPayment: (id: string) =>
+    api.get<ApiResponse<PaymentResponse>>(`/v1/bookings/${encodeURIComponent(id)}/payment`),
 
   noShow: (id: string) =>
     api.patch<ApiResponse<BookingResponse>>(`/v1/bookings/${encodeURIComponent(id)}/no-show`),

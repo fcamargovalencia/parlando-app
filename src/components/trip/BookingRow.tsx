@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { View, Text, TouchableOpacity, ActivityIndicator } from 'react-native';
 import { useRouter } from 'expo-router';
 import {
@@ -13,18 +13,22 @@ import {
   Send,
 } from 'lucide-react-native';
 import { Badge, Avatar } from '@/components/ui';
+import { BoardPassengerModal } from './BoardPassengerModal';
 import { Colors } from '@/constants/colors';
 import { BOOKING_STATUS_BADGE } from '@/constants/trips';
-import type { BookingResponse, TripStatus } from '@/types/api';
+import type { BookingResponse, TripStatus, PaymentMethod } from '@/types/api';
 
 interface BookingRowProps {
   booking: BookingResponse;
   tripId: string;
   tripStatus: TripStatus;
+  pricePerSeat: number;
+  currency: string;
   actionLoading: string | null;
   isRated: boolean;
   commentCount?: number;
-  onBookingAction: (bookingId: string, action: 'accept' | 'reject' | 'board' | 'noshow') => void;
+  onBookingAction: (bookingId: string, action: 'accept' | 'reject' | 'noshow') => void;
+  onBoard: (bookingId: string, verificationCode: string, paymentMethod: PaymentMethod) => Promise<void>;
   onRate: (booking: BookingResponse) => void;
   onMessage: (booking: BookingResponse) => void;
 }
@@ -33,10 +37,13 @@ export const BookingRow = React.memo(function BookingRow({
   booking,
   tripId,
   tripStatus,
+  pricePerSeat,
+  currency,
   actionLoading,
   isRated,
   commentCount,
   onBookingAction,
+  onBoard,
   onRate,
   onMessage,
 }: BookingRowProps) {
@@ -44,6 +51,7 @@ export const BookingRow = React.memo(function BookingRow({
   const passenger = booking.passenger;
   const badgeCfg = BOOKING_STATUS_BADGE[booking.status];
   const isLoading = (label: string) => actionLoading === `${booking.id}-${label}`;
+  const [boardModalVisible, setBoardModalVisible] = useState(false);
 
   return (
     <View className="py-3 border-b border-neutral-100">
@@ -165,7 +173,7 @@ export const BookingRow = React.memo(function BookingRow({
       {booking.status === 'ACCEPTED' && tripStatus === 'IN_PROGRESS' && (
         <View className="flex-row gap-2 ml-12">
           <TouchableOpacity
-            onPress={() => onBookingAction(booking.id, 'board')}
+            onPress={() => setBoardModalVisible(true)}
             disabled={!!actionLoading}
             className="flex-1 flex-row items-center justify-center gap-1.5 py-2 rounded-xl"
             style={{ backgroundColor: Colors.primary[600] }}
@@ -215,6 +223,18 @@ export const BookingRow = React.memo(function BookingRow({
             </Text>
           </TouchableOpacity>
         )}
+
+      <BoardPassengerModal
+        visible={boardModalVisible}
+        booking={booking}
+        pricePerSeat={pricePerSeat}
+        currency={currency}
+        onConfirm={async (code, method) => {
+          await onBoard(booking.id, code, method);
+          setBoardModalVisible(false);
+        }}
+        onDismiss={() => setBoardModalVisible(false)}
+      />
     </View>
   );
 });

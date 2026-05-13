@@ -11,6 +11,7 @@ export interface NotificationData {
   subscriptionId?: string;
   bookingId?: string;
   vehicleId?: string;
+  verificationCode?: string;
 }
 
 /**

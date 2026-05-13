@@ -34,10 +34,29 @@ export type BookingStatus =
 export type PaymentMethod =
   | 'NEQUI'
   | 'DAVIPLATA'
+  | 'BANCOLOMBIA'
+  | 'BRE_B'
   | 'PSE'
   | 'CREDIT_CARD'
   | 'DEBIT_CARD'
   | 'CASH';
+
+export type PaymentStatus = 'COMPLETED';
+
+export interface PaymentResponse {
+  bookingId: string;
+  tripId: string;
+  amount: number;
+  currency: string;
+  paymentMethod: PaymentMethod;
+  status: PaymentStatus;
+  confirmedAt: string;
+}
+
+export interface BoardBookingRequest {
+  verificationCode: string;
+  paymentMethod: PaymentMethod;
+}
 
 export type VehicleStatus = 'ACTIVE' | 'INACTIVE' | 'PENDING_VERIFICATION' | 'REJECTED';
 

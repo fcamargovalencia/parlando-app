@@ -8,7 +8,7 @@ import { vehiclesApi } from '@/api/vehicles';
 import { mapsService } from '@/lib/maps';
 import { extractApiError } from '@/lib/utils';
 import { useAuthStore } from '@/stores/auth-store';
-import type { TripResponse, VehicleResponse, BookingResponse } from '@/types/api';
+import type { TripResponse, VehicleResponse, BookingResponse, PaymentMethod } from '@/types/api';
 import Toast from 'react-native-toast-message';
 import { tripDetailReducer, createInitialState } from './reducer';
 
@@ -313,14 +313,13 @@ export function useTripDetail(id: string, options?: UseTripDetailOptions) {
 
   const handleBookingAction = useCallback(async (
     bookingId: string,
-    action: 'accept' | 'reject' | 'board' | 'noshow',
+    action: 'accept' | 'reject' | 'noshow',
   ) => {
     dispatch({ type: 'ACTION_START', label: `${bookingId}-${action}` });
     try {
       const apiCallMap = {
         accept: () => bookingsApi.accept(bookingId),
         reject: () => bookingsApi.reject(bookingId),
-        board: () => bookingsApi.board(bookingId),
         noshow: () => bookingsApi.noShow(bookingId),
       } as const;
 
@@ -335,12 +334,34 @@ export function useTripDetail(id: string, options?: UseTripDetailOptions) {
       const msgs: Record<string, string> = {
         accept: 'Reserva aceptada',
         reject: 'Reserva rechazada',
-        board: 'Abordaje registrado',
         noshow: 'No-show registrado',
       };
       Toast.show({ type: 'success', text1: msgs[action] });
     } catch (err) {
       Alert.alert('Error', extractApiError(err, 'No se pudo completar la acción'));
+    } finally {
+      dispatch({ type: 'ACTION_END' });
+    }
+  }, [id]);
+
+  const handleBoardPassenger = useCallback(async (
+    bookingId: string,
+    verificationCode: string,
+    paymentMethod: PaymentMethod,
+  ) => {
+    dispatch({ type: 'ACTION_START', label: `${bookingId}-board` });
+    try {
+      const { data: r } = await bookingsApi.board(bookingId, { verificationCode, paymentMethod });
+      const updated = r.data ?? undefined;
+      if (updated) {
+        dispatch({ type: 'UPDATE_BOOKING', bookingId, booking: updated });
+        const { data: tRes } = await tripsApi.getDetails(id);
+        if (tRes.data) dispatch({ type: 'UPDATE_TRIP', trip: tRes.data });
+      }
+      Toast.show({ type: 'success', text1: 'Abordaje registrado' });
+    } catch (err) {
+      // Re-throw so the modal can display the error inline
+      throw err;
     } finally {
       dispatch({ type: 'ACTION_END' });
     }
@@ -377,6 +398,7 @@ export function useTripDetail(id: string, options?: UseTripDetailOptions) {
     handleCancelBooking,
     openMap,
     handleBookingAction,
+    handleBoardPassenger,
     handleRate,
   };
 }
