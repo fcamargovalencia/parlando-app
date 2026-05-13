@@ -21,7 +21,7 @@ import type { BookingResponse, PaymentMethod } from '@/types/api';
 
 // ── Payment method options ──
 
-const PRIMARY_METHODS: { value: PaymentMethod; label: string }[] = [
+const PRIMARY_METHODS: { value: PaymentMethod; label: string; }[] = [
   { value: 'CASH', label: 'Efectivo' },
   { value: 'NEQUI', label: 'Nequi' },
   { value: 'DAVIPLATA', label: 'Daviplata' },
@@ -29,7 +29,7 @@ const PRIMARY_METHODS: { value: PaymentMethod; label: string }[] = [
   { value: 'BRE_B', label: 'Bre-B' },
 ];
 
-const SECONDARY_METHODS: { value: PaymentMethod; label: string }[] = [
+const SECONDARY_METHODS: { value: PaymentMethod; label: string; }[] = [
   { value: 'PSE', label: 'PSE' },
   { value: 'CREDIT_CARD', label: 'Tarjeta crédito' },
   { value: 'DEBIT_CARD', label: 'Tarjeta débito' },
