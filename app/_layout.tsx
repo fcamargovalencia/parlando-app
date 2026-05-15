@@ -26,7 +26,7 @@ const CRITICAL_TYPES = new Set([
 ]);
 
 // Maps a notification type to the corresponding preference key.
-function preferenceKeyForType(type: string): keyof Omit<NotificationPreferences, 'push_enabled' | 'marketing'> | null {
+function preferenceKeyForType(type: string): keyof Omit<NotificationPreferences, 'pushEnabled' | 'marketing'> | null {
   if (type.startsWith('booking.') || type.startsWith('waitlist.')) return 'bookings';
   if (type.startsWith('trip.')) return 'trips';
   if (type.startsWith('chat.')) return 'chat';
@@ -58,7 +58,7 @@ Notifications.setNotificationHandler({
     // Apply per-category preferences for non-critical notifications
     const { preferences } = useNotificationsStore.getState();
     if (preferences) {
-      if (!preferences.push_enabled) return SUPPRESS;
+      if (!preferences.pushEnabled) return SUPPRESS;
       const key = preferenceKeyForType(type);
       if (key && !preferences[key]) return SUPPRESS;
     }

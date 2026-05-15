@@ -41,9 +41,9 @@ export function DatePickerModal({ visible, value, mode, title, minimumDate, onCo
         mode={mode}
         display="default"
         minimumDate={minimumDate}
-        onValueChange={(_, date) => {
-          if (date) onConfirm(date);
-          else onCancel();
+        onValueChange={(event, date) => {
+          const selected = date ?? new Date(event.nativeEvent.timestamp);
+          onConfirm(selected);
         }}
         onDismiss={onCancel}
       />
