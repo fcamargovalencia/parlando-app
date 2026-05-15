@@ -134,7 +134,11 @@ export const useRoutineSubscriptionsStore = create<RoutineSubscriptionsState>((s
     set((state) => {
       const current = state.subscriptionsByTrip[routineTripId] ?? [];
       const updated = current.some((s) => s.id === subscription.id)
-        ? current.map((s) => (s.id === subscription.id ? subscription : s))
+        ? current.map((s) =>
+          s.id === subscription.id
+            ? { ...subscription, passenger: subscription.passenger ?? s.passenger }
+            : s,
+        )
         : [...current, subscription];
       return {
         subscriptionsByTrip: { ...state.subscriptionsByTrip, [routineTripId]: updated },

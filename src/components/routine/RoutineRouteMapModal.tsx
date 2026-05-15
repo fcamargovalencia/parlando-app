@@ -4,13 +4,13 @@ import {
   Text,
   TouchableOpacity,
   Modal,
-  Platform,
   ActivityIndicator,
   ScrollView,
   Alert,
 } from 'react-native';
 import { ArrowLeft, ChevronDown, ChevronUp, Save } from 'lucide-react-native';
 import MapView, { Polyline, Marker } from 'react-native-maps';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Colors, Shadows } from '@/constants/colors';
 import { haversineMeters } from '@/lib/geo';
 import { googleCalculateRoute } from '@/lib/maps-routing';
@@ -142,6 +142,7 @@ export function RoutineRouteMapModal({
   suggestedStop,
   subscribedDays,
 }: RoutineRouteMapModalProps) {
+  const insets = useSafeAreaInsets();
   const mapRef = useRef<MapView>(null);
   const [routeLineCoords, setRouteLineCoords] = useState<{ latitude: number; longitude: number; }[]>([]);
   const [loading, setLoading] = useState(false);
@@ -324,7 +325,7 @@ export function RoutineRouteMapModal({
             alignItems: 'center',
             justifyContent: 'space-between',
             paddingHorizontal: 16,
-            paddingTop: 16,
+            paddingTop: insets.top + 12,
             paddingBottom: 12,
           }}
         >
@@ -451,7 +452,7 @@ export function RoutineRouteMapModal({
             <View
               style={{
                 position: 'absolute',
-                bottom: Platform.OS === 'ios' ? 40 : 24,
+                bottom: insets.bottom + 16,
                 left: 16,
                 right: 16,
                 backgroundColor: '#fff',
@@ -544,8 +545,8 @@ export function RoutineRouteMapModal({
                 </View>
               </ScrollView>
 
-              {/* Accept subscription (when there's a suggested stop) */}
-              {suggestedStop && subscriptionId && onAccept && (
+              {/* Accept subscription */}
+              {subscriptionId && onAccept && (
                 <TouchableOpacity
                   onPress={handleAccept}
                   disabled={isSaving}
@@ -572,8 +573,8 @@ export function RoutineRouteMapModal({
                 </TouchableOpacity>
               )}
 
-              {/* Save waypoint order only (no suggested stop context) */}
-              {!suggestedStop && isDirty && routineTripId && (
+              {/* Save waypoint order only (driver manage-route mode) */}
+              {!onAccept && isDirty && routineTripId && (
                 <TouchableOpacity
                   onPress={handleSaveOrder}
                   disabled={isSaving}
