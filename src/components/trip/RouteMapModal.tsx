@@ -4,9 +4,9 @@ import {
   Text,
   TouchableOpacity,
   Modal,
-  Platform,
   ActivityIndicator,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ArrowLeft } from 'lucide-react-native';
 import MapView, { Polyline, Marker, PROVIDER_GOOGLE } from 'react-native-maps';
 import { Colors, Shadows } from '@/constants/colors';
@@ -29,6 +29,7 @@ export function RouteMapModal({
   routePolyline,
   loading,
 }: RouteMapModalProps) {
+  const insets = useSafeAreaInsets();
   const mapRef = useRef<MapView>(null);
 
   const sortedWaypoints = waypoints
@@ -74,7 +75,7 @@ export function RouteMapModal({
             alignItems: 'center',
             justifyContent: 'space-between',
             paddingHorizontal: 16,
-            paddingTop: 16,
+            paddingTop: insets.top + 12,
             paddingBottom: 12,
           }}
         >
@@ -191,7 +192,7 @@ export function RouteMapModal({
             <View
               style={{
                 position: 'absolute',
-                bottom: Platform.OS === 'ios' ? 40 : 24,
+                bottom: insets.bottom + 16,
                 left: 16,
                 right: 16,
                 backgroundColor: '#fff',

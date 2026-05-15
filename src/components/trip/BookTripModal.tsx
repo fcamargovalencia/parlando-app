@@ -1,4 +1,4 @@
-import React, { useState, useActionState, useEffect, startTransition } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -6,6 +6,7 @@ import {
   Modal,
   Platform,
 } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Shadows } from '@/constants/colors';
 import { Colors } from '@/constants/colors';
 import { Button, ModalDragHandle } from '@/components/ui';
@@ -27,6 +28,7 @@ export function BookTripModal({
   onClose,
   onConfirm,
 }: BookTripModalProps) {
+  const insets = useSafeAreaInsets();
   const [seats, setSeats] = useState(1);
   const maxSeats = Math.max(0, trip.availableSeats);
   const isIntercity = trip.tripType === 'INTERCITY';
@@ -44,29 +46,33 @@ export function BookTripModal({
     });
   }, [visible, maxSeats]);
 
-  const [bookingError, submitBooking, isPending] = useActionState(
-    async (_prev: string | null) => {
-      try {
-        const { data: res } = await bookingsApi.create({
-          tripId: trip.id,
-          seatsBooked: seats,
-        });
-        if (!res.data) throw new Error();
-        onConfirm(res.data);
-        Toast.show({
-          type: 'success',
-          text1: '¡Solicitud enviada!',
-          text2: 'El conductor revisará tu solicitud.',
-        });
-        onClose();
-        return null;
-      } catch (err: unknown) {
-        const apiMessage = (err as { response?: { data?: { message?: string; }; }; })?.response?.data?.message;
-        return apiMessage ?? 'No se pudo crear la reserva';
-      }
-    },
-    null,
-  );
+  const [isPending, setIsPending] = useState(false);
+  const [bookingError, setBookingError] = useState<string | null>(null);
+
+  const submitBooking = async () => {
+    if (isPending) return;
+    setIsPending(true);
+    setBookingError(null);
+    try {
+      const { data: res } = await bookingsApi.create({
+        tripId: trip.id,
+        seatsBooked: seats,
+      });
+      if (!res.data) throw new Error();
+      onConfirm(res.data);
+      Toast.show({
+        type: 'success',
+        text1: '¡Solicitud enviada!',
+        text2: 'El conductor revisará tu solicitud.',
+      });
+      onClose();
+    } catch (err: unknown) {
+      const apiMessage = (err as { response?: { data?: { message?: string; }; }; })?.response?.data?.message;
+      setBookingError(apiMessage ?? 'No se pudo crear la reserva');
+    } finally {
+      setIsPending(false);
+    }
+  };
 
   return (
     <Modal
@@ -83,7 +89,7 @@ export function BookTripModal({
       <View
         className="bg-white rounded-t-3xl px-5 pt-4"
         style={{
-          paddingBottom: Platform.OS === 'ios' ? 36 : 24,
+          paddingBottom: Math.max(insets.bottom, Platform.OS === 'ios' ? 20 : 16) + 16,
           ...Shadows.lg,
         }}
       >
@@ -175,7 +181,7 @@ export function BookTripModal({
           <Text className="text-red-500 text-xs text-center mb-3">{bookingError}</Text>
         )}
         <Button
-          onPress={() => startTransition(() => submitBooking())}
+          onPress={submitBooking}
           loading={isPending}
           disabled={!canSubmit}
           size="lg"

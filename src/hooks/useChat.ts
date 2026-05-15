@@ -7,6 +7,7 @@ import { chatWs } from '@/lib/chat-ws';
 import { useAuthStore } from '@/stores/auth-store';
 import { useNotificationsStore } from '@/stores/notifications-store';
 import { extractApiError } from '@/lib/utils';
+import { mergeBooking } from '@/utils/booking.utils';
 import type { BookingResponse, ChatMessageResponse, TripResponse, WsInboundFrame } from '@/types/api';
 
 // ── State ──
@@ -75,7 +76,13 @@ function reducer(state: ChatState, action: ChatAction): ChatState {
     case 'BOOKING_ACTION_START':
       return { ...state, bookingActionLoading: true };
     case 'BOOKING_ACTION_DONE':
-      return { ...state, bookingActionLoading: false, counterpartBooking: action.booking };
+      return {
+        ...state,
+        bookingActionLoading: false,
+        counterpartBooking: state.counterpartBooking
+          ? mergeBooking(state.counterpartBooking, action.booking)
+          : action.booking,
+      };
     default:
       return state;
   }

@@ -7,7 +7,11 @@ import { Colors, Shadows } from '@/constants/colors';
 
 interface SearchResultsHeaderProps {
   originName: string;
+  originCity?: string;
+  originState?: string;
   destName: string;
+  destCity?: string;
+  destState?: string;
   departureFrom: string;
   radiusKm: number;
   tripsCount: number | null; // null while loading
@@ -24,7 +28,11 @@ function formatDateLabel(iso: string): string {
 
 export function SearchResultsHeader({
   originName,
+  originCity,
+  originState,
   destName,
+  destCity,
+  destState,
   departureFrom,
   radiusKm,
   tripsCount,
@@ -57,18 +65,32 @@ export function SearchResultsHeader({
               className="w-2 h-2 rounded-full"
               style={{ backgroundColor: Colors.primary[500] }}
             />
-            <Text className="text-sm font-semibold text-neutral-900" numberOfLines={1}>
-              {originName}
-            </Text>
+            <View className="flex-1">
+              <Text className="text-sm font-semibold text-neutral-900" numberOfLines={1}>
+                {originName}
+              </Text>
+              {(originCity || originState) && (
+                <Text className="text-xs" style={{ color: Colors.neutral[400] }} numberOfLines={1}>
+                  {[originCity, originState].filter(Boolean).join(', ')}
+                </Text>
+              )}
+            </View>
           </View>
-          <View className="flex-row items-center gap-1.5 mt-0.5">
+          <View className="flex-row items-center gap-1.5 mt-1">
             <View
               className="w-2 h-2 rounded-full"
               style={{ backgroundColor: Colors.accent[500] }}
             />
-            <Text className="text-sm font-semibold text-neutral-900" numberOfLines={1}>
-              {destName}
-            </Text>
+            <View className="flex-1">
+              <Text className="text-sm font-semibold text-neutral-900" numberOfLines={1}>
+                {destName}
+              </Text>
+              {(destCity || destState) && (
+                <Text className="text-xs" style={{ color: Colors.neutral[400] }} numberOfLines={1}>
+                  {[destCity, destState].filter(Boolean).join(', ')}
+                </Text>
+              )}
+            </View>
           </View>
         </View>
       </View>

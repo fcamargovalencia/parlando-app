@@ -187,6 +187,11 @@ function LocationButton({
             <Text className="text-sm font-semibold text-neutral-900 mt-0.5" numberOfLines={1}>
               {value.name}
             </Text>
+            {(value.city || value.state) && (
+              <Text className="text-xs mt-0.5" style={{ color: Colors.neutral[400] }} numberOfLines={1}>
+                {[value.city, value.state].filter(Boolean).join(', ')}
+              </Text>
+            )}
           </>
         ) : (
           <Text className="text-base text-neutral-400">{label}</Text>

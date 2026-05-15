@@ -4,6 +4,7 @@ import type {
   BookingResponse,
   RouteWaypointResponse,
 } from '@/types/api';
+import { mergeBooking } from '@/utils/booking.utils';
 
 // ── State ──
 
@@ -123,7 +124,7 @@ export function tripDetailReducer(
       return {
         ...state,
         bookings: state.bookings.map((b) =>
-          b.id === action.bookingId ? action.booking : b,
+          b.id === action.bookingId ? mergeBooking(b, action.booking) : b,
         ),
       };
     case 'UPDATE_MY_BOOKING':

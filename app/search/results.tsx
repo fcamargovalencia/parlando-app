@@ -23,9 +23,13 @@ export default function SearchResultsScreen() {
     originLat: string;
     originLng: string;
     originName: string;
+    originCity: string;
+    originState: string;
     destLat: string;
     destLng: string;
     destName: string;
+    destCity: string;
+    destState: string;
     departureFrom: string;
     departureTo: string;
     tripType: string;
@@ -66,7 +70,11 @@ export default function SearchResultsScreen() {
     <View className="flex-1 bg-neutral-50">
       <SearchResultsHeader
         originName={params.originName}
+        originCity={params.originCity}
+        originState={params.originState}
         destName={params.destName}
+        destCity={params.destCity}
+        destState={params.destState}
         departureFrom={params.departureFrom}
         radiusKm={radiusKm}
         tripsCount={loading ? null : trips.length}
