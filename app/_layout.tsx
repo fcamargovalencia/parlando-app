@@ -79,6 +79,8 @@ export default function RootLayout() {
   // Prevents double-navigation when both the listener and getLastNotificationResponseAsync
   // deliver the same cold-start response.
   const handledResponseIdRef = useRef<string | null>(null);
+  // Holds a cold-start response that arrived before the navigator was mounted.
+  const pendingColdStartRef = useRef<Notifications.NotificationResponse | null>(null);
 
   useChatWebSocket();
 
@@ -128,7 +130,6 @@ export default function RootLayout() {
     // Fired when the user taps a notification while the app is foreground or background.
     responseListener.current = Notifications.addNotificationResponseReceivedListener((response) => {
       const id = response.notification.request.identifier;
-      const type = (response.notification.request.content.data as { type?: string; })?.type ?? 'unknown';
       if (handledResponseIdRef.current === id) {
         return;
       }
@@ -138,13 +139,13 @@ export default function RootLayout() {
 
     // Cold start: app was killed and launched by tapping a notification.
     // addNotificationResponseReceivedListener does NOT fire for this case.
+    // Capture the response here but defer the actual navigation until after the
+    // navigator is mounted (see the fontsLoaded effect below).
     const coldStartResponse = Notifications.getLastNotificationResponse();
     if (coldStartResponse) {
       const id = coldStartResponse.notification.request.identifier;
-      const type = (coldStartResponse.notification.request.content.data as { type?: string; })?.type ?? 'unknown';
       if (handledResponseIdRef.current !== id) {
-        handledResponseIdRef.current = id;
-        navigate(coldStartResponse);
+        pendingColdStartRef.current = coldStartResponse;
       }
     }
 
@@ -153,6 +154,20 @@ export default function RootLayout() {
       responseListener.current?.remove();
     };
   }, [navigate, addNotification]);
+
+  // Navigate for cold-start only after the Stack navigator is mounted.
+  useEffect(() => {
+    if (!fontsLoaded) return;
+    const pending = pendingColdStartRef.current;
+    if (pending) {
+      pendingColdStartRef.current = null;
+      const id = pending.notification.request.identifier;
+      if (handledResponseIdRef.current !== id) {
+        handledResponseIdRef.current = id;
+        navigate(pending);
+      }
+    }
+  }, [fontsLoaded, navigate]);
 
   if (!fontsLoaded) return null;
 
