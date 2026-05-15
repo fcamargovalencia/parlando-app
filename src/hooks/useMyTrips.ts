@@ -306,6 +306,7 @@ export function useMyTrips() {
 
   return {
     // Data
+    allItems,
     items,
     counts,
     filter,

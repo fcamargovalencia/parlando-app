@@ -35,8 +35,8 @@ export function useMyTripsScreen() {
   const [actioningId, setActioningId] = useState<string | null>(null);
 
   const {
-    items: allItems,
-    counts,
+    allItems,
+    items: categoryItems,
     filter,
     setFilter,
     loading,
@@ -53,7 +53,17 @@ export function useMyTripsScreen() {
   } = useMyTrips();
 
   const items = useMemo(
-    () => allItems.filter((i) => !i.trip?.isRecurring && i.trip?.tripType !== 'ROUTINE'),
+    () => categoryItems.filter((i) => i.tripType !== 'ROUTINE'),
+    [categoryItems],
+  );
+
+  const uniqueCounts = useMemo(
+    () => allItems
+      .filter((i) => i.tripType !== 'ROUTINE')
+      .reduce(
+        (acc, item) => { acc[item.category] += 1; return acc; },
+        { active: 0, past: 0, cancelled: 0 } as Record<import('@/types/my-trips').MyTripFilter, number>,
+      ),
     [allItems],
   );
 
@@ -189,7 +199,7 @@ export function useMyTripsScreen() {
     segment,
     setSegment,
     items,
-    counts,
+    counts: uniqueCounts,
     filter,
     setFilter,
     loading,
