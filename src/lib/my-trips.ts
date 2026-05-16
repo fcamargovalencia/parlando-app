@@ -113,7 +113,7 @@ export function mapBookingToItem(
     key: `booking-${booking.id}`,
     role: 'passenger',
     tripId: booking.tripId,
-    category: categoryForBooking(booking.status),
+    category: trip?.status === 'CANCELLED' ? 'cancelled' : categoryForBooking(booking.status),
     statusBadge: badge,
     tripType: trip?.tripType ?? 'ROUTINE',
     originName: trip?.originName ?? '—',
@@ -129,7 +129,7 @@ export function mapBookingToItem(
       count: booking.seatsBooked,
       label: `${booking.seatsBooked} ${seatsLabel(booking.seatsBooked)} reservado${booking.seatsBooked === 1 ? '' : 's'}`,
     },
-    canCancel: booking.status === 'PENDING' || booking.status === 'ACCEPTED',
+    canCancel: (booking.status === 'PENDING' || booking.status === 'ACCEPTED') && trip?.status !== 'CANCELLED',
     ratingStatus: passengerRatingStatus(booking, locallyRated),
     booking,
   };

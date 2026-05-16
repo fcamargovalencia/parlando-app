@@ -39,19 +39,29 @@ export function SubscriptionRow({
         <View className="flex-row items-start justify-between">
           <View className="flex-1 mr-3">
             {/* Origin */}
-            <View className="flex-row items-center gap-1.5 mb-0.5">
-              <View className="w-2 h-2 rounded-full bg-primary-500 mt-0.5" />
-              <Text className="text-sm font-semibold text-neutral-900" numberOfLines={1}>
-                {trip?.originName ?? '—'}
-              </Text>
+            <View className="flex-row items-start gap-1.5 mb-0.5">
+              <View className="w-2 h-2 rounded-full bg-primary-500 mt-1" />
+              <View className="flex-1">
+                <Text className="text-sm font-semibold text-neutral-900" numberOfLines={1}>
+                  {trip?.originName ?? '—'}
+                </Text>
+                {trip?.originSubtitle ? (
+                  <Text className="text-[11px] text-neutral-400" numberOfLines={1}>{trip.originSubtitle}</Text>
+                ) : null}
+              </View>
             </View>
 
             {/* Destination */}
-            <View className="flex-row items-center gap-1.5 mb-2">
-              <MapPin size={12} color={Colors.neutral[400]} />
-              <Text className="text-sm text-neutral-600" numberOfLines={1}>
-                {trip?.destinationName ?? '—'}
-              </Text>
+            <View className="flex-row items-start gap-1.5 mb-2">
+              <MapPin size={12} color={Colors.neutral[400]} style={{ marginTop: 2 }} />
+              <View className="flex-1">
+                <Text className="text-sm text-neutral-600" numberOfLines={1}>
+                  {trip?.destinationName ?? '—'}
+                </Text>
+                {trip?.destinationSubtitle ? (
+                  <Text className="text-[11px] text-neutral-400" numberOfLines={1}>{trip.destinationSubtitle}</Text>
+                ) : null}
+              </View>
             </View>
 
             {/* Schedule */}

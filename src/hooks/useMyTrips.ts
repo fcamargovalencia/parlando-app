@@ -13,6 +13,7 @@ import {
 import type {
   BookingResponse,
   TripResponse,
+  TripStatus,
 } from '@/types/api';
 import type { MyTripFilter, MyTripItem } from '@/types/my-trips';
 
@@ -21,6 +22,7 @@ import type { MyTripFilter, MyTripItem } from '@/types/my-trips';
 interface State {
   trips: TripResponse[];
   tripBookings: Record<string, BookingResponse[]>;
+  tripStatuses: Record<string, TripStatus>;
   bookings: BookingResponse[];
   loading: boolean;
   refreshing: boolean;
@@ -36,11 +38,13 @@ type Action =
   | { type: 'CANCEL_START'; id: string; }
   | { type: 'CANCEL_TRIP_SUCCESS'; id: string; }
   | { type: 'CANCEL_BOOKING_SUCCESS'; id: string; }
+  | { type: 'SET_TRIP_STATUS'; tripId: string; status: TripStatus; }
   | { type: 'CANCEL_ERROR'; };
 
 const initialState: State = {
   trips: [],
   tripBookings: {},
+  tripStatuses: {},
   bookings: [],
   loading: true,
   refreshing: false,
@@ -66,6 +70,7 @@ function reducer(state: State, action: Action): State {
         refreshing: false,
         trips: action.trips,
         bookings: action.bookings,
+        tripStatuses: {},
       };
     case 'FETCH_ERROR':
       return { ...state, loading: false, refreshing: false, error: action.payload };
@@ -73,6 +78,11 @@ function reducer(state: State, action: Action): State {
       return {
         ...state,
         tripBookings: { ...state.tripBookings, [action.tripId]: action.bookings },
+      };
+    case 'SET_TRIP_STATUS':
+      return {
+        ...state,
+        tripStatuses: { ...state.tripStatuses, [action.tripId]: action.status },
       };
     case 'CANCEL_START':
       return { ...state, cancellingId: action.id };
@@ -159,6 +169,21 @@ export function useMyTrips() {
             const tripBookings = await fetchBookingsForTrip(t.id);
             if (!cancelled) {
               dispatch({ type: 'SET_TRIP_BOOKINGS', tripId: t.id, bookings: tripBookings });
+            }
+          }),
+      );
+
+      // Hydrate actual trip status for active passenger bookings — detects trips
+      // cancelled by the driver where the booking status wasn't updated by the API.
+      void Promise.allSettled(
+        bookings
+          .filter((b) => b.status === 'PENDING' || b.status === 'ACCEPTED')
+          .map(async (b) => {
+            const { data: res } = await tripsApi.getById(b.tripId);
+            const rawData = (res as any)?.data;
+            const trip: TripResponse | undefined = rawData?.data ?? rawData;
+            if (!cancelled && trip?.status) {
+              dispatch({ type: 'SET_TRIP_STATUS', tripId: b.tripId, status: trip.status });
             }
           }),
       );
@@ -281,11 +306,16 @@ export function useMyTrips() {
   /** All items (both sources), normalized. Unsorted / unfiltered. */
   const allItems = useMemo<MyTripItem[]>(() => {
     const driverItems = state.trips.map((t) => mapTripToItem(t, state.tripBookings[t.id]));
-    const passengerItems = state.bookings.map((b) =>
-      mapBookingToItem(b, ratedBookings.has(b.id)),
-    );
+    const passengerItems = state.bookings.map((b) => {
+      const item = mapBookingToItem(b, ratedBookings.has(b.id));
+      const actualTripStatus = state.tripStatuses[b.tripId];
+      if (actualTripStatus === 'CANCELLED' && item.category !== 'cancelled') {
+        return { ...item, category: 'cancelled' as MyTripFilter, canCancel: false };
+      }
+      return item;
+    });
     return [...driverItems, ...passengerItems];
-  }, [state.trips, state.bookings, state.tripBookings, ratedBookings]);
+  }, [state.trips, state.bookings, state.tripBookings, state.tripStatuses, ratedBookings]);
 
   /** Counts per filter — used by the filter tabs */
   const counts = useMemo(() => {

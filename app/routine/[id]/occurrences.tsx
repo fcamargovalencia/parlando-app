@@ -189,7 +189,7 @@ export default function OccurrencesScreen() {
   };
 
   const handleView = (tripId: string) => {
-    router.push(`/routine/${routineTripId}/occurrence/${tripId}`);
+    router.push(`/trip/${tripId}`);
   };
 
   const handlePressCancel = (occurrence: TripResponse) => {

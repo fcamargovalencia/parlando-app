@@ -422,6 +422,7 @@ export interface BookingResponse {
   passengerRatingId?: string | null;
   trip?: {
     tripType: TripType;
+    status?: TripStatus;
     departureAt: string;
     estimatedArrivalAt?: string | null;
     originName: string;

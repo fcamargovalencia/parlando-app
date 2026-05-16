@@ -24,7 +24,6 @@ import { RoutineCalendarView } from '@/components/routine/RoutineCalendarView';
 import { PauseModal } from '@/components/subscription/PauseModal';
 import { ResumeModal } from '@/components/subscription/ResumeModal';
 import { CancelModal } from '@/components/subscription/CancelModal';
-import { BookingDetailModal } from '@/components/subscription/BookingDetailModal';
 import { Colors } from '@/constants/colors';
 import { formatCurrency } from '@/lib/utils';
 import type { RoutineSubscriptionResponse, RoutineBookingResponse, RecurrenceDay } from '@/types/api';
@@ -76,7 +75,7 @@ export function SubscriptionDetailView({ uiState, dispatch, subscription, bookin
   const now = useMemo(() => new Date(), []);
 
   const {
-    activeModal, selectedBooking, isSubmitting,
+    activeModal, isSubmitting,
     pauseFrom, pauseTo, pauseReason, hasPauseTo,
     showPauseFromPicker, showPauseToPicker,
     cancelReason, overrideName, overrideLat, overrideLng,
@@ -113,9 +112,10 @@ export function SubscriptionDetailView({ uiState, dispatch, subscription, bookin
         <TouchableOpacity onPress={() => router.back()} className="mr-3">
           <ArrowLeft size={22} color={Colors.dark.DEFAULT} />
         </TouchableOpacity>
-        <Text className="flex-1 text-base font-semibold text-neutral-900" numberOfLines={1}>
-          {trip ? `${trip.originName} → ${trip.destinationName}` : 'Detalle de suscripción'}
+        <Text className="flex-1 text-base font-semibold text-neutral-900 text-center" numberOfLines={1}>
+          Detalle de suscripción
         </Text>
+        <View style={{ width: 22 }} />
       </View>
 
       <ScrollView contentContainerStyle={{ paddingBottom: insets.bottom + 32 }}>
@@ -127,23 +127,28 @@ export function SubscriptionDetailView({ uiState, dispatch, subscription, bookin
                 <View className="flex-row items-start gap-2">
                   <MapPin size={15} color={Colors.primary[500]} />
                   <View className="flex-1">
-                    <Text className="text-xs text-neutral-400">Origen</Text>
                     <Text className="text-sm font-medium text-neutral-800">{trip.originName}</Text>
+                    {trip.originSubtitle ? (
+                      <Text className="text-xs text-neutral-400">{trip.originSubtitle}</Text>
+                    ) : null}
                   </View>
                 </View>
                 <View className="flex-row items-start gap-2">
                   <MapPin size={15} color={Colors.accent[500]} />
                   <View className="flex-1">
-                    <Text className="text-xs text-neutral-400">Destino</Text>
                     <Text className="text-sm font-medium text-neutral-800">{trip.destinationName}</Text>
+                    {trip.destinationSubtitle ? (
+                      <Text className="text-xs text-neutral-400">{trip.destinationSubtitle}</Text>
+                    ) : null}
                   </View>
                 </View>
-                <View className="flex-row items-center gap-2 flex-wrap">
+                <View className="flex-row items-center gap-2">
                   <Clock size={14} color={Colors.neutral[500]} />
                   <Text className="text-sm text-neutral-600">
                     {trip.departureTime} → {trip.requiredArrivalTime}
                   </Text>
-                  <Text className="text-neutral-300">·</Text>
+                </View>
+                <View className="flex-row items-center gap-2 flex-wrap">
                   <Calendar size={14} color={Colors.neutral[500]} />
                   {subscribedDays.map((d) => (
                     <View key={d} className="bg-primary-50 px-2 py-0.5 rounded-full">
@@ -160,33 +165,30 @@ export function SubscriptionDetailView({ uiState, dispatch, subscription, bookin
           <Card>
             <CardHeader title="Detalles" />
             <View className="gap-3">
-              <View className="flex-row items-center gap-2 flex-wrap">
-                <MapPin size={14} color={Colors.neutral[500]} />
-                <Text className="text-sm text-neutral-700">
-                  {pickupType === 'WAYPOINT'
-                    ? 'Parada predefinida'
-                    : pickupType === 'SUGGESTED' && customPickupName
-                      ? customPickupName
-                      : 'Origen de la ruta'}
-                </Text>
-                <Text className="text-neutral-300">·</Text>
-                <User size={14} color={Colors.neutral[500]} />
-                <Text className="text-sm text-neutral-700">
-                  {seatsRequired} cupo{seatsRequired > 1 ? 's' : ''}
-                </Text>
-                {trip && (
-                  <>
-                    <Text className="text-neutral-300">·</Text>
-                    <Text className="text-sm text-neutral-700">
-                      {formatCurrency(trip.pricePerSeat * seatsRequired, trip.currency)} / día
-                    </Text>
-                  </>
-                )}
+              <View className="flex-row items-start gap-2">
+                <MapPin size={14} color={Colors.neutral[500]} style={{ marginTop: 2 }} />
+                <View className="flex-1">
+                  <Text className="text-xs text-neutral-400">Punto de encuentro</Text>
+                  <Text className="text-sm text-neutral-800">{trip?.originName ?? '—'}</Text>
+                  {trip?.originSubtitle ? (
+                    <Text className="text-xs text-neutral-400">{trip.originSubtitle}</Text>
+                  ) : null}
+                </View>
               </View>
               <View className="flex-row items-start gap-2">
-                <Calendar size={14} color={Colors.neutral[500]} />
+                <User size={14} color={Colors.neutral[500]} style={{ marginTop: 2 }} />
                 <View className="flex-1">
-                  <Text className="text-xs text-neutral-400">Período</Text>
+                  <Text className="text-xs text-neutral-400">Puestos · Valor</Text>
+                  <Text className="text-sm text-neutral-800">
+                    {seatsRequired} {seatsRequired === 1 ? 'puesto' : 'puestos'}
+                    {trip ? `  ·  ${formatCurrency(trip.pricePerSeat * seatsRequired, trip.currency)} / día` : ''}
+                  </Text>
+                </View>
+              </View>
+              <View className="flex-row items-start gap-2">
+                <Calendar size={14} color={Colors.neutral[500]} style={{ marginTop: 2 }} />
+                <View className="flex-1">
+                  <Text className="text-xs text-neutral-400">Tiempo suscripción</Text>
                   <Text className="text-sm text-neutral-800">
                     Desde {formatDate(startDate)}
                     {endDate ? ` · Hasta ${formatDate(endDate)}` : ' · Sin fecha de fin'}
@@ -277,14 +279,6 @@ export function SubscriptionDetailView({ uiState, dispatch, subscription, bookin
         dispatch={dispatch}
         onClose={handlers.closeModal}
         onConfirm={handlers.handleCancel}
-      />
-
-      <BookingDetailModal
-        visible={activeModal === 'bookingDetail' && selectedBooking !== null}
-        selectedBooking={selectedBooking}
-        departureTime={trip?.departureTime}
-        bottomInset={insets.bottom}
-        onClose={handlers.closeModal}
       />
 
       {/* Date pickers */}

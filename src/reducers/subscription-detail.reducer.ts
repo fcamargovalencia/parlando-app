@@ -1,10 +1,7 @@
-import type { RoutineBookingResponse } from '@/types/api';
-
-export type SubscriptionModal = 'pause' | 'resume' | 'cancel' | 'bookingDetail';
+export type SubscriptionModal = 'pause' | 'resume' | 'cancel';
 
 export interface SubscriptionDetailState {
   activeModal: SubscriptionModal | null;
-  selectedBooking: RoutineBookingResponse | null;
   isSubmitting: boolean;
   pauseFrom: string;
   pauseTo: string;
@@ -22,7 +19,6 @@ export type SubscriptionDetailAction =
   | { type: 'OPEN_PAUSE_MODAL'; payload: { pauseFrom: string; }; }
   | { type: 'OPEN_RESUME_MODAL'; }
   | { type: 'OPEN_CANCEL_MODAL'; }
-  | { type: 'OPEN_BOOKING_DETAIL'; payload: RoutineBookingResponse; }
   | { type: 'CLOSE_MODAL'; }
   | { type: 'SET_PAUSE_FROM'; payload: string; }
   | { type: 'SET_PAUSE_TO'; payload: string; }
@@ -39,7 +35,6 @@ export type SubscriptionDetailAction =
 
 export const initialSubscriptionDetailState: SubscriptionDetailState = {
   activeModal: null,
-  selectedBooking: null,
   isSubmitting: false,
   pauseFrom: '',
   pauseTo: '',
@@ -73,15 +68,6 @@ export function subscriptionDetailReducer(
       return { ...state, activeModal: 'resume' };
     case 'OPEN_CANCEL_MODAL':
       return { ...state, activeModal: 'cancel', cancelReason: '' };
-    case 'OPEN_BOOKING_DETAIL':
-      return {
-        ...state,
-        activeModal: 'bookingDetail',
-        selectedBooking: action.payload,
-        overrideName: '',
-        overrideLat: '',
-        overrideLng: '',
-      };
     case 'CLOSE_MODAL':
       return { ...state, activeModal: null, showPauseFromPicker: false, showPauseToPicker: false };
     case 'SET_PAUSE_FROM':

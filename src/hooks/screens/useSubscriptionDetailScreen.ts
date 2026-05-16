@@ -207,8 +207,8 @@ export function useSubscriptionDetailScreen(id: string | undefined) {
   const closeModal = useCallback(() => dispatch({ type: 'CLOSE_MODAL' }), []);
 
   const openBookingDetail = useCallback((booking: RoutineBookingResponse) => {
-    dispatch({ type: 'OPEN_BOOKING_DETAIL', payload: booking });
-  }, []);
+    router.push(`/trip/${booking.tripId}`);
+  }, [router]);
 
   return {
     uiState,
