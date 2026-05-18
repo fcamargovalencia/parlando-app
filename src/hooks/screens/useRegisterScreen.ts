@@ -1,5 +1,6 @@
 import { useReducer, useCallback } from 'react';
 import { useRouter } from 'expo-router';
+import Toast from 'react-native-toast-message';
 import { useAuth } from '@/hooks/useAuth';
 import { APP } from '@/constants/config';
 import {
@@ -42,6 +43,11 @@ export function useRegisterScreen() {
       password: fields.password,
     });
     if (success) {
+      Toast.show({
+        type: 'success',
+        text1: '¡Bienvenido a ParlAndo!',
+        text2: 'Revisa tu email para verificar tu cuenta.',
+      });
       router.replace('/(auth)/verify-phone');
     }
   }, [validate, state, register, router]);

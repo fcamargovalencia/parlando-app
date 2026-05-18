@@ -6,6 +6,7 @@ import { Card } from '@/components/ui';
 import { Colors } from '@/constants/colors';
 import { SectionTitle } from '@/components/settings/SectionTitle';
 import { SettingRow } from '@/components/settings/SettingRow';
+import { useAuthStore } from '@/stores/auth-store';
 
 const ICON_LOCK = <Lock size={20} color={Colors.accent[600]} />;
 const ICON_PHONE = <Phone size={20} color={Colors.accent[600]} />;
@@ -15,10 +16,18 @@ const handleTwoFactor = () =>
 
 export const SecuritySection = React.memo(function SecuritySection() {
   const router = useRouter();
-  const handleChangePassword = useCallback(
-    () => router.push('/profile/change-password' as any),
-    [router],
-  );
+  const isGoogleUser = useAuthStore((s) => s.user?.provider === 'GOOGLE');
+
+  const handleChangePassword = useCallback(() => {
+    if (isGoogleUser) {
+      Alert.alert(
+        'Cuenta Google',
+        'Tu cuenta está vinculada con Google. Gestiona tu contraseña desde Google.',
+      );
+      return;
+    }
+    router.push('/profile/change-password' as any);
+  }, [router, isGoogleUser]);
   const handleEmergencyContacts = useCallback(
     () => router.push('/profile/emergency-contacts' as any),
     [router],

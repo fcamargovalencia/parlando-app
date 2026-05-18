@@ -1,9 +1,11 @@
 import { useReducer, useCallback } from 'react';
+import Toast from 'react-native-toast-message';
 import { authApi } from '@/api/auth';
 import { usersApi } from '@/api/users';
 import { useAuthStore } from '@/stores/auth-store';
 import { registerForPushNotifications, unregisterPushToken } from '@/lib/notifications';
 import { extractApiError } from '@/lib/utils';
+import { signInWithGoogle, signOutGoogle } from '@/services/auth/googleAuthService';
 import type { LoginRequest, RegisterRequest, UserResponse } from '@/types/api';
 
 // ── State & Actions ──
@@ -89,6 +91,7 @@ export function useAuth() {
         await Promise.all([
           authApi.logout({ accessToken, refreshToken }),
           unregisterPushToken(),
+          signOutGoogle(),
         ]);
       }
     } catch {
@@ -128,6 +131,53 @@ export function useAuth() {
     }
   }, []);
 
+  const googleSignIn = useCallback(async () => {
+    dispatch({ type: 'LOADING' });
+    try {
+      // 1. Flujo nativo Google → Firebase ID Token
+      const { firebaseIdToken } = await signInWithGoogle();
+
+      // 2. Intercambiar Firebase ID Token por JWT propio del backend
+      const { data: res } = await authApi.googleSignIn({ firebaseIdToken });
+      if (!res.data) throw new Error(res.message || 'Error al iniciar sesión con Google');
+
+      const { accessToken, refreshToken } = res.data;
+      let user: UserResponse | null = res.data.user;
+
+      if (!user) {
+        useAuthStore.getState().setTokens(accessToken, refreshToken);
+        const { data: meRes } = await usersApi.getMe();
+        user = meRes.data;
+      }
+
+      if (user && (user.role === 'ADMIN' || user.role === 'MODERATOR')) {
+        dispatch({ type: 'ERROR', payload: 'Usa el panel de administración para acceder.' });
+        return false;
+      }
+
+      storeLogin(accessToken, refreshToken, user);
+      registerForPushNotifications().catch(console.error);
+      Toast.show({
+        type: 'success',
+        text1: '¡Bienvenido!',
+        text2: 'Sesión iniciada con Google.',
+      });
+      dispatch({ type: 'RESET' });
+      return true;
+    } catch (err: any) {
+      // Cancelación explícita del usuario (presionó "Atrás" en selector de cuenta)
+      if (err?.code === 'SIGN_IN_CANCELLED') {
+        dispatch({ type: 'RESET' });
+        return false;
+      }
+      dispatch({
+        type: 'ERROR',
+        payload: extractApiError(err, 'No se pudo iniciar sesión con Google. Inténtalo de nuevo.'),
+      });
+      return false;
+    }
+  }, [storeLogin]);
+
   const clearError = useCallback(() => dispatch({ type: 'RESET' }), []);
 
   return {
@@ -135,6 +185,7 @@ export function useAuth() {
     login,
     register,
     logout,
+    googleSignIn,
     sendOtp,
     verifyPhone,
     clearError,

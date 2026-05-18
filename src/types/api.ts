@@ -2,6 +2,8 @@
 
 export type Role = 'PASSENGER' | 'DRIVER' | 'ADMIN' | 'MODERATOR';
 
+export type AuthProvider = 'LOCAL' | 'GOOGLE';
+
 export type UserStatus = 'ACTIVE' | 'INACTIVE' | 'SUSPENDED' | 'BANNED';
 
 export type VerificationLevel = 'NONE' | 'BASIC' | 'IDENTITY' | 'FULL' | 'PREMIUM';
@@ -108,6 +110,19 @@ export interface VerifyPhoneRequest {
   otp: string;
 }
 
+export interface GoogleSignInRequest {
+  firebaseIdToken: string;
+}
+
+export interface PasswordResetRequestPayload {
+  email: string;
+}
+
+export interface PasswordResetConfirmPayload {
+  token: string;
+  newPassword: string;
+}
+
 export interface AuthResponse {
   accessToken: string;
   refreshToken: string;
@@ -128,6 +143,8 @@ export interface UserResponse {
   role: Role;
   status: UserStatus;
   phoneVerified: boolean;
+  provider: AuthProvider;
+  emailVerified: boolean;
 }
 
 export interface UpdateProfileRequest {

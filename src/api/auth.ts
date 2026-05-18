@@ -8,6 +8,9 @@ import type {
   LogoutRequest,
   UserResponse,
   VerifyPhoneRequest,
+  GoogleSignInRequest,
+  PasswordResetRequestPayload,
+  PasswordResetConfirmPayload,
 } from '@/types/api';
 
 const ENCRYPTED_REGISTER_FIELDS: (keyof RegisterRequest)[] = [
@@ -21,9 +24,9 @@ const ENCRYPTED_REGISTER_FIELDS: (keyof RegisterRequest)[] = [
 const ENCRYPTED_LOGIN_FIELDS: (keyof LoginRequest)[] = ['email', 'password'];
 const ENCRYPTED_USER_FIELDS: (keyof UserResponse)[] = ['firstName', 'lastName', 'email', 'phone'];
 
-async function decryptAuthUser<T extends { data: AuthResponse | null }>(
-  response: { data: T },
-): Promise<{ data: T }> {
+async function decryptAuthUser<T extends { data: AuthResponse | null; }>(
+  response: { data: T; },
+): Promise<{ data: T; }> {
   if (response.data.data?.user) {
     response.data.data.user = await decryptFields(response.data.data.user, ENCRYPTED_USER_FIELDS);
   }
@@ -52,4 +55,19 @@ export const authApi = {
 
   verifyPhone: (data: VerifyPhoneRequest) =>
     api.post<ApiResponse<unknown>>('/v1/auth/verify-phone', data),
+
+  googleSignIn: (data: GoogleSignInRequest) =>
+    api.post<ApiResponse<AuthResponse>>('/v1/auth/google', data).then(decryptAuthUser),
+
+  requestPasswordReset: (data: PasswordResetRequestPayload) =>
+    api.post<ApiResponse<null>>('/v1/auth/password-reset/request', data),
+
+  confirmPasswordReset: (data: PasswordResetConfirmPayload) =>
+    api.post<ApiResponse<null>>('/v1/auth/password-reset/confirm', data),
+
+  resendEmailVerification: () =>
+    api.post<ApiResponse<null>>('/v1/auth/verify-email/send'),
+
+  verifyEmail: (token: string) =>
+    api.get<ApiResponse<null>>('/v1/auth/verify-email', { params: { token } }),
 };

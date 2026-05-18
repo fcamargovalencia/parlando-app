@@ -4,20 +4,31 @@ import { useRouter } from 'expo-router';
 import { Mail, Lock, ArrowLeft } from 'lucide-react-native';
 import { Screen, Button, Input } from '@/components/ui';
 import { useAuth } from '@/hooks/useAuth';
+import { GoogleSignInButton } from '@/components/auth/GoogleSignInButton';
 import { Colors } from '@/constants/colors';
 
 export default function LoginScreen() {
   const router = useRouter();
-  const { loading, error, login, clearError } = useAuth();
+  const { loading, error, login, googleSignIn, clearError } = useAuth();
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [googleLoading, setGoogleLoading] = useState(false);
 
   const isValid = email.includes('@') && password.length >= 8;
 
   const handleLogin = async () => {
     if (!isValid) return;
     const success = await login({ email: email.trim(), password });
+    if (success) {
+      router.replace('/(tabs)/home');
+    }
+  };
+
+  const handleGoogleSignIn = async () => {
+    setGoogleLoading(true);
+    const success = await googleSignIn();
+    setGoogleLoading(false);
     if (success) {
       router.replace('/(tabs)/home');
     }
@@ -82,18 +93,42 @@ export default function LoginScreen() {
               onChangeText={setPassword}
               leftIcon={<Lock size={20} color={Colors.neutral[400]} />}
             />
+
+            {/* Forgot password */}
+            <TouchableOpacity
+              onPress={() => router.push('/(auth)/forgot-password')}
+              className="self-end -mt-1"
+            >
+              <Text className="text-sm text-primary-600 font-medium">
+                ¿Olvidaste tu contraseña?
+              </Text>
+            </TouchableOpacity>
           </View>
 
           {/* Submit */}
           <Button
             onPress={handleLogin}
             loading={loading}
-            disabled={!isValid}
+            disabled={!isValid || googleLoading}
             size="lg"
-            className="w-full mt-8"
+            className="w-full mt-6"
           >
             Iniciar sesión
           </Button>
+
+          {/* Divider */}
+          <View className="flex-row items-center gap-3 my-6">
+            <View className="flex-1 h-px bg-neutral-200" />
+            <Text className="text-sm text-neutral-400">o</Text>
+            <View className="flex-1 h-px bg-neutral-200" />
+          </View>
+
+          {/* Google Sign-In */}
+          <GoogleSignInButton
+            onPress={handleGoogleSignIn}
+            loading={googleLoading}
+            disabled={loading}
+          />
 
           {/* Links */}
           <View className="flex-row items-center justify-center mt-8">

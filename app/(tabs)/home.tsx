@@ -9,6 +9,7 @@ import { Screen, Avatar, DatePickerModal } from '@/components/ui';
 import { LocationPickerModal } from '@/components/LocationPickerModal';
 import { SearchCard } from '@/components/home/SearchCard';
 import { VerificationBanner } from '@/components/home/VerificationBanner';
+import { EmailVerificationBanner } from '@/components/home/EmailVerificationBanner';
 import { useHomeSearch } from '@/hooks/useHomeSearch';
 import { useHomeScreen } from '@/hooks/screens/useHomeScreen';
 import { Colors } from '@/constants/colors';
@@ -149,6 +150,9 @@ export default function HomeScreen() {
             onSearch={handleSearch}
           />
         </LinearGradient>
+
+        {/* Banner de verificación de email — no bloqueante, solo para usuarios LOCAL sin verificar */}
+        {user && <EmailVerificationBanner user={user} />}
 
         {isDriver && todayTrips.length > 0 && (
           <View className="px-5 pt-6 pb-2">

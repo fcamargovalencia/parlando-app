@@ -12,7 +12,20 @@
           "package_name": "com.parlando.app"
         }
       },
-      "oauth_client": [],
+      "oauth_client": [
+        {
+          "client_id": "798244937752-8qucv0rlqs6i1g5f60r61rerfjcv3q27.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.parlando.app",
+            "certificate_hash": "5e8f16062ea3cd2c4a0d547876baa6f38cabf625"
+          }
+        },
+        {
+          "client_id": "798244937752-ut530ioavcl24i1m6svdnk4h5begb11e.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
       "api_key": [
         {
           "current_key": "AIzaSyBPkvqR8vxWFmH3Y84EJvnikIHuejdqhVg"
@@ -20,7 +33,19 @@
       ],
       "services": {
         "appinvite_service": {
-          "other_platform_oauth_client": []
+          "other_platform_oauth_client": [
+            {
+              "client_id": "798244937752-bpdaas87haee597hq65oe1j5571pdgur.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "798244937752-ntoe7o2esk9fd8fpsoo07afap4rchk1m.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.parlando.app"
+              }
+            }
+          ]
         }
       }
     }

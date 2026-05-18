@@ -13,7 +13,11 @@ import { useChatWebSocket } from '@/hooks/useChatWebSocket';
 import { useNotificationNavigation } from '@/hooks/useNotificationNavigation';
 import { useNotificationsStore } from '@/stores/notifications-store';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
+import { configureGoogleSignIn } from '@/config/googleAuth';
 import type { NotificationPreferences } from '@/types/api';
+
+// Initialize Google Sign-In at app startup
+configureGoogleSignIn();
 
 // Notification types that are always shown regardless of user preferences.
 // These represent critical state changes the user must be aware of.

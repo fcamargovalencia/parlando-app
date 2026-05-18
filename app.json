@@ -83,7 +83,10 @@
         {
           "faceIDPermission": "Permite que ParlAndo use Face ID para inicio de sesión rápido."
         }
-      ]
+      ],
+      "@react-native-google-signin/google-signin",
+      "@react-native-firebase/app",
+      "@react-native-firebase/auth"
     ],
     "experiments": {
       "typedRoutes": true

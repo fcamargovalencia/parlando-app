@@ -4,6 +4,7 @@ import { Screen } from '@/components/ui';
 import { useProfileScreen } from '@/hooks/useProfileScreen';
 import { ProfileCard } from '@/components/profile/ProfileCard';
 import { ProfileMenuSections } from '@/components/profile/ProfileMenuSections';
+import { EmailVerificationBanner } from '@/components/home/EmailVerificationBanner';
 
 export default function ProfileScreen() {
   const { user, handleEdit, handleLogout } = useProfileScreen();
@@ -16,6 +17,8 @@ export default function ProfileScreen() {
         showsVerticalScrollIndicator={false}
       >
         <Text className="text-2xl font-bold text-neutral-900 mb-6">Mi perfil</Text>
+
+        {user && <EmailVerificationBanner user={user} />}
 
         <ProfileCard user={user} onEdit={handleEdit} />
 

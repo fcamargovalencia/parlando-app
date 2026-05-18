@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import {
   View,
   Text,
@@ -12,11 +12,24 @@ import { Mail, Lock, User, Phone, ArrowLeft } from 'lucide-react-native';
 import { Screen, Button, Input } from '@/components/ui';
 import { Colors } from '@/constants/colors';
 import { useRegisterScreen } from '@/hooks/screens/useRegisterScreen';
+import { useAuth } from '@/hooks/useAuth';
+import { GoogleSignInButton } from '@/components/auth/GoogleSignInButton';
 
 export default function RegisterScreen() {
   const router = useRouter();
   const { fields, errors, loading, error, clearError, updateField, handleRegister } =
     useRegisterScreen();
+  const { googleSignIn } = useAuth();
+  const [googleLoading, setGoogleLoading] = useState(false);
+
+  const handleGoogleSignIn = async () => {
+    setGoogleLoading(true);
+    const success = await googleSignIn();
+    setGoogleLoading(false);
+    if (success) {
+      router.replace('/(tabs)/home');
+    }
+  };
 
   return (
     <Screen>
@@ -132,11 +145,27 @@ export default function RegisterScreen() {
           <Button
             onPress={handleRegister}
             loading={loading}
+            disabled={googleLoading}
             size="lg"
             className="w-full mt-6"
           >
             Crear cuenta
           </Button>
+
+          {/* Divider */}
+          <View className="flex-row items-center gap-3 my-5">
+            <View className="flex-1 h-px bg-neutral-200" />
+            <Text className="text-sm text-neutral-400">o</Text>
+            <View className="flex-1 h-px bg-neutral-200" />
+          </View>
+
+          {/* Google Sign-In */}
+          <GoogleSignInButton
+            onPress={handleGoogleSignIn}
+            loading={googleLoading}
+            disabled={loading}
+            label="Registrarse con Google"
+          />
 
           <View className="flex-row items-center justify-center mt-6 mb-4">
             <Text className="text-sm text-neutral-500">¿Ya tienes cuenta? </Text>
