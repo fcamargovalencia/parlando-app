@@ -122,7 +122,38 @@ export function SubscriptionDetailView({ uiState, dispatch, subscription, bookin
         {trip && (
           <View className="mx-4 mt-4">
             <Card>
-              <CardHeader title="Ruta" action={<SubscriptionStatusBadge status={status} />} />
+              <CardHeader
+                title="Ruta"
+                action={
+                  <View className="flex-row items-center gap-3">
+                    <SubscriptionStatusBadge status={status} />
+                    {canPause && (
+                      <TouchableOpacity
+                        onPress={handlers.openPauseModal}
+                        style={{ width: 28, height: 28, borderRadius: 8, backgroundColor: Colors.neutral[100], alignItems: 'center', justifyContent: 'center' }}
+                      >
+                        <Pause size={20} color={Colors.neutral[600]} />
+                      </TouchableOpacity>
+                    )}
+                    {canResume && (
+                      <TouchableOpacity
+                        onPress={handlers.openResumeModal}
+                        style={{ width: 28, height: 28, borderRadius: 8, backgroundColor: Colors.neutral[100], alignItems: 'center', justifyContent: 'center' }}
+                      >
+                        <Play size={20} color={Colors.semantic.success} />
+                      </TouchableOpacity>
+                    )}
+                    {canCancel && (
+                      <TouchableOpacity
+                        onPress={handlers.openCancelModal}
+                        style={{ width: 28, height: 28, borderRadius: 8, backgroundColor: Colors.semantic.errorLight ?? Colors.neutral[100], alignItems: 'center', justifyContent: 'center' }}
+                      >
+                        <X size={20} color={Colors.semantic.error} />
+                      </TouchableOpacity>
+                    )}
+                  </View>
+                }
+              />
               <View className="gap-3">
                 <View className="flex-row items-start gap-2">
                   <MapPin size={15} color={Colors.primary[500]} />
@@ -217,37 +248,7 @@ export function SubscriptionDetailView({ uiState, dispatch, subscription, bookin
           </Card>
         </View>
 
-        {(canPause || canResume || canCancel) && (
-          <View className="mx-4 mt-4 gap-2">
-            {canPause && (
-              <Button
-                variant="outline"
-                icon={<Pause size={16} color={Colors.primary[600]} />}
-                onPress={handlers.openPauseModal}
-              >
-                Pausar suscripción
-              </Button>
-            )}
-            {canResume && (
-              <Button
-                variant="outline"
-                icon={<Play size={16} color={Colors.semantic.success} />}
-                onPress={handlers.openResumeModal}
-              >
-                Reactivar suscripción
-              </Button>
-            )}
-            {canCancel && (
-              <Button
-                variant="danger"
-                icon={<X size={16} color="#fff" />}
-                onPress={handlers.openCancelModal}
-              >
-                Cancelar suscripción
-              </Button>
-            )}
-          </View>
-        )}
+
       </ScrollView>
 
       <PauseModal
