@@ -1,4 +1,4 @@
-import auth from '@react-native-firebase/auth';
+import auth, { GoogleAuthProvider } from '@react-native-firebase/auth';
 import { GoogleSignin } from '@react-native-google-signin/google-signin';
 
 export interface GoogleSignInResult {
@@ -26,7 +26,7 @@ export const signInWithGoogle = async (): Promise<GoogleSignInResult> => {
   }
 
   // 4. Crear credencial de Firebase con el token de Google
-  const googleCredential = auth.GoogleAuthProvider.credential(idToken);
+  const googleCredential = GoogleAuthProvider.credential(idToken);
 
   // 5. Autenticar en Firebase (necesario para que Firebase genere su propio ID Token)
   const userCredential = await auth().signInWithCredential(googleCredential);

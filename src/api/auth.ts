@@ -69,5 +69,10 @@ export const authApi = {
     api.post<ApiResponse<null>>('/v1/auth/verify-email/send'),
 
   verifyEmail: (token: string) =>
-    api.get<ApiResponse<null>>('/v1/auth/verify-email', { params: { token } }),
+    api.get<ApiResponse<null>>('/v1/auth/verify-email', {
+      params: { token },
+      // The backend may return 302 (redirect to deep link) on success;
+      // treat any 2xx or 3xx as a successful verification.
+      validateStatus: (status) => status >= 200 && status < 400,
+    }),
 };

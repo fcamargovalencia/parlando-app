@@ -25,3 +25,4 @@ Object.assign(auth, authMock);
 
 module.exports = auth;
 module.exports.default = auth;
+module.exports.GoogleAuthProvider = authMock.GoogleAuthProvider;

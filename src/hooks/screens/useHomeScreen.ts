@@ -1,7 +1,8 @@
-import { useState, useCallback, useMemo } from 'react';
+import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import { useFocusEffect } from 'expo-router';
 import { useAuthStore } from '@/stores/auth-store';
 import { useRoutineTripsStore } from '@/stores/routine-trips-store';
+import { usersApi } from '@/api/users';
 import type { RecurrenceDay, RoutineTripResponse } from '@/types/api';
 
 const TODAY_DAY_MAP: Record<number, RecurrenceDay> = {
@@ -25,10 +26,23 @@ export function useHomeScreen() {
 
   const todayTrips = useMemo(() => getTodayRoutineTrips(myRoutineTrips), [myRoutineTrips]);
 
+  const setUser = useAuthStore((s) => s.setUser);
+
+  const userRef = useRef(user);
+  useEffect(() => { userRef.current = user; }, [user]);
+
   useFocusEffect(
     useCallback(() => {
       if (isDriver) fetchMineRoutine();
-    }, [isDriver, fetchMineRoutine]),
+      // Re-fetch profile on focus so the email-verification banner disappears
+      // as soon as the user returns after verifying their email.
+      const currentUser = userRef.current;
+      if (currentUser && !currentUser.emailVerified) {
+        usersApi.getMe()
+          .then(({ data: res }) => { if (res.data) setUser(res.data); })
+          .catch(() => { });
+      }
+    }, [isDriver, fetchMineRoutine, setUser]),
   );
 
   const onRefresh = useCallback(async () => {
